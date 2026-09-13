@@ -54,3 +54,18 @@ target_link_libraries(test_chunk_worker PRIVATE ${CURL_LIBRARIES} ${CMAKE_THREAD
 
 add_executable(test_resume_store test/test_resume_store.cpp src/ResumeStore.cpp src/ChunkManager.cpp)
 target_link_libraries(test_resume_store PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(test_progress_tracker test/test_progress_tracker.cpp src/ProgressTracker.cpp src/ChunkManager.cpp)
+target_link_libraries(test_progress_tracker PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+
+add_executable(test_download_task 
+    test/test_download_task.cpp 
+    src/DownloadTask.cpp 
+    src/ChunkWorker.cpp 
+    src/ChunkManager.cpp 
+    src/FileWriter.cpp 
+    src/ThreadPool.cpp 
+    src/ProgressTracker.cpp 
+    src/ResumeStore.cpp
+)
+target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
