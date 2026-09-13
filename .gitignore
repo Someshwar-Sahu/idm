@@ -1,1 +1,23 @@
 download-manager-full-design.md
+
+# Ignore CMake build directories and artifacts
+build/
+bin/
+lib/
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.dll
+
+# Ignore IDE / Editor temporary directories
+.vscode/
+.idea/
+*.ninja
+*.cmake
+
+# Ignore downloaded test binaries / sidecars
+*.bin
+*.idm
+*.progress.json
