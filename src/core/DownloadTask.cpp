@@ -36,6 +36,7 @@ bool DownloadTask::probe_url() {
 
     string response_headers;
     curl_easy_setopt(curl, CURLOPT_URL, m_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "IDM_Engine/1.0");
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &response_headers);
@@ -57,6 +58,18 @@ bool DownloadTask::probe_url() {
     curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
     if (cl > 0) {
         m_total_size = static_cast<uint64_t>(cl);
+    }
+
+    if (m_total_size == 0) {
+        size_t cl_pos = response_headers.find("Content-Length: ");
+        if (cl_pos == string::npos) cl_pos = response_headers.find("content-length: ");
+        if (cl_pos != string::npos) {
+            size_t end_line = response_headers.find("\r\n", cl_pos);
+            string cl_str = response_headers.substr(cl_pos + 16, end_line - (cl_pos + 16));
+            try {
+                m_total_size = std::stoull(cl_str);
+            } catch (...) {}
+        }
     }
 
     curl_easy_cleanup(curl);

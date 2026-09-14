@@ -50,7 +50,7 @@ private:
 
     uint64_t m_total_size{0};
     std::string m_etag;
-    bool m_supports_ranges{true};
+    bool m_supports_ranges{false};
 
     std::atomic<DownloadStatus> m_status{DownloadStatus::NotStarted};
     std::string m_last_error;

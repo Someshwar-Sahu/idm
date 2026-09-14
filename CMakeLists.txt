@@ -37,35 +37,59 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src)
+include_directories(src src/core src/config src/queue src/native_host)
 
 # ThreadPool Unit Test
-add_executable(test_threadpool test/test_threadpool.cpp src/ThreadPool.cpp)
+add_executable(test_threadpool test/test_threadpool.cpp src/core/ThreadPool.cpp)
 target_link_libraries(test_threadpool PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test_chunk_manager test/test_chunk_manager.cpp src/ChunkManager.cpp)
+add_executable(test_chunk_manager test/test_chunk_manager.cpp src/core/ChunkManager.cpp)
 target_link_libraries(test_chunk_manager PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test_file_writer test/test_file_writer.cpp src/FileWriter.cpp src/ThreadPool.cpp)
+add_executable(test_file_writer test/test_file_writer.cpp src/core/FileWriter.cpp src/core/ThreadPool.cpp)
 target_link_libraries(test_file_writer PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test_chunk_worker test/test_chunk_worker.cpp src/ChunkWorker.cpp src/ChunkManager.cpp src/FileWriter.cpp)
+add_executable(test_chunk_worker test/test_chunk_worker.cpp src/core/ChunkWorker.cpp src/core/ChunkManager.cpp src/core/FileWriter.cpp)
 target_link_libraries(test_chunk_worker PRIVATE ${CURL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test_resume_store test/test_resume_store.cpp src/ResumeStore.cpp src/ChunkManager.cpp)
+add_executable(test_resume_store test/test_resume_store.cpp src/core/ResumeStore.cpp src/core/ChunkManager.cpp)
 target_link_libraries(test_resume_store PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test_progress_tracker test/test_progress_tracker.cpp src/ProgressTracker.cpp src/ChunkManager.cpp)
+add_executable(test_progress_tracker test/test_progress_tracker.cpp src/core/ProgressTracker.cpp src/core/ChunkManager.cpp)
 target_link_libraries(test_progress_tracker PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(test_download_task 
     test/test_download_task.cpp 
-    src/DownloadTask.cpp 
-    src/ChunkWorker.cpp 
-    src/ChunkManager.cpp 
-    src/FileWriter.cpp 
-    src/ThreadPool.cpp 
-    src/ProgressTracker.cpp 
-    src/ResumeStore.cpp
+    src/core/DownloadTask.cpp 
+    src/core/ChunkWorker.cpp 
+    src/core/ChunkManager.cpp 
+    src/core/FileWriter.cpp 
+    src/core/ThreadPool.cpp 
+    src/core/ProgressTracker.cpp 
+    src/core/ResumeStore.cpp
 )
 target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+# SettingsManager Unit Test
+add_executable(test_settings_manager test/test_settings_manager.cpp src/config/SettingsManager.cpp)
+target_link_libraries(test_settings_manager PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+# DownloadQueue Unit Test
+add_executable(test_download_queue 
+    test/test_download_queue.cpp 
+    src/queue/DownloadQueue.cpp 
+    src/core/DownloadTask.cpp 
+    src/core/ChunkWorker.cpp 
+    src/core/ChunkManager.cpp 
+    src/core/FileWriter.cpp 
+    src/core/ThreadPool.cpp 
+    src/core/ProgressTracker.cpp 
+    src/core/ResumeStore.cpp
+)
+target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+# NativeHost Unit Test
+add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp)
+target_link_libraries(test_native_host PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+

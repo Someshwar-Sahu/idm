@@ -54,10 +54,18 @@ bool ChunkWorker::download() {
     curl_easy_setopt(m_curl, CURLOPT_USERAGENT, "IDM_Engine/1.0");
 
 
-    stringstream range_ss;
-    range_ss << (m_chunk.start_byte + m_chunk.bytes_downloaded)<< "-"<< m_chunk.end_byte;
-    string range_str = range_ss.str();
-    curl_easy_setopt(m_curl, CURLOPT_RANGE, range_str.c_str());
+    uint64_t total_size = m_chunk_manager.get_total_file_size();
+    bool is_full_file_single_chunk = (m_chunk.start_byte == 0 && 
+                                      m_chunk.bytes_downloaded == 0 && 
+                                      total_size > 0 && 
+                                      m_chunk.end_byte == total_size - 1);
+
+    if (!is_full_file_single_chunk) {
+        stringstream range_ss;
+        range_ss << (m_chunk.start_byte + m_chunk.bytes_downloaded) << "-" << m_chunk.end_byte;
+        string range_str = range_ss.str();
+        curl_easy_setopt(m_curl, CURLOPT_RANGE, range_str.c_str());
+    }
 
     WriteContext ctx;
     ctx.file_writer = &m_file_writer;

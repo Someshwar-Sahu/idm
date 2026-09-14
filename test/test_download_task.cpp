@@ -12,8 +12,8 @@ int main() {
 
     cout<<"[Test] Starting DownloadTask verification test..."<<endl;
 
-    string test_url = "https://raw.githubusercontent.com/curl/curl/master/README.md";
-    string dest_file = "downloaded_readme.md";
+    string test_url = "https://httpbin.org/bytes/2048";
+    string dest_file = "downloaded_test.bin";
 
     DownloadTask task(test_url, dest_file, 4);
 
