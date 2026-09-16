@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Download Manager Pro</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Top Menu Bar with Dropdown Submenus -->
+    <div class="top-menu-bar">
+        <div class="menu-item">
+            Tasks
+            <div class="dropdown-menu">
+                <div class="dropdown-item" id="menu-add-url">➕ Add New URL</div>
+                <div class="dropdown-item" id="menu-batch-add">📁 Batch Add URLs</div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" id="menu-exit">❌ Exit</div>
+            </div>
+        </div>
+
+        <div class="menu-item">
+            File
+            <div class="dropdown-menu">
+                <div class="dropdown-item" id="menu-open-downloads">📂 Open Downloads Folder</div>
+                <div class="dropdown-item" id="menu-open-cache">💾 Open Cache Folder (E:\IDM\Cache)</div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" id="menu-clear-cache">🗑️ Clear Cache Now</div>
+            </div>
+        </div>
+
+        <div class="menu-item">
+            Downloads
+            <div class="dropdown-menu">
+                <div class="dropdown-item" id="menu-resume">▶️ Resume Download</div>
+                <div class="dropdown-item" id="menu-pause">⏸️ Pause Download</div>
+                <div class="dropdown-item" id="menu-stop-all">⏹️ Stop All Tasks</div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" id="menu-delete">🗑️ Delete Selected</div>
+            </div>
+        </div>
+
+        <div class="menu-item">
+            View
+            <div class="dropdown-menu">
+                <div class="dropdown-item" id="menu-toggle-theme">☀️/🌙 Toggle Day Light / Dark Theme</div>
+                <div class="dropdown-item" id="menu-toggle-sidebar">📐 Toggle Sidebar</div>
+            </div>
+        </div>
+
+        <div class="menu-item" id="menu-options-btn">Options</div>
+        <div class="menu-item" id="menu-scheduler-btn">Scheduler</div>
+    </div>
+
+    <!-- Action Toolbar -->
+    <div class="toolbar">
+        <button class="btn btn-primary" id="btn-add-url">➕ Add URL</button>
+        <button class="btn" id="btn-resume">▶️ Resume</button>
+        <button class="btn" id="btn-pause">⏸️ Pause</button>
+        <button class="btn" id="btn-stop-all">⏹️ Stop All</button>
+        <button class="btn" id="btn-delete">🗑️ Delete</button>
+        <button class="btn" id="btn-options">⚙️ Options</button>
+        <button class="btn" id="btn-scheduler">📅 Scheduler</button>
+        <button class="btn" id="btn-theme-toggle">☀️ Daylight Mode</button>
+
+        <select class="form-select" id="speed-limiter-select" style="width: 140px; padding: 4px 8px;">
+            <option value="uncapped">🚀 Max Speed</option>
+            <option value="auto_qos">🧠 Smart QoS</option>
+            <option value="manual_cap">🐢 Cap: 2 MB/s</option>
+        </select>
+
+        <div class="badge-toggle" id="interception-toggle">
+            <span id="interception-dot">🟢</span>
+            <span id="interception-label">Interception: ON</span>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Split View -->
+    <div class="main-dashboard">
+        <!-- Sidebar Category Navigation -->
+        <div class="sidebar" id="sidebar-container">
+            <div class="sidebar-title">Categories</div>
+            <div class="nav-item active" data-filter="all">📁 All Downloads</div>
+            <div class="nav-item" data-filter="unfinished">⏳ Unfinished</div>
+            <div class="nav-item" data-filter="finished">✅ Finished</div>
+
+            <div class="sidebar-title" style="margin-top: 12px;">Types</div>
+            <div class="nav-item" data-category="Documents">📄 Documents</div>
+            <div class="nav-item" data-category="Videos">🎬 Videos</div>
+            <div class="nav-item" data-category="Music">🎵 Music</div>
+            <div class="nav-item" data-category="Compressed">📦 Compressed</div>
+            <div class="nav-item" data-category="Programs">⚙️ Programs</div>
+        </div>
+
+        <!-- Content Table Area -->
+        <div class="content-area">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Category</th>
+                            <th>Size</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Speed</th>
+                            <th>ETA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="download-table-body">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add URL Modal -->
+    <div class="modal-overlay" id="add-url-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Enter New Download URL</div>
+                <div class="modal-close" id="btn-close-url-modal">✕</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Download URL:</label>
+                <input type="text" class="form-input" id="input-download-url" placeholder="https://example.com/files/archive.zip">
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Category:</label>
+                    <select class="form-select" id="input-category">
+                        <option value="Compressed">Compressed</option>
+                        <option value="Programs">Programs</option>
+                        <option value="Videos">Videos</option>
+                        <option value="Documents">Documents</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Parallel Connections:</label>
+                    <select class="form-select" id="input-threads">
+                        <option value="8">8 Streams (Default)</option>
+                        <option value="16">16 Streams (High Speed)</option>
+                        <option value="32">32 Streams (Maximum)</option>
+                        <option value="1">1 Stream (Single)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="btn-cancel-add">Cancel</button>
+                <button class="btn btn-primary" id="btn-submit-download">Start Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Options Modal -->
+    <div class="modal-overlay" id="options-modal">
+        <div class="modal-box" style="width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">IDM Configuration & Settings</div>
+                <div class="modal-close" id="btn-close-options-modal">✕</div>
+            </div>
+            <div class="modal-tabs">
+                <div class="tab-item active" data-tab="tab-general">General</div>
+                <div class="tab-item" data-tab="tab-filetypes">File Types</div>
+                <div class="tab-item" data-tab="tab-connection">Connection</div>
+                <div class="tab-item" data-tab="tab-saveto">Save To</div>
+                <div class="tab-item" data-tab="tab-proxy">Proxy</div>
+            </div>
+
+            <!-- General Tab -->
+            <div class="tab-content active" id="tab-general">
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                    <input type="checkbox" checked id="chk-autostart"> Launch IDM on System Startup
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                    <input type="checkbox" checked id="chk-interception"> Automatically Intercept Browser Downloads
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                    <input type="checkbox" checked id="chk-antivirus"> Perform Antivirus Scan After Completion
+                </label>
+            </div>
+
+            <!-- File Types Tab -->
+            <div class="tab-content" id="tab-filetypes">
+                <div class="form-group">
+                    <label class="form-label">Automatically Intercept Following Extensions:</label>
+                    <input type="text" class="form-input" value="ZIP RAR EXE ISO MKV MP4 MP3 PDF DOCX">
+                </div>
+            </div>
+
+            <!-- Connection Tab -->
+            <div class="tab-content" id="tab-connection">
+                <div class="form-group">
+                    <label class="form-label">Default Connections per Task:</label>
+                    <select class="form-select">
+                        <option value="8">8 Connections</option>
+                        <option value="16">16 Connections</option>
+                        <option value="32">32 Connections</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Save To Tab -->
+            <div class="tab-content" id="tab-saveto">
+                <div class="form-group">
+                    <label class="form-label">Default Download Directory:</label>
+                    <input type="text" class="form-input" value="C:\Downloads">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Centralized Cache Path:</label>
+                    <input type="text" class="form-input" value="E:\IDM\Cache">
+                </div>
+            </div>
+
+            <!-- Proxy Tab -->
+            <div class="tab-content" id="tab-proxy">
+                <div class="form-group">
+                    <label class="form-label">Proxy Mode:</label>
+                    <select class="form-select">
+                        <option value="none">Direct Connection (No Proxy)</option>
+                        <option value="system">Use System Proxy</option>
+                        <option value="socks5">SOCKS5 Proxy</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-save-options">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheduler Modal -->
+    <div class="modal-overlay" id="scheduler-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">Multi-Queue Download Scheduler</div>
+                <div class="modal-close" id="btn-close-scheduler-modal">✕</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Start Queue Execution Time:</label>
+                <input type="time" class="form-input" value="02:00">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Action Upon Queue Completion:</label>
+                <select class="form-select">
+                    <option value="none">Do Nothing</option>
+                    <option value="shutdown">Turn Off Computer (Shutdown)</option>
+                    <option value="sleep">Sleep Mode</option>
+                    <option value="sound">Play Notification Sound</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-save-scheduler">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-Chunk Visualizer Modal -->
+    <div class="modal-overlay" id="chunk-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title" id="chunk-modal-title">Per-Chunk Multi-Thread Visualizer</div>
+                <div class="modal-close" id="btn-close-chunk-modal">✕</div>
+            </div>
+            <div id="chunk-visualizer-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/chunk_visualizer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -37,7 +37,7 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src src/core src/config src/queue src/native_host)
+include_directories(src src/core src/config src/queue src/native_host src/gui)
 
 # ThreadPool Unit Test
 add_executable(test_threadpool test/test_threadpool.cpp src/core/ThreadPool.cpp)
@@ -91,5 +91,25 @@ target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_jso
 # NativeHost Unit Test
 add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp)
 target_link_libraries(test_native_host PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+# MainWindow Unit Test
+add_executable(test_main_window test/test_main_window.cpp src/gui/MainWindow.cpp)
+target_link_libraries(test_main_window PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+
+# IDM Main Desktop Application Executable
+add_executable(idm_app 
+    src/main.cpp 
+    src/gui/MainWindow.cpp 
+    src/queue/DownloadQueue.cpp 
+    src/config/SettingsManager.cpp
+    src/core/DownloadTask.cpp 
+    src/core/ChunkWorker.cpp 
+    src/core/ChunkManager.cpp 
+    src/core/FileWriter.cpp 
+    src/core/ThreadPool.cpp 
+    src/core/ProgressTracker.cpp 
+    src/core/ResumeStore.cpp
+)
+target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
 
 
