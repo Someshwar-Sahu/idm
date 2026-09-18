@@ -22,3 +22,6 @@ lib/
 *.bin
 *.idm
 *.progress.json
+
+# Ignore local snapshot archives
+*.zip

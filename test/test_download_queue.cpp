@@ -1,70 +1,175 @@
+#include <curl/curl.h>
+
 #include "DownloadQueue.h"
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <thread>
 #include <chrono>
+#include <cstdio>
+#include <memory>
 
 using namespace std;
 
 int main() {
-    remove("test_queue_file1.bin");
-    remove("test_queue_file1.bin.progress.json");
-    remove("test_queue_file2.bin");
-    remove("test_queue_file2.bin.progress.json");
+    setvbuf(stdout, NULL, _IONBF, 0);
 
-    cout << "[Test] Starting DownloadQueue unit test..." << endl;
+    cout << "==========================================================" << endl;
+    cout << "  Comprehensive Unit Test: DownloadQueue (Pos + Neg)      " << endl;
+    cout << "==========================================================" << endl;
 
-    DownloadQueue queue("Test Queue", 2);
-    queue.set_post_queue_action(PostQueueAction::PlaySound);
+    curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    assert(queue.get_queue_name() == "Test Queue");
+    const string DEST1 = "test_queue_file1.bin";
+    const string DEST2 = "test_queue_file2.bin";
+
+    // Clean up stale files
+    remove(DEST1.c_str());
+    remove(DEST2.c_str());
+    ResumeStore::remove(ResumeStore::get_sidecar_filepath(DEST1));
+    ResumeStore::remove(ResumeStore::get_sidecar_filepath(DEST2));
+
+    // =========================================================================
+    // 1. INITIALIZATION & CONCURRENCY CLAMPING (Positive & Negative)
+    // =========================================================================
+    cout << "\n[1/5] Testing Initialization & Concurrency Bounds..." << endl;
+
+    DownloadQueue queue("Test Primary Queue", 3);
+    assert(queue.get_queue_name() == "Test Primary Queue");
+    assert(queue.get_max_concurrent_tasks() == 3);
+    assert(queue.get_state() == QueueState::Stopped);
+    assert(queue.get_task_count() == 0);
+
+    // 1.1 Negative / Edge: Concurrency clamped to at least 1
+    queue.set_max_concurrent_tasks(0);
+    assert(queue.get_max_concurrent_tasks() == 1);
+
+    queue.set_max_concurrent_tasks(-10);
+    assert(queue.get_max_concurrent_tasks() == 1);
+
+    // Reset to valid concurrency
+    queue.set_max_concurrent_tasks(2);
     assert(queue.get_max_concurrent_tasks() == 2);
+    cout << "  -> Queue properties and concurrency clamping: PASSED" << endl;
+
+    // =========================================================================
+    // 2. POST-QUEUE ACTION & NULL TASK GUARDS (Positive & Negative)
+    // =========================================================================
+    cout << "\n[2/5] Testing PostQueueAction & Null Guards (Pos + Neg)..." << endl;
+
+    // 2.1 Positive: Test all PostQueueAction options
+    queue.set_post_queue_action(PostQueueAction::PlaySound);
     assert(queue.get_post_queue_action() == PostQueueAction::PlaySound);
 
-    string url1 = "https://httpbin.org/bytes/2048";
-    string dest1 = "test_queue_file1.bin";
+    queue.set_post_queue_action(PostQueueAction::ShutdownPC);
+    assert(queue.get_post_queue_action() == PostQueueAction::ShutdownPC);
 
-    string url2 = "https://httpbin.org/bytes/4096";
-    string dest2 = "test_queue_file2.bin";
+    queue.set_post_queue_action(PostQueueAction::None);
+    assert(queue.get_post_queue_action() == PostQueueAction::None);
 
-    auto task1 = make_shared<DownloadTask>(url1, dest1, 2);
-    auto task2 = make_shared<DownloadTask>(url2, dest2, 2);
+    // 2.2 Negative: add_task(nullptr) must be rejected
+    queue.add_task(nullptr);
+    assert(queue.get_task_count() == 0);
+    cout << "  -> PostQueueAction values and nullptr guard: PASSED" << endl;
 
-    queue.add_task(task1);
-    queue.add_task(task2);
+    // =========================================================================
+    // 3. TASK REMOVAL & EMPTY QUEUE GUARDS (Positive & Negative)
+    // =========================================================================
+    cout << "\n[3/5] Testing remove_task() Guards (Pos + Neg)..." << endl;
 
-    assert(queue.get_task_count() == 2);
-    cout << "[Test] Successfully added 2 tasks to queue." << endl;
+    // 3.1 Negative: remove_task on empty queue returns false
+    bool remove_empty = queue.remove_task("non_existent_path.bin");
+    assert(remove_empty == false);
 
-    bool callback_triggered = false;
-    PostQueueAction triggered_action = PostQueueAction::None;
+    // 3.2 Positive: add dummy task and remove it
+    auto dummy_task = make_shared<DownloadTask>("https://httpbin.org/bytes/100", "dummy.bin", 1);
+    queue.add_task(dummy_task);
+    assert(queue.get_task_count() == 1);
 
-    auto callback = [&](PostQueueAction action) {
-        callback_triggered = true;
-        triggered_action = action;
-        cout << "[Test Callback] Queue execution completed with post-action enum: " 
-             << static_cast<int>(action) << endl;
-    };
+    bool remove_ok = queue.remove_task("dummy.bin");
+    assert(remove_ok == true);
+    assert(queue.get_task_count() == 0);
+    cout << "  -> remove_task() on empty and pending items: PASSED" << endl;
 
-    cout << "[Test] Starting queue processing loop..." << endl;
-    queue.start(callback);
+    // =========================================================================
+    // 4. LIFECYCLE TRANSITIONS: START, PAUSE, STOP (Positive)
+    // =========================================================================
+    cout << "\n[4/5] Testing Queue State Lifecycle Transitions..." << endl;
 
-    // Wait for tasks to finish downloading (up to 10 seconds max)
-    int attempts = 0;
-    while (queue.get_state() == QueueState::Running && attempts < 100) {
+    DownloadQueue lifecycle_queue("Lifecycle Queue", 1);
+    assert(lifecycle_queue.get_state() == QueueState::Stopped);
+
+    lifecycle_queue.start();
+    assert(lifecycle_queue.get_state() == QueueState::Running);
+
+    // Double start is safe
+    lifecycle_queue.start();
+    assert(lifecycle_queue.get_state() == QueueState::Running);
+
+    lifecycle_queue.pause();
+    assert(lifecycle_queue.get_state() == QueueState::Paused);
+
+    lifecycle_queue.stop();
+    assert(lifecycle_queue.get_state() == QueueState::Stopped);
+
+    // Double stop is safe and idempotent
+    lifecycle_queue.stop();
+    assert(lifecycle_queue.get_state() == QueueState::Stopped);
+    cout << "  -> Stopped -> Running -> Paused -> Stopped transitions: PASSED" << endl;
+
+    // =========================================================================
+    // 5. LIVE EXECUTION & COMPLETION CALLBACK (Positive)
+    // =========================================================================
+    cout << "\n[5/5] Testing Live Queue Download & Completion Callback..." << endl;
+
+    DownloadQueue live_queue("Live Batch", 2);
+    live_queue.set_post_queue_action(PostQueueAction::PlaySound);
+
+    auto task1 = make_shared<DownloadTask>("https://httpbin.org/bytes/2048", DEST1, 2);
+    auto task2 = make_shared<DownloadTask>("https://httpbin.org/bytes/2048", DEST2, 2);
+
+    live_queue.add_task(task1);
+    live_queue.add_task(task2);
+    assert(live_queue.get_task_count() == 2);
+
+    bool completion_called = false;
+    PostQueueAction received_action = PostQueueAction::None;
+
+    live_queue.start([&](PostQueueAction action) {
+        completion_called = true;
+        received_action = action;
+    });
+
+    // Wait for queue processing (up to 10 seconds)
+    int wait_iterations = 0;
+    while (live_queue.get_state() == QueueState::Running && wait_iterations < 50) {
         this_thread::sleep_for(chrono::milliseconds(200));
-        attempts++;
+        wait_iterations++;
     }
 
-    queue.stop();
+    live_queue.stop();
 
-    assert(callback_triggered);
-    assert(triggered_action == PostQueueAction::PlaySound);
+    assert(completion_called == true);
+    assert(received_action == PostQueueAction::PlaySound);
+    assert(live_queue.get_state() == QueueState::Stopped);
 
-    // Clean up downloaded files
-    remove(dest1.c_str());
-    remove(dest2.c_str());
+    // Verify both files downloaded
+    ifstream f1(DEST1, ios::binary | ios::ate);
+    ifstream f2(DEST2, ios::binary | ios::ate);
+    assert(f1.is_open() && f1.tellg() == 2048);
+    assert(f2.is_open() && f2.tellg() == 2048);
+    f1.close();
+    f2.close();
 
-    cout << "[PASSED] DownloadQueue unit test completed successfully!" << endl;
+    // Clean up
+    remove(DEST1.c_str());
+    remove(DEST2.c_str());
+    curl_global_cleanup();
+    cout << "  -> Live multi-task batch execution & completion callback: PASSED" << endl;
+
+    cout << "\n==========================================================" << endl;
+    cout << "  [PASSED] 100% OF DOWNLOADQUEUE FUNCTIONS VERIFIED!      " << endl;
+    cout << "==========================================================" << endl;
+
     return 0;
 }

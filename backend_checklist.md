@@ -32,9 +32,9 @@ This document tracks all **mistakes/gaps identified in the current code** and se
 ## Part 2: Complete Master Backend Implementation Checklist (All 28 Tasks)
 
 ### 🔹 Phase 2A: Engine Core Hardening (`src/core/`)
-- [ ] **Task 1: Dynamic Chunk Stealing in `ChunkManager`**
-  - Implement `steal_slowest_chunk()` so idle threads cut active chunks with >10 MB remaining in half and finish in parallel.
-  - *Verification Target*: `test_chunk_manager`
+- [x] **Task 1: Dynamic Chunk Stealing in `ChunkManager`** ✅
+  - Implemented `steal_slowest_chunk()` so idle threads cut active chunks with >10 MB remaining in half and finish in parallel.
+  - *Verification Target*: `test_chunk_manager` (PASSED ✅)
 - [ ] **Task 2: Token-Bucket Speed Throttler in `ChunkWorker`**
   - Implement token-bucket byte rate limiter to enforce user-configured manual speed caps and Auto-QoS limits.
   - *Verification Target*: `test_chunk_worker`

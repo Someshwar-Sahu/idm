@@ -38,9 +38,15 @@ SpeedLimiterMode AppSettings::string_to_speed_mode(const string &str) {
     return SpeedLimiterMode::Uncapped;
 }
 
+SettingsManager::SettingsManager() {
+    reset_to_defaults();
+}
+
 SettingsManager::SettingsManager(const string &config_filepath)
     : m_config_filepath(config_filepath) {
-    load();
+    if (!load()) {
+        reset_to_defaults();
+    }
 }
 
 bool SettingsManager::load(const string &config_filepath) {

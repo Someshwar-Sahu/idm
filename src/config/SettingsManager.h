@@ -39,7 +39,7 @@ struct AppSettings {
 
 class SettingsManager{
 public: 
-    SettingsManager() = default ;
+    SettingsManager() ;
     explicit SettingsManager(const std::string &config_filepath);
 
     bool load(const std::string &config_filepath = "");

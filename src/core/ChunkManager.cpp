@@ -49,6 +49,63 @@ optional<Chunk> ChunkManager::get_next_pending_chunk() {
     return nullopt;
 }
 
+std::optional<Chunk> ChunkManager::steal_slowest_chunk(uint64_t min_steal_threshold){
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    int best_donor_id = -1;
+    uint64_t max_remaining_bytes = 0;
+
+    for(size_t i=0;i<m_chunks.size(); ++i){
+        if(m_chunks[i].state == ChunkState::InProgress){
+            uint64_t total = m_chunks[i].total_bytes();
+            uint64_t downloaded = m_chunks[i].bytes_downloaded;
+            if(total > downloaded){
+                uint64_t remaining = total - downloaded;
+                if(remaining > max_remaining_bytes && remaining >= min_steal_threshold){
+                    max_remaining_bytes = remaining;
+                    best_donor_id = static_cast<int>(i);
+                }
+            }
+        }
+    }
+
+    if (best_donor_id == -1){
+        return std::nullopt;
+    }
+
+    Chunk &donor = m_chunks[best_donor_id];
+    uint64_t current_pos = donor.start_byte + donor.bytes_downloaded;
+    uint64_t remaining = (donor.end_byte >= current_pos) ? (donor.end_byte - current_pos + 1): 0;
+
+    if(remaining< min_steal_threshold){
+        return std::nullopt;
+    }
+
+    uint64_t half = remaining /2;
+    uint64_t new_chunk_start = current_pos + half;
+    uint64_t new_chunk_end = donor.end_byte;
+
+    donor.end_byte = new_chunk_start -1;
+
+    Chunk stolen;
+    stolen.id = static_cast<int>(m_chunks.size());
+    stolen.start_byte = new_chunk_start;
+    stolen.end_byte = new_chunk_end;
+    stolen.bytes_downloaded = 0;
+    stolen.state = ChunkState::InProgress;
+    stolen.retry_count =0;
+    m_chunks.push_back(stolen);
+    return stolen;
+}
+
+uint64_t ChunkManager::get_chunk_end_byte(int chunk_id) const{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(chunk_id>=0 && chunk_id <static_cast<int>(m_chunks.size())){
+        return m_chunks[chunk_id].end_byte;
+    }
+    return 0;
+}
+
 void ChunkManager::update_chunk_progress(int chunk_id, uint64_t bytes_downloaded) {
     lock_guard<mutex> lock(m_mutex);
     if (chunk_id >= 0 && chunk_id < static_cast<int>(m_chunks.size())) {
