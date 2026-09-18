@@ -19,7 +19,7 @@ int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     cout << "==========================================================" << endl;
-    cout << "  Comprehensive Unit Test: FileWriter (Pos + Neg)         " << endl;
+    cout << "  Comprehensive Unit Test: FileWriter (Tasks 1 - 5)       " << endl;
     cout << "==========================================================" << endl;
 
     const string TEST_FILE_1 = "test_fw_output1.bin";
@@ -34,7 +34,7 @@ int main() {
     // =========================================================================
     // 1. PREALLOCATION TESTS (Positive & Negative)
     // =========================================================================
-    cout << "\n[1/5] Testing preallocate_file() (Pos + Neg)..." << endl;
+    cout << "\n[1/6] Testing preallocate_file() (Pos + Neg)..." << endl;
 
     // 1.1 Positive: Normal preallocation (1000 bytes)
     constexpr uint64_t FILE_SIZE = 1000;
@@ -59,7 +59,7 @@ int main() {
     // =========================================================================
     // 2. OPEN & HANDLE GUARDS (Positive & Negative)
     // =========================================================================
-    cout << "\n[2/5] Testing open() & is_open() (Pos + Neg)..." << endl;
+    cout << "\n[2/6] Testing open() & is_open() (Pos + Neg)..." << endl;
 
     FileWriter writer;
     assert(writer.is_open() == false);
@@ -95,7 +95,7 @@ int main() {
     // =========================================================================
     // 3. CLOSE IDEMPOTENCE & DESTRUCTOR (Positive)
     // =========================================================================
-    cout << "\n[3/5] Testing close() Idempotence..." << endl;
+    cout << "\n[3/6] Testing close() Idempotence..." << endl;
 
     writer.close();
     assert(writer.is_open() == false);
@@ -108,7 +108,7 @@ int main() {
     // =========================================================================
     // 4. WRITE AT OFFSET GUARDS & VALIDATION (Positive & Negative)
     // =========================================================================
-    cout << "\n[4/5] Testing write_at_offset() Guards (Pos + Neg)..." << endl;
+    cout << "\n[4/6] Testing write_at_offset() Guards (Pos + Neg)..." << endl;
 
     char sample_data[64];
     memset(sample_data, 'X', sizeof(sample_data));
@@ -146,7 +146,7 @@ int main() {
     // =========================================================================
     // 5. CONCURRENT MULTI-THREADED WRITES (Positive Integrity)
     // =========================================================================
-    cout << "\n[5/5] Testing Multi-Threaded Concurrent Offset Writes..." << endl;
+    cout << "\n[5/6] Testing Multi-Threaded Concurrent Offset Writes..." << endl;
 
     // Re-preallocate fresh 1000-byte file
     FileWriter::preallocate_file(TEST_FILE_1, FILE_SIZE);
@@ -187,13 +187,62 @@ int main() {
     infile.close();
     cout << "  -> Multi-threaded concurrency & byte-for-byte readback: PASSED" << endl;
 
+    // =========================================================================
+    // 6. TASK 5: DUPLICATE FILE COLLISION & AUTO-RENAMING (Pos + Neg)
+    // =========================================================================
+        // =========================================================================
+    // 6. TASK 5: DUPLICATE FILE COLLISION & AUTO-RENAMING (Pos + Neg)
+    // =========================================================================
+    cout << "\n[6/6] Testing Duplicate File Collision & Auto-Renaming (Task 5)..." << endl;
+
+    const string COLLISION_BASE = "collision_test.zip";
+    const string COLLISION_1 = "collision_test (1).zip";
+    const string COLLISION_2 = "collision_test (2).zip";
+    const string NO_EXT_BASE = "collision_test_noext";
+    const string NO_EXT_1 = "collision_test_noext (1)";
+
+    // Clean up stale files
+    remove(COLLISION_BASE.c_str());
+    remove(COLLISION_1.c_str());
+    remove(COLLISION_2.c_str());
+    remove(NO_EXT_BASE.c_str());
+    remove(NO_EXT_1.c_str());
+
+    // 6.1 Fast lagless existence checks
+    assert(FileWriter::file_exists(COLLISION_BASE) == false);
+
+    // 6.2 Non-existent file keeps original name
+    assert(FileWriter::generate_unique_filepath(COLLISION_BASE) == COLLISION_BASE);
+
+    // 6.3 When base file exists, file_exists is true and generates " (1)"
+    FileWriter::preallocate_file(COLLISION_BASE, 10);
+    assert(FileWriter::file_exists(COLLISION_BASE) == true);
+    assert(FileWriter::generate_unique_filepath(COLLISION_BASE) == COLLISION_1);
+
+    // 6.4 When both base and " (1)" exist, generates " (2)"
+    FileWriter::preallocate_file(COLLISION_1, 10);
+    assert(FileWriter::generate_unique_filepath(COLLISION_BASE) == COLLISION_2);
+
+    // 6.5 Handles extension-less files
+    assert(FileWriter::generate_unique_filepath(NO_EXT_BASE) == NO_EXT_BASE);
+    FileWriter::preallocate_file(NO_EXT_BASE, 10);
+    assert(FileWriter::generate_unique_filepath(NO_EXT_BASE) == NO_EXT_1);
+
+    // Clean up test files
+    remove(COLLISION_BASE.c_str());
+    remove(COLLISION_1.c_str());
+    remove(COLLISION_2.c_str());
+    remove(NO_EXT_BASE.c_str());
+    remove(NO_EXT_1.c_str());
+    cout << "  -> Instant file_exists() and collision auto-renaming: PASSED" << endl;
+
     // Clean up temporary binary test files
     remove(TEST_FILE_1.c_str());
     remove(TEST_FILE_2.c_str());
     remove(TEST_ZERO.c_str());
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF FILEWRITER FUNCTIONS VERIFIED!         " << endl;
+    cout << "  [PASSED] 100% OF FILEWRITER & TASK 5 FUNCTIONS VERIFIED! " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

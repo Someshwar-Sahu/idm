@@ -13,6 +13,9 @@ public:
     FileWriter(const FileWriter&) = delete;
     FileWriter& operator=(const FileWriter&) = delete;
 
+    static bool file_exists(const std:: string &path);
+    static std::string generate_unique_filepath(const std::string &path);
+
     static bool preallocate_file(const std::string &path, uint64_t total_size);
 
     bool open(const std::string &path);

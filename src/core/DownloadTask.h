@@ -28,7 +28,11 @@ public:
 
     DownloadTask(const std::string &url,
                  const std::string &destination_filepath,
-                 int num_threads = 8);
+                 int num_threads = 8,
+                 uint64_t max_bytes_per_sec = 0,
+                 const std::string &referer = "",
+                 const std::string &cookies = "",
+                 const std::string &user_agent = "");
     
     ~DownloadTask();
 
@@ -36,6 +40,20 @@ public:
 
     void pause();
     void cancel();
+
+    void set_speed_limit(uint64_t max_bytes_per_sec);
+    uint64_t get_speed_limit() const;
+
+    static uint64_t get_available_disk_space(const std::string &filepath);
+    bool has_sufficient_disk_space(uint64_t required_bytes) const;
+
+    bool update_url(const std::string &new_url);
+    void set_http_context(const std::string &referer, const std::string &cookies, const std::string &user_agent = "");
+
+    std::string get_url() const;
+    std::string get_referer() const;
+    std::string get_cookies() const;
+    std::string get_user_agent() const;
 
     DownloadStatus get_status() const;
     std::string get_last_error() const;
@@ -47,6 +65,11 @@ private:
     std::string m_destination_filepath;
     std::string m_sidecar_filepath;
     int m_num_threads{8};
+    std::atomic<uint64_t> m_max_bytes_per_sec{0};
+
+    std::string m_referer;
+    std::string m_cookies;
+    std::string m_user_agent{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"};
 
     uint64_t m_total_size{0};
     std::string m_etag;

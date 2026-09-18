@@ -6,12 +6,22 @@
 
 using namespace std;
 
-ChunkWorker::ChunkWorker(const string &url, Chunk chunk, ChunkManager &chunk_manager, FileWriter &file_writer, uint64_t max_bytes_per_sec)
+ChunkWorker::ChunkWorker(const string &url,
+                         Chunk chunk,
+                         ChunkManager &chunk_manager,
+                         FileWriter &file_writer,
+                         uint64_t max_bytes_per_sec,
+                         const string &referer,
+                         const string &cookies,
+                         const string &user_agent)
     : m_url(url),
       m_chunk(chunk),
       m_chunk_manager(chunk_manager),
       m_file_writer(file_writer),
-      m_max_bytes_per_sec(max_bytes_per_sec) {
+      m_max_bytes_per_sec(max_bytes_per_sec),
+      m_referer(referer),
+      m_cookies(cookies),
+      m_user_agent(user_agent) {
     m_curl = curl_easy_init();
 }
 
@@ -78,7 +88,16 @@ bool ChunkWorker::download() {
         curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYHOST, 0L);
-        curl_easy_setopt(m_curl, CURLOPT_USERAGENT, "IDM_Engine/1.0");
+
+        string ua = m_user_agent.empty() ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36": m_user_agent;
+        curl_easy_setopt(m_curl, CURLOPT_USERAGENT, ua.c_str());
+
+        if(!m_referer.empty()){
+            curl_easy_setopt(m_curl, CURLOPT_REFERER, m_referer.c_str());
+        }
+        if(!m_cookies.empty()){
+            curl_easy_setopt(m_curl, CURLOPT_COOKIE, m_cookies.c_str());
+        }
 
         if(m_max_bytes_per_sec >0){
             curl_easy_setopt(m_curl, CURLOPT_MAX_RECV_SPEED_LARGE,static_cast<curl_off_t>(m_max_bytes_per_sec));

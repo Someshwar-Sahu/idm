@@ -10,7 +10,7 @@
 
 class ChunkWorker {
 public:
-    ChunkWorker(const std::string &url, Chunk chunk, ChunkManager &chunk_manager, FileWriter &file_writer, uint64_t max_bytes_per_sec =0);
+    ChunkWorker(const std::string &url, Chunk chunk, ChunkManager &chunk_manager, FileWriter &file_writer, uint64_t max_bytes_per_sec =0, const std::string &referer = "", const std::string &cookies = "", const std::string &user_agent = "");
     ~ChunkWorker();
 
     ChunkWorker(const ChunkWorker&) = delete;
@@ -38,6 +38,9 @@ private:
     ChunkManager &m_chunk_manager;
     FileWriter &m_file_writer;
     uint64_t m_max_bytes_per_sec{0};
+    std::string m_referer;
+    std::string m_cookies;
+    std::string m_user_agent;
     CURL *m_curl{nullptr};
 };
 

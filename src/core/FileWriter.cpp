@@ -1,5 +1,6 @@
 #include "FileWriter.h"
 #include <iostream>
+#include<filesystem>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -13,6 +14,41 @@ using namespace std;
 
 FileWriter::~FileWriter() {
     close();
+}
+
+bool FileWriter::file_exists(const string &path){
+    namespace fs = std::filesystem;
+    error_code ec;
+    return fs::exists(path, ec);
+}
+
+string FileWriter::generate_unique_filepath(const string &filepath){
+    if(!file_exists(filepath)){
+        return filepath;
+    }
+
+    namespace fs = std::filesystem;
+    error_code ec;
+
+    if(!fs::exists(filepath, ec)){
+        return filepath;
+    }
+
+    fs::path original_path(filepath);
+    fs::path parent_dir = original_path.parent_path();
+    string stem = original_path.stem().string();
+    string extension = original_path.extension().string();
+
+    int counter = 1;
+    while(true){
+        string candidate_filename = stem + " (" + to_string(counter)+")"+extension;
+        fs::path candidate = parent_dir.empty() ? fs::path(candidate_filename) : (parent_dir / candidate_filename);
+
+        if(!fs::exists(candidate, ec)){
+            return candidate.string();
+        }
+        counter++;
+    }
 }
 
 bool FileWriter::preallocate_file(const string &path, uint64_t total_size){

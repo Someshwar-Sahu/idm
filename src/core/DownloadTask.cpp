@@ -1,4 +1,14 @@
 #include <curl/curl.h>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
+#include <filesystem>
 #include "DownloadTask.h"
 #include "ChunkWorker.h"
 #include <iostream>
@@ -14,15 +24,180 @@ static size_t header_callback(char *buffer, size_t size, size_t nitems, void *us
     return total_size;
 }
 
-DownloadTask::DownloadTask(const string &url, const string &destination_filepath, int num_threads)
+DownloadTask::DownloadTask(const string &url,
+                           const string &destination_filepath,
+                           int num_threads,
+                           uint64_t max_bytes_per_sec,
+                           const string &referer,
+                           const string &cookies,
+                           const string &user_agent)
     : m_url(url),
       m_destination_filepath(destination_filepath),
-      m_num_threads(num_threads) {
+      m_num_threads(num_threads),
+      m_max_bytes_per_sec(max_bytes_per_sec),
+      m_referer(referer),
+      m_cookies(cookies) {
+    if (!user_agent.empty()) {
+        m_user_agent = user_agent;
+    }
     m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath);
 }
 
 DownloadTask::~DownloadTask() {
     pause();
+}
+
+void DownloadTask::set_speed_limit(uint64_t max_bytes_per_sec) {
+    m_max_bytes_per_sec.store(max_bytes_per_sec);
+}
+
+uint64_t DownloadTask::get_speed_limit() const {
+    return m_max_bytes_per_sec.load();
+}
+
+uint64_t DownloadTask::get_available_disk_space(const string &filepath) {
+#ifdef _WIN32
+    namespace fs = std::filesystem;
+    try {
+        std::error_code ec;
+        fs::path p = fs::absolute(filepath, ec);
+        if (ec) {
+            return 0;
+        }
+
+        fs::path dir = p.parent_path();
+        while (!dir.empty() && !fs::exists(dir, ec)) {
+            fs::path parent = dir.parent_path();
+            if (parent == dir || parent.empty()) {
+                return 0;
+            }
+            dir = parent;
+        }
+
+        string dir_str = dir.string();
+
+        ULARGE_INTEGER free_bytes_available;
+        ULARGE_INTEGER total_bytes;
+        ULARGE_INTEGER total_free_bytes;
+
+        if (GetDiskFreeSpaceExA(dir_str.c_str(), &free_bytes_available, &total_bytes, &total_free_bytes)) {
+            return static_cast<uint64_t>(free_bytes_available.QuadPart);
+        }
+        return 0;
+    } catch (...) {}
+#endif
+
+    std::error_code ec;
+    auto s = std::filesystem::space(".", ec);
+    if (!ec && s.available != static_cast<std::uintmax_t>(-1)) {
+        return static_cast<uint64_t>(s.available);
+    }
+    return UINT64_MAX;
+}
+
+bool DownloadTask::has_sufficient_disk_space(uint64_t required_bytes) const {
+    uint64_t available = get_available_disk_space(m_destination_filepath);
+    if (available == UINT64_MAX) {
+        return true;
+    }
+    return available >= required_bytes;
+}
+
+void DownloadTask::set_http_context(const string &referer, const string &cookies, const string &user_agent) {
+    m_referer = referer;
+    m_cookies = cookies;
+    if (!user_agent.empty()) {
+        m_user_agent = user_agent;
+    }
+}
+
+string DownloadTask::get_url() const {
+    return m_url;
+}
+
+string DownloadTask::get_referer() const {
+    return m_referer;
+}
+
+string DownloadTask::get_cookies() const {
+    return m_cookies;
+}
+
+string DownloadTask::get_user_agent() const {
+    return m_user_agent;
+}
+
+bool DownloadTask::update_url(const string &new_url) {
+    if (new_url.empty()) {
+        m_last_error = "Cannot update to empty URL";
+        return false;
+    }
+
+    if (m_status == DownloadStatus::Downloading) {
+        m_last_error = "Cannot update URL while download is active. Pause the task first.";
+        return false;
+    }
+
+    CURL *curl = curl_easy_init();
+    if (!curl) {
+        m_last_error = "Failed to initialize libcurl handle for URL validation";
+        return false;
+    }
+
+    string response_headers;
+    curl_easy_setopt(curl, CURLOPT_URL, new_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, m_user_agent.c_str());
+    if (!m_referer.empty()) {
+        curl_easy_setopt(curl, CURLOPT_REFERER, m_referer.c_str());
+    }
+    if (!m_cookies.empty()) {
+        curl_easy_setopt(curl, CURLOPT_COOKIE, m_cookies.c_str());
+    }
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &response_headers);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        m_last_error = string("Validation of refreshed URL failed: ") + curl_easy_strerror(res);
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    if (http_code >= 400) {
+        m_last_error = "Server rejected refreshed URL with HTTP " + to_string(http_code);
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    curl_off_t cl = 0;
+    curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
+    curl_easy_cleanup(curl);
+
+    if (m_total_size > 0 && cl > 0 && static_cast<uint64_t>(cl) != m_total_size) {
+        m_last_error = "Refreshed URL size mismatch: expected " + to_string(m_total_size) +
+                       " bytes, server returned " + to_string(cl) + " bytes";
+        return false;
+    }
+
+    m_url = new_url;
+
+    if (m_chunk_manager && ResumeStore::exists(m_sidecar_filepath)) {
+        ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager);
+    }
+
+    if (m_status == DownloadStatus::Failed) {
+        m_status = DownloadStatus::Paused;
+        m_last_error.clear();
+    }
+
+    return true;
 }
 
 bool DownloadTask::probe_url() {
@@ -36,13 +211,18 @@ bool DownloadTask::probe_url() {
 
     string response_headers;
     curl_easy_setopt(curl, CURLOPT_URL, m_url.c_str());
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "IDM_Engine/1.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, m_user_agent.c_str());
+    if (!m_referer.empty()) {
+        curl_easy_setopt(curl, CURLOPT_REFERER, m_referer.c_str());
+    }
+    if (!m_cookies.empty()) {
+        curl_easy_setopt(curl, CURLOPT_COOKIE, m_cookies.c_str());
+    }
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &response_headers);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
-
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
@@ -127,7 +307,14 @@ bool DownloadTask::start(ProgressCallback callback) {
         m_chunk_manager->init(m_total_size, chunks_to_use);
     }
 
-    // Preallocate target file and open handle
+    if (!has_sufficient_disk_space(m_total_size)) {
+        uint64_t available = get_available_disk_space(m_destination_filepath);
+        m_last_error = "Insufficient disk space: required " + to_string(m_total_size) +
+                       " bytes, available " + to_string(available) + " bytes";
+        m_status = DownloadStatus::Failed;
+        return false;
+    }
+
     FileWriter::preallocate_file(m_destination_filepath, m_total_size);
     m_file_writer = make_unique<FileWriter>();
     if (!m_file_writer->open(m_destination_filepath)) {
@@ -143,7 +330,7 @@ bool DownloadTask::start(ProgressCallback callback) {
 
     int worker_count = m_supports_ranges ? m_num_threads : 1;
     for (int i = 0; i < worker_count; ++i) {
-        m_thread_pool->enqueue([this]() {
+        m_thread_pool->enqueue([this, worker_count]() {
             while (!m_pause_requested && !m_chunk_manager->is_complete()) {
                 auto chunk_opt = m_chunk_manager->get_next_pending_chunk();
                 if (!chunk_opt.has_value()) {
@@ -151,7 +338,11 @@ bool DownloadTask::start(ProgressCallback callback) {
                 }
 
                 Chunk chunk = chunk_opt.value();
-                ChunkWorker worker(m_url, chunk, *m_chunk_manager, *m_file_writer);
+
+                uint64_t total_limit = m_max_bytes_per_sec.load();
+                uint64_t worker_speed = (worker_count > 0 && total_limit > 0) ? (total_limit / worker_count) : total_limit;
+
+                ChunkWorker worker(m_url, chunk, *m_chunk_manager, *m_file_writer, worker_speed, m_referer, m_cookies, m_user_agent);
 
                 bool worker_ok = worker.download();
                 if (!worker_ok) {
@@ -161,30 +352,34 @@ bool DownloadTask::start(ProgressCallback callback) {
         });
     }
 
-    while (!m_chunk_manager->is_complete() && !m_pause_requested) {
-        this_thread::sleep_for(chrono::milliseconds(200));
-
-        uint64_t current_bytes = m_chunk_manager->get_total_downloaded_bytes();
-        m_progress_tracker->update(current_bytes);
-
-        ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager);
+    while (!m_pause_requested && !m_chunk_manager->is_complete()) {
+        uint64_t downloaded = m_chunk_manager->get_total_downloaded_bytes();
+        m_progress_tracker->update(downloaded);
 
         if (callback) {
             callback(*m_progress_tracker, "Downloading");
         }
+        ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager);
+
+        this_thread::sleep_for(chrono::milliseconds(200));
     }
 
     if (m_pause_requested) {
         m_status = DownloadStatus::Paused;
+        m_thread_pool.reset();
+        m_file_writer->close();
         ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager);
         cout << "[DownloadTask] Download paused successfully." << endl;
-        return false;
+        return true;
     }
 
     if (m_chunk_manager->is_complete()) {
         m_status = DownloadStatus::Completed;
+        m_thread_pool.reset();
+        m_file_writer->close();
         ResumeStore::remove(m_sidecar_filepath);
         if (callback) {
+            m_progress_tracker->update(m_total_size);
             callback(*m_progress_tracker, "Completed");
         }
         cout << "[DownloadTask] Download completed successfully!" << endl;
@@ -192,6 +387,7 @@ bool DownloadTask::start(ProgressCallback callback) {
     }
 
     m_status = DownloadStatus::Failed;
+    m_last_error = "Download ended prematurely before reaching 100%";
     return false;
 }
 
@@ -202,10 +398,11 @@ void DownloadTask::pause() {
 void DownloadTask::cancel() {
     pause();
     ResumeStore::remove(m_sidecar_filepath);
+    m_status = DownloadStatus::Failed;
 }
 
 DownloadStatus DownloadTask::get_status() const {
-    return m_status;
+    return m_status.load();
 }
 
 string DownloadTask::get_last_error() const {

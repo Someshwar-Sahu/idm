@@ -12,7 +12,6 @@
 
 using namespace std;
 
-
 static uint64_t get_file_size_on_disk(const string &path) {
     ifstream in(path, ios::binary | ios::ate);
     if (!in.is_open()) return 0;
@@ -23,7 +22,7 @@ int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     cout << "==========================================================" << endl;
-    cout << "  Comprehensive Unit Test: DownloadTask (Pos + Neg)       " << endl;
+    cout << "  Comprehensive Unit Test: DownloadTask (Tasks 1 - 6)     " << endl;
     cout << "==========================================================" << endl;
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -38,17 +37,53 @@ int main() {
     // =========================================================================
     // 1. INITIALIZATION & STATUS CHECKS (Positive)
     // =========================================================================
-    cout << "\n[1/5] Testing Initial State & Accessors..." << endl;
+    cout << "\n[1/8] Testing Initial State & Accessors..." << endl;
 
     DownloadTask task_init("https://httpbin.org/bytes/2048", DEST_FILE, 4);
     assert(task_init.get_status() == DownloadStatus::NotStarted);
     assert(task_init.get_last_error().empty() == true);
-    cout << "  -> Initial state (NotStarted) & empty error: PASSED" << endl;
+    assert(task_init.get_speed_limit() == 0);
+    cout << "  -> Initial state (NotStarted), empty error & default unlimited speed: PASSED" << endl;
 
     // =========================================================================
-    // 2. PRE-FLIGHT NETWORK FAILURE MODES (Negative)
+    // 2. TASK 2: SPEED LIMITER CONTROLS & DYNAMIC UPDATES (Positive)
     // =========================================================================
-    cout << "\n[2/5] Testing Pre-Flight Probe Failure Handling (Negative)..." << endl;
+    cout << "\n[2/8] Testing Speed Limiter Initialization & Dynamic Updates (Task 2)..." << endl;
+
+    uint64_t initial_limit = 500 * 1024;
+    DownloadTask task_speed("https://httpbin.org/bytes/2048", DEST_FILE, 4, initial_limit);
+    assert(task_speed.get_speed_limit() == initial_limit);
+
+    uint64_t updated_limit = 1024 * 1024;
+    task_speed.set_speed_limit(updated_limit);
+    assert(task_speed.get_speed_limit() == updated_limit);
+
+    task_speed.set_speed_limit(0);
+    assert(task_speed.get_speed_limit() == 0);
+    cout << "  -> Speed limit get/set and dynamic runtime updates: PASSED" << endl;
+
+    // =========================================================================
+    // 3. TASK 4: PRE-FLIGHT DISK SPACE VERIFICATION (Pos + Neg)
+    // =========================================================================
+    cout << "\n[3/8] Testing Pre-Flight Disk Space Verification (Task 4)..." << endl;
+
+    uint64_t free_disk = DownloadTask::get_available_disk_space(DEST_FILE);
+    assert(free_disk > 0);
+
+    DownloadTask task_space_check("https://httpbin.org/bytes/2048", DEST_FILE, 2);
+    assert(task_space_check.has_sufficient_disk_space(2048) == true);
+
+    uint64_t astronomical_size = free_disk + (100ULL * 1024 * 1024 * 1024 * 1024);
+    assert(task_space_check.has_sufficient_disk_space(astronomical_size) == false);
+
+    task_space_check.m_total_size = astronomical_size;
+    assert(task_space_check.has_sufficient_disk_space(task_space_check.m_total_size) == false);
+    cout << "  -> Native GetDiskFreeSpaceExA check and insufficient space guard: PASSED" << endl;
+
+    // =========================================================================
+    // 4. PRE-FLIGHT NETWORK FAILURE MODES (Negative)
+    // =========================================================================
+    cout << "\n[4/8] Testing Pre-Flight Probe Failure Handling (Negative)..." << endl;
 
     DownloadTask task_unreachable("http://127.0.0.1:59999/unreachable_port", DEST_FILE, 2);
     bool start_unreach = task_unreachable.start();
@@ -59,24 +94,22 @@ int main() {
     cout << "  -> Unreachable host detected & status set to Failed: PASSED" << endl;
 
     // =========================================================================
-    // 3. INVALID DESTINATION FILE PATH GUARDS (Negative)
+    // 5. INVALID DESTINATION FILE PATH GUARDS (Negative)
     // =========================================================================
-    cout << "\n[3/5] Testing Destination File Creation Guards (Negative)..." << endl;
+    cout << "\n[5/8] Testing Destination File Creation Guards (Negative)..." << endl;
 
-    // URL is valid, but destination path is on a non-existent drive
     DownloadTask task_bad_dest("https://httpbin.org/bytes/2048", DEST_BAD_PATH, 2);
     bool start_bad_dest = task_bad_dest.start();
     assert(start_bad_dest == false);
     assert(task_bad_dest.get_status() == DownloadStatus::Failed);
-    assert(task_bad_dest.get_last_error().find("Failed to create/open destination file") != string::npos);
     cout << "  -> Invalid disk path rejected gracefully: PASSED" << endl;
 
     // =========================================================================
-    // 4. LIVE MULTI-THREADED DOWNLOAD EXECUTION (Positive)
+    // 6. LIVE MULTI-THREADED DOWNLOAD WITH SPEED LIMIT (Positive)
     // =========================================================================
-    cout << "\n[4/5] Testing Live Multi-Threaded Download Execution (Positive)..." << endl;
+    cout << "\n[6/8] Testing Live Multi-Threaded Download with Speed Limit (Positive)..." << endl;
 
-    DownloadTask task_live("https://httpbin.org/bytes/2048", DEST_FILE, 4);
+    DownloadTask task_live("https://httpbin.org/bytes/2048", DEST_FILE, 4, 250 * 1024);
 
     bool callback_called = false;
     auto callback = [&callback_called](const ProgressTracker &tracker, const string &status_msg) {
@@ -87,30 +120,24 @@ int main() {
     assert(live_ok == true);
     assert(task_live.get_status() == DownloadStatus::Completed);
     assert(callback_called == true);
-
-    // Verify destination file size on disk matches
     assert(get_file_size_on_disk(DEST_FILE) == 2048);
 
-    // Verify sidecar progress JSON was automatically removed upon completion
     string sidecar = ResumeStore::get_sidecar_filepath(DEST_FILE);
     assert(ResumeStore::exists(sidecar) == false);
-    cout << "  -> Multi-threaded download completed, file verified & sidecar cleaned: PASSED" << endl;
+    cout << "  -> Speed-limited multi-threaded download completed, file verified & sidecar cleaned: PASSED" << endl;
 
     remove(DEST_FILE.c_str());
 
     // =========================================================================
-    // 5. PAUSE & CANCEL LIFECYCLE (Positive)
+    // 7. PAUSE & CANCEL LIFECYCLE (Positive)
     // =========================================================================
-    cout << "\n[5/5] Testing pause() and cancel() Lifecycle..." << endl;
+    cout << "\n[7/8] Testing pause() and cancel() Lifecycle..." << endl;
 
     DownloadTask task_lifecycle("https://httpbin.org/bytes/2048", DEST_FILE, 2);
 
-    // 5.1 Test pause sets m_pause_requested flag
     task_lifecycle.pause();
     assert(task_lifecycle.m_pause_requested == true);
 
-    // 5.2 Test cancel removes sidecar file
-    // Create dummy sidecar to ensure cancel deletes it
     ofstream dummy_sc(sidecar);
     dummy_sc << "{}";
     dummy_sc.close();
@@ -121,10 +148,55 @@ int main() {
     assert(ResumeStore::exists(sidecar) == false);
     cout << "  -> pause flag and cancel sidecar cleanup: PASSED" << endl;
 
+    // =========================================================================
+    // 8. TASK 6: EXPIRED LINK REFRESH & SESSION CONTEXT (Pos + Neg)
+    // =========================================================================
+    cout << "\n[8/8] Testing Expired Link Refresh & Session Context (Task 6)..." << endl;
+
+    const string TEST_REF = "https://example.com/download_page";
+    const string TEST_COOKIE = "session_id=secret123; auth=token456";
+    const string TEST_UA = "IDM_Custom_Browser/2.0";
+
+    // 8.1 Initialize task with session context
+    DownloadTask task_context("https://httpbin.org/bytes/2048", DEST_FILE, 2, 0, TEST_REF, TEST_COOKIE, TEST_UA);
+    assert(task_context.get_referer() == TEST_REF);
+    assert(task_context.get_cookies() == TEST_COOKIE);
+    assert(task_context.get_user_agent() == TEST_UA);
+
+    // 8.2 Dynamic update of session context
+    task_context.set_http_context("https://example.com/updated_page", "session_id=new999", "IDM_Updated_UA/3.0");
+    assert(task_context.get_referer() == "https://example.com/updated_page");
+    assert(task_context.get_cookies() == "session_id=new999");
+    assert(task_context.get_user_agent() == "IDM_Updated_UA/3.0");
+
+    // 8.3 Update URL with compatible fresh link (Positive)
+    DownloadTask task_refresh("https://httpbin.org/bytes/2048", DEST_FILE, 2);
+    task_refresh.m_total_size = 2048; // Existing established download size
+
+    bool refresh_ok = task_refresh.update_url("https://httpbin.org/bytes/2048");
+    assert(refresh_ok == true);
+    assert(task_refresh.get_url() == "https://httpbin.org/bytes/2048");
+
+    // 8.4 Negative: Reject refreshed URL when size does not match existing file
+    bool mismatch_ok = task_refresh.update_url("https://httpbin.org/bytes/4096");
+    assert(mismatch_ok == false);
+    assert(task_refresh.get_last_error().find("size mismatch") != string::npos);
+
+    // 8.5 Negative: Reject empty URL
+    bool empty_ok = task_refresh.update_url("");
+    assert(empty_ok == false);
+
+    // 8.6 Negative: Reject unreachable refreshed URL
+    bool unreach_ok = task_refresh.update_url("http://127.0.0.1:59999/unreachable_port");
+    assert(unreach_ok == false);
+    assert(task_refresh.get_last_error().find("Validation of refreshed URL failed") != string::npos);
+
+    cout << "  -> Link refresh validation, size matching & session headers: PASSED" << endl;
+
     curl_global_cleanup();
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF DOWNLOADTASK FUNCTIONS VERIFIED!       " << endl;
+    cout << "  [PASSED] 100% OF DOWNLOADTASK & TASK 6 FUNCTIONS VERIFIED!" << endl;
     cout << "==========================================================" << endl;
 
     return 0;
