@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <mutex>
 
-enum class SpeedLimiterMode{
+enum class SpeedLimiterMode {
     Uncapped,
     AutoQoS,
     ManualCap
@@ -25,6 +25,9 @@ struct AppSettings {
     bool antivirus_scan_enabled{true};
     std::string antivirus_executable_path{""};
 
+    bool enable_small_file_bypass{true};
+    uint64_t min_capture_size_bytes{10 * 1024 * 1024};
+
     std::map<std::string, std::string> category_folders{
         {"Documents", "Documents"},
         {"Videos", "Videos"},
@@ -33,13 +36,35 @@ struct AppSettings {
         {"Programs", "Programs"}
     };
 
+    std::map<std::string, std::string> extension_to_category{
+        {".pdf", "Documents"}, {".doc", "Documents"}, {".docx", "Documents"},
+        {".txt", "Documents"}, {".epub", "Documents"}, {".xlsx", "Documents"},
+        {".pptx", "Documents"}, {".odt", "Documents"}, {".csv", "Documents"},
+        
+        {".zip", "Compressed"}, {".rar", "Compressed"}, {".7z", "Compressed"},
+        {".tar", "Compressed"}, {".gz", "Compressed"}, {".iso", "Compressed"},
+        {".bz2", "Compressed"}, {".xz", "Compressed"},
+        
+        {".mp4", "Videos"}, {".mkv", "Videos"}, {".avi", "Videos"},
+        {".mov", "Videos"}, {".flv", "Videos"}, {".wmv", "Videos"},
+        {".webm", "Videos"}, {".m4v", "Videos"},
+
+        {".mp3", "Music"}, {".wav", "Music"}, {".flac", "Music"},
+        {".aac", "Music"}, {".ogg", "Music"}, {".m4a", "Music"},
+        {".wma", "Music"},
+        
+        {".exe", "Programs"}, {".msi", "Programs"}, {".apk", "Programs"},
+        {".dmg", "Programs"}, {".pkg", "Programs"}, {".deb", "Programs"},
+        {".rpm", "Programs"}, {".bat", "Programs"}
+    };
+
     static std::string speed_mode_to_string(SpeedLimiterMode mode);
     static SpeedLimiterMode string_to_speed_mode(const std::string &str);
 };
 
-class SettingsManager{
+class SettingsManager {
 public: 
-    SettingsManager() ;
+    SettingsManager();
     explicit SettingsManager(const std::string &config_filepath);
 
     bool load(const std::string &config_filepath = "");
@@ -51,6 +76,11 @@ public:
     void reset_to_defaults();
 
     std::string get_category_path(const std::string &category) const;
+
+    std::string determine_category_for_filename(const std::string &filename) const;
+    std::string get_target_filepath_for_filename(const std::string &filename) const;
+
+    bool should_intercept_download(uint64_t file_size_bytes, bool user_force_override = false) const;
 
 private:
     std::string m_config_filepath{"settings.json"};

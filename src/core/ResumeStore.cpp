@@ -3,12 +3,38 @@
 #include <fstream>
 #include <cstdio>
 #include <iostream>
+#include <filesystem>
+#include <sstream>
+#include <iomanip>
 
 using namespace std;
 using json = nlohmann::json;
 
-string ResumeStore::get_sidecar_filepath(const string &destination_filepath){
-    return destination_filepath + ".progress.json";
+string ResumeStore::get_sidecar_filepath(const string &destination_filepath, const string &cache_directory){
+    if(cache_directory.empty()){
+        return destination_filepath + ".progress.json";
+    }
+    namespace fs = std::filesystem;
+    try{
+        fs::path cache_path(cache_directory);
+        std::error_code ec;
+        fs::create_directories(cache_path, ec);
+
+        fs::path dest(destination_filepath);
+        string filename = dest.filename().string();
+        if(filename.empty()){
+            filename = "download";
+        }
+
+        size_t path_hash = std::hash<std::string>{}(destination_filepath);
+        stringstream ss;
+        ss<<hex<<path_hash;
+
+        string sidecar_name = filename +"_"+ss.str()+".progress.json";
+        return (cache_path / sidecar_name).string();
+    } catch(...){
+        return destination_filepath + ".progress.json";
+    }
 }
 
 bool ResumeStore::save(const string &sidecar_filepath,

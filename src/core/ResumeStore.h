@@ -7,7 +7,7 @@
 
 class ResumeStore {
 public:
-    static std::string get_sidecar_filepath(const std::string &destination_filepath);
+    static std::string get_sidecar_filepath(const std::string &destination_filepath, const std::string &cache_directory = "");
 
     static bool save(const std::string &sidecar_filepath, 
                      const std::string &url, 

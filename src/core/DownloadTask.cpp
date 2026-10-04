@@ -30,9 +30,11 @@ DownloadTask::DownloadTask(const string &url,
                            uint64_t max_bytes_per_sec,
                            const string &referer,
                            const string &cookies,
-                           const string &user_agent)
+                           const string &user_agent,
+                           const string &cache_directory)
     : m_url(url),
       m_destination_filepath(destination_filepath),
+      m_cache_directory(cache_directory),
       m_num_threads(num_threads),
       m_max_bytes_per_sec(max_bytes_per_sec),
       m_referer(referer),
@@ -40,7 +42,7 @@ DownloadTask::DownloadTask(const string &url,
     if (!user_agent.empty()) {
         m_user_agent = user_agent;
     }
-    m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath);
+    m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
 }
 
 DownloadTask::~DownloadTask() {
@@ -125,6 +127,54 @@ string DownloadTask::get_cookies() const {
 
 string DownloadTask::get_user_agent() const {
     return m_user_agent;
+}
+
+string DownloadTask::get_destination_filepath() const {
+    return m_destination_filepath;
+}
+
+string DownloadTask::extract_filename_from_url(const string &url){
+    if(url.empty()) return "download.bin";
+
+    string clean =url;
+    size_t q_pos = clean.find('?');
+    if(q_pos != string::npos) clean = clean.substr(0, q_pos);
+    size_t h_pos = clean.find('#');
+    if (h_pos != string::npos) clean = clean.substr(0, h_pos);
+
+    while (clean.length() > 1 && (clean.back() == '/' || clean.back() == '\\')){
+        clean.pop_back();
+    }
+    size_t slash_pos = clean.find_last_of("/\\");
+    if(slash_pos != string::npos && slash_pos + 1 < clean.length()){
+        string name = clean.substr(slash_pos + 1);
+        if(!name.empty()) return name;
+    }
+    return "download.bin";
+}
+
+string DownloadTask::extract_filename_from_content_disposition(const string &header){
+    string lower_header = header;
+    for(char &c: lower_header) c= static_cast<char> (tolower(static_cast<unsigned char> (c)));
+    size_t pos = lower_header.find("filename=");
+    if(pos == string::npos) return "";
+
+    size_t start = pos + 9;
+    if(start >= header.length()) return "";
+
+    if(header[start] == '"'){
+        start++;
+        size_t end = header.find('"', start);
+        if(end != string::npos){
+            return header.substr(start, end-start);
+        }
+    }
+    else {
+        size_t end = header.find_first_of(";\r\n", start);
+        if(end == string::npos) end = header.length();
+        return header.substr(start, end - start);
+    }
+    return "";
 }
 
 bool DownloadTask::update_url(const string &new_url) {
@@ -315,6 +365,19 @@ bool DownloadTask::start(ProgressCallback callback) {
         return false;
     }
 
+    try{
+        std::filesystem::path dest_p(m_destination_filepath);
+        if(dest_p.has_parent_path()){
+            std::error_code ec;
+            std::filesystem::create_directories(dest_p.parent_path(), ec);
+        }
+    } catch (...) {}
+
+    if(!is_resuming && FileWriter::file_exists(m_destination_filepath)){
+        m_destination_filepath = FileWriter::generate_unique_filepath(m_destination_filepath);
+        m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
+    }
+
     FileWriter::preallocate_file(m_destination_filepath, m_total_size);
     m_file_writer = make_unique<FileWriter>();
     if (!m_file_writer->open(m_destination_filepath)) {
@@ -334,7 +397,10 @@ bool DownloadTask::start(ProgressCallback callback) {
             while (!m_pause_requested && !m_chunk_manager->is_complete()) {
                 auto chunk_opt = m_chunk_manager->get_next_pending_chunk();
                 if (!chunk_opt.has_value()) {
-                    break;
+                    chunk_opt = m_chunk_manager->steal_slowest_chunk();
+                    if(!chunk_opt.has_value()){
+                        break;
+                    }
                 }
 
                 Chunk chunk = chunk_opt.value();
@@ -389,6 +455,19 @@ bool DownloadTask::start(ProgressCallback callback) {
     m_status = DownloadStatus::Failed;
     m_last_error = "Download ended prematurely before reaching 100%";
     return false;
+}
+
+void DownloadTask::set_cache_directory(const string &cache_directory){
+    m_cache_directory = cache_directory;
+    m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
+}
+
+string DownloadTask::get_cache_directory() const {
+    return m_cache_directory;
+}
+
+string DownloadTask::get_sidecar_filepath() const {
+    return m_sidecar_filepath;
 }
 
 void DownloadTask::pause() {

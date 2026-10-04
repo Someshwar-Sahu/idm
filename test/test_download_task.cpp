@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
+#include <filesystem>
 
 using namespace std;
 
@@ -22,7 +23,7 @@ int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     cout << "==========================================================" << endl;
-    cout << "  Comprehensive Unit Test: DownloadTask (Tasks 1 - 6)     " << endl;
+    cout << "  Comprehensive Unit Test: DownloadTask (Tasks 1 - 8B)    " << endl;
     cout << "==========================================================" << endl;
 
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -37,7 +38,7 @@ int main() {
     // =========================================================================
     // 1. INITIALIZATION & STATUS CHECKS (Positive)
     // =========================================================================
-    cout << "\n[1/8] Testing Initial State & Accessors..." << endl;
+    cout << "\n[1/11] Testing Initial State & Accessors..." << endl;
 
     DownloadTask task_init("https://httpbin.org/bytes/2048", DEST_FILE, 4);
     assert(task_init.get_status() == DownloadStatus::NotStarted);
@@ -48,7 +49,7 @@ int main() {
     // =========================================================================
     // 2. TASK 2: SPEED LIMITER CONTROLS & DYNAMIC UPDATES (Positive)
     // =========================================================================
-    cout << "\n[2/8] Testing Speed Limiter Initialization & Dynamic Updates (Task 2)..." << endl;
+    cout << "\n[2/11] Testing Speed Limiter Initialization & Dynamic Updates (Task 2)..." << endl;
 
     uint64_t initial_limit = 500 * 1024;
     DownloadTask task_speed("https://httpbin.org/bytes/2048", DEST_FILE, 4, initial_limit);
@@ -65,7 +66,7 @@ int main() {
     // =========================================================================
     // 3. TASK 4: PRE-FLIGHT DISK SPACE VERIFICATION (Pos + Neg)
     // =========================================================================
-    cout << "\n[3/8] Testing Pre-Flight Disk Space Verification (Task 4)..." << endl;
+    cout << "\n[3/11] Testing Pre-Flight Disk Space Verification (Task 4)..." << endl;
 
     uint64_t free_disk = DownloadTask::get_available_disk_space(DEST_FILE);
     assert(free_disk > 0);
@@ -83,7 +84,7 @@ int main() {
     // =========================================================================
     // 4. PRE-FLIGHT NETWORK FAILURE MODES (Negative)
     // =========================================================================
-    cout << "\n[4/8] Testing Pre-Flight Probe Failure Handling (Negative)..." << endl;
+    cout << "\n[4/11] Testing Pre-Flight Probe Failure Handling (Negative)..." << endl;
 
     DownloadTask task_unreachable("http://127.0.0.1:59999/unreachable_port", DEST_FILE, 2);
     bool start_unreach = task_unreachable.start();
@@ -96,7 +97,7 @@ int main() {
     // =========================================================================
     // 5. INVALID DESTINATION FILE PATH GUARDS (Negative)
     // =========================================================================
-    cout << "\n[5/8] Testing Destination File Creation Guards (Negative)..." << endl;
+    cout << "\n[5/11] Testing Destination File Creation Guards (Negative)..." << endl;
 
     DownloadTask task_bad_dest("https://httpbin.org/bytes/2048", DEST_BAD_PATH, 2);
     bool start_bad_dest = task_bad_dest.start();
@@ -107,7 +108,7 @@ int main() {
     // =========================================================================
     // 6. LIVE MULTI-THREADED DOWNLOAD WITH SPEED LIMIT (Positive)
     // =========================================================================
-    cout << "\n[6/8] Testing Live Multi-Threaded Download with Speed Limit (Positive)..." << endl;
+    cout << "\n[6/11] Testing Live Multi-Threaded Download with Speed Limit (Positive)..." << endl;
 
     DownloadTask task_live("https://httpbin.org/bytes/2048", DEST_FILE, 4, 250 * 1024);
 
@@ -131,7 +132,7 @@ int main() {
     // =========================================================================
     // 7. PAUSE & CANCEL LIFECYCLE (Positive)
     // =========================================================================
-    cout << "\n[7/8] Testing pause() and cancel() Lifecycle..." << endl;
+    cout << "\n[7/11] Testing pause() and cancel() Lifecycle..." << endl;
 
     DownloadTask task_lifecycle("https://httpbin.org/bytes/2048", DEST_FILE, 2);
 
@@ -151,52 +152,126 @@ int main() {
     // =========================================================================
     // 8. TASK 6: EXPIRED LINK REFRESH & SESSION CONTEXT (Pos + Neg)
     // =========================================================================
-    cout << "\n[8/8] Testing Expired Link Refresh & Session Context (Task 6)..." << endl;
+    cout << "\n[8/11] Testing Expired Link Refresh & Session Context (Task 6)..." << endl;
 
     const string TEST_REF = "https://example.com/download_page";
     const string TEST_COOKIE = "session_id=secret123; auth=token456";
     const string TEST_UA = "IDM_Custom_Browser/2.0";
 
-    // 8.1 Initialize task with session context
     DownloadTask task_context("https://httpbin.org/bytes/2048", DEST_FILE, 2, 0, TEST_REF, TEST_COOKIE, TEST_UA);
     assert(task_context.get_referer() == TEST_REF);
     assert(task_context.get_cookies() == TEST_COOKIE);
     assert(task_context.get_user_agent() == TEST_UA);
 
-    // 8.2 Dynamic update of session context
     task_context.set_http_context("https://example.com/updated_page", "session_id=new999", "IDM_Updated_UA/3.0");
     assert(task_context.get_referer() == "https://example.com/updated_page");
     assert(task_context.get_cookies() == "session_id=new999");
     assert(task_context.get_user_agent() == "IDM_Updated_UA/3.0");
 
-    // 8.3 Update URL with compatible fresh link (Positive)
     DownloadTask task_refresh("https://httpbin.org/bytes/2048", DEST_FILE, 2);
-    task_refresh.m_total_size = 2048; // Existing established download size
+    task_refresh.m_total_size = 2048;
 
     bool refresh_ok = task_refresh.update_url("https://httpbin.org/bytes/2048");
     assert(refresh_ok == true);
     assert(task_refresh.get_url() == "https://httpbin.org/bytes/2048");
 
-    // 8.4 Negative: Reject refreshed URL when size does not match existing file
     bool mismatch_ok = task_refresh.update_url("https://httpbin.org/bytes/4096");
     assert(mismatch_ok == false);
     assert(task_refresh.get_last_error().find("size mismatch") != string::npos);
 
-    // 8.5 Negative: Reject empty URL
     bool empty_ok = task_refresh.update_url("");
     assert(empty_ok == false);
 
-    // 8.6 Negative: Reject unreachable refreshed URL
     bool unreach_ok = task_refresh.update_url("http://127.0.0.1:59999/unreachable_port");
     assert(unreach_ok == false);
     assert(task_refresh.get_last_error().find("Validation of refreshed URL failed") != string::npos);
-
     cout << "  -> Link refresh validation, size matching & session headers: PASSED" << endl;
+
+    // =========================================================================
+    // 9. TASK 7: CENTRALIZED CACHE DIRECTORY MANAGEMENT (Pos + Neg)
+    // =========================================================================
+    cout << "\n[9/11] Testing Centralized Cache Directory Management (Task 7)..." << endl;
+
+    const string TEST_CACHE_DIR = "test_idm_cache";
+    const string CACHE_DEST_FILE = "cached_download.bin";
+    remove(CACHE_DEST_FILE.c_str());
+
+    // 9.1 Test sidecar path resolution into centralized cache folder
+    DownloadTask task_cache("https://httpbin.org/bytes/2048", CACHE_DEST_FILE, 4, 0, "", "", "", TEST_CACHE_DIR);
+    assert(task_cache.get_cache_directory() == TEST_CACHE_DIR);
+    
+    string resolved_sidecar = task_cache.get_sidecar_filepath();
+    assert(resolved_sidecar.find(TEST_CACHE_DIR) != string::npos);
+    assert(filesystem::exists(TEST_CACHE_DIR) == true);
+
+    // 9.2 Execute live download with centralized cache routing
+    bool cache_run_ok = task_cache.start();
+    assert(cache_run_ok == true);
+    assert(task_cache.get_status() == DownloadStatus::Completed);
+    assert(get_file_size_on_disk(CACHE_DEST_FILE) == 2048);
+
+    // 9.3 Verify automatic purge upon completion: sidecar must be deleted from Cache/
+    assert(ResumeStore::exists(resolved_sidecar) == false);
+    // Verify destination folder never had a sidecar
+    assert(ResumeStore::exists(CACHE_DEST_FILE + ".progress.json") == false);
+
+    // Clean up test files
+    remove(CACHE_DEST_FILE.c_str());
+    filesystem::remove_all(TEST_CACHE_DIR);
+    // =========================================================================
+    // 10. TASK 8 UTILITY: FILENAME EXTRACTION FROM URL & HEADERS (Pos + Neg)
+    // =========================================================================
+    cout << "\n[10/11] Testing Filename Extraction from URL & Headers (Task 8)..." << endl;
+
+    // 10.1 Standard URL paths
+    assert(DownloadTask::extract_filename_from_url("https://example.com/files/report.pdf") == "report.pdf");
+    assert(DownloadTask::extract_filename_from_url("https://example.com/path/archive.zip?token=xyz123&expiry=456") == "archive.zip");
+    assert(DownloadTask::extract_filename_from_url("https://example.com/video.mp4#section1") == "video.mp4");
+
+    // 10.2 Edge cases: empty URL
+    assert(DownloadTask::extract_filename_from_url("") == "download.bin");
+
+    // 10.3 Content-Disposition header extraction
+    assert(DownloadTask::extract_filename_from_content_disposition("attachment; filename=\"report_2026.pdf\"") == "report_2026.pdf");
+    assert(DownloadTask::extract_filename_from_content_disposition("attachment; filename=setup.exe; size=1024") == "setup.exe");
+    assert(DownloadTask::extract_filename_from_content_disposition("inline") == "");
+    assert(DownloadTask::extract_filename_from_content_disposition("") == "");
+    cout << "  -> Filename extraction from URLs, query strings & Content-Disposition: PASSED" << endl;
+
+    // =========================================================================
+    // 11. TASKS 5 & 8: CATEGORY DIRECTORY CREATION & COLLISION AUTO-RENAMING
+    // =========================================================================
+    cout << "\n[11/11] Testing Category Directory Creation & Collision Auto-Renaming..." << endl;
+
+    const string TEST_CAT_DIR = "test_category_folder";
+    const string NESTED_DEST = TEST_CAT_DIR + "/Documents/nested_report.bin";
+
+    filesystem::remove_all(TEST_CAT_DIR);
+
+    // 11.1 Auto-creation of missing category directory structure
+    DownloadTask task_category("https://httpbin.org/bytes/2048", NESTED_DEST, 2);
+    bool nested_ok = task_category.start();
+    assert(nested_ok == true);
+    assert(filesystem::exists(NESTED_DEST) == true);
+    assert(get_file_size_on_disk(NESTED_DEST) == 2048);
+
+    // 11.2 Task 5 Integration: Collision auto-renaming when file already exists on disk
+    DownloadTask task_collision("https://httpbin.org/bytes/2048", NESTED_DEST, 2);
+    bool collision_ok = task_collision.start();
+    assert(collision_ok == true);
+    string expected_renamed = (filesystem::path(TEST_CAT_DIR) / "Documents" / "nested_report (1).bin").string();
+    assert(filesystem::path(task_collision.get_destination_filepath()) == filesystem::path(expected_renamed));
+    assert(filesystem::exists(expected_renamed) == true);
+    assert(filesystem::exists(NESTED_DEST) == true); // Original was preserved!
+
+    // Clean up test directory
+    filesystem::remove_all(TEST_CAT_DIR);
+    cout << "  -> Category directory auto-creation & duplicate collision auto-renaming: PASSED" << endl;
 
     curl_global_cleanup();
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF DOWNLOADTASK & TASK 6 FUNCTIONS VERIFIED!" << endl;
+    cout << "  [PASSED] 100% OF DOWNLOADTASK & TASKS 1 - 8B VERIFIED!  " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

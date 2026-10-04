@@ -30,22 +30,51 @@ int main(int argc, char* argv[]) {
     }
 
     // 4. Bind C++ Backend IPC Message Dispatcher to GUI
-    window.set_ipc_handler([&queue](const json& req) -> json {
+    window.set_ipc_handler([&queue, &settings](const json& req) -> json {
         json res;
         std::string action = req.value("action", "");
         
         if (action == "ADD_DOWNLOAD") {
             std::string url = req.value("url", "");
-            int threads = req.value("threads", 8);
-            if (!url.empty()) {
-                auto task = std::make_shared<DownloadTask>(url, "./downloads", threads);
-                queue.add_task(task);
-                res["status"] = "SUCCESS";
-                res["message"] = "Task added to queue successfully.";
-            } else {
+            int threads = req.value("threads", settings.get_settings().default_connections_per_task);
+            uint64_t file_size = req.value("file_size", static_cast<uint64_t>(0));
+            bool force_override = req.value("force_override", false);
+
+            if (url.empty()) {
                 res["status"] = "ERROR";
                 res["message"] = "URL cannot be empty.";
+                return res;
             }
+
+            // Task 8B: Small File Bypass Check
+            if (!settings.should_intercept_download(file_size, force_override)) {
+                res["status"] = "BYPASS";
+                res["message"] = "File size below threshold, bypassing to browser.";
+                return res;
+            }
+
+            // Task 8: Category Target Filepath Resolution
+            std::string filename = req.value("filename", "");
+            if (filename.empty()) {
+                filename = DownloadTask::extract_filename_from_url(url);
+            }
+            std::string target_filepath = settings.get_target_filepath_for_filename(filename);
+
+            auto task = std::make_shared<DownloadTask>(
+                url,
+                target_filepath,
+                threads,
+                settings.get_settings().manual_speed_limit_bps,
+                req.value("referer", ""),
+                req.value("cookies", ""),
+                req.value("user_agent", ""),
+                settings.get_settings().cache_directory
+            );
+
+            queue.add_task(task);
+            res["status"] = "SUCCESS";
+            res["target_filepath"] = target_filepath;
+            res["message"] = "Task added to queue successfully.";
         } else if (action == "PAUSE_ALL") {
             queue.pause();
             res["status"] = "SUCCESS";
@@ -61,6 +90,7 @@ int main(int argc, char* argv[]) {
 
         return res;
     });
+
 
     // 5. Open Desktop Application Window
     window.run_event_loop();

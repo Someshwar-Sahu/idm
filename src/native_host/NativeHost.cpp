@@ -21,6 +21,7 @@ bool NativeHost::json_to_payload(const string &json_str, InterceptedDownloadPayl
         out_payload.referer = j.value("referer", "");
         out_payload.page_title = j.value("page_title", "");
         out_payload.total_size = j.value("total_size", static_cast<uint64_t>(0));
+        out_payload.user_force_override = j.value("user_force_override", false);
         return !out_payload.url.empty();
     }catch (const exception &e){
         cerr<<"[NativeHost Error] JSON parse failure: "<<e.what()<<endl;
@@ -37,6 +38,7 @@ string NativeHost::payload_to_json(const InterceptedDownloadPayload &payload) {
     j["referer"] = payload.referer;
     j["page_title"] = payload.page_title;
     j["total_size"] = payload.total_size;
+    j["user_force_override"] = payload.user_force_override;
     return j.dump();
 }
 

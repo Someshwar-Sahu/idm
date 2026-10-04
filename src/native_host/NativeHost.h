@@ -1,8 +1,8 @@
 #ifndef NATIVE_HOST_H
 #define NATIVE_HOST_H
 
-#include<string>
-#include<cstdint>
+#include <string>
+#include <cstdint>
 
 struct InterceptedDownloadPayload {
     std::string url;
@@ -12,6 +12,7 @@ struct InterceptedDownloadPayload {
     std::string referer;
     std::string page_title;
     uint64_t total_size{0};
+    bool user_force_override{false};
 };
 
 class NativeHost {

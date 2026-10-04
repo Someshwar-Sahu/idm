@@ -32,7 +32,8 @@ public:
                  uint64_t max_bytes_per_sec = 0,
                  const std::string &referer = "",
                  const std::string &cookies = "",
-                 const std::string &user_agent = "");
+                 const std::string &user_agent = "",
+                 const std::string &cache_directory = "");
     
     ~DownloadTask();
 
@@ -55,6 +56,14 @@ public:
     std::string get_cookies() const;
     std::string get_user_agent() const;
 
+    void set_cache_directory(const std::string &cache_directory);
+    std::string get_cache_directory() const;
+    std::string get_sidecar_filepath() const;
+    std::string get_destination_filepath() const;
+
+    static std::string extract_filename_from_url(const std::string &url);
+    static std::string extract_filename_from_content_disposition(const std::string &header_value);
+
     DownloadStatus get_status() const;
     std::string get_last_error() const;
 
@@ -63,6 +72,7 @@ private:
 
     std::string m_url;
     std::string m_destination_filepath;
+    std::string m_cache_directory;
     std::string m_sidecar_filepath;
     int m_num_threads{8};
     std::atomic<uint64_t> m_max_bytes_per_sec{0};

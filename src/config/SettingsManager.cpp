@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <cctype>
 
 using namespace std;
 using json = nlohmann::json;
@@ -81,10 +82,20 @@ bool SettingsManager::load(const string &config_filepath) {
         m_settings.antivirus_scan_enabled = j.value("antivirus_scan_enabled", true);
         m_settings.antivirus_executable_path = j.value("antivirus_executable_path", "");
 
+        m_settings.enable_small_file_bypass = j.value("enable_small_file_bypass", true);
+        m_settings.min_capture_size_bytes = j.value("min_capture_size_bytes", static_cast<uint64_t>(10 * 1024 * 1024));
+
         if (j.contains("category_folders") && j["category_folders"].is_object()) {
             m_settings.category_folders.clear();
             for (auto &[cat, subfolder] : j["category_folders"].items()) {
                 m_settings.category_folders[cat] = subfolder.get<string>();
+            }
+        }
+
+        if (j.contains("extension_to_category") && j["extension_to_category"].is_object()) {
+            m_settings.extension_to_category.clear();
+            for (auto &[ext, cat] : j["extension_to_category"].items()) {
+                m_settings.extension_to_category[ext] = cat.get<string>();
             }
         }
 
@@ -115,11 +126,20 @@ bool SettingsManager::save(const string &config_filepath) const {
         j["antivirus_scan_enabled"] = m_settings.antivirus_scan_enabled;
         j["antivirus_executable_path"] = m_settings.antivirus_executable_path;
 
+        j["enable_small_file_bypass"] = m_settings.enable_small_file_bypass;
+        j["min_capture_size_bytes"] = m_settings.min_capture_size_bytes;
+
         json cat_json = json::object();
         for (const auto &[cat, subfolder] : m_settings.category_folders) {
             cat_json[cat] = subfolder;
         }
         j["category_folders"] = cat_json;
+
+        json ext_json = json::object();
+        for (const auto &[ext, cat] : m_settings.extension_to_category) {
+            ext_json[ext] = cat;
+        }
+        j["extension_to_category"] = ext_json;
 
         ofstream file(target_path);
         if (!file.is_open()) {
@@ -159,4 +179,71 @@ string SettingsManager::get_category_path(const string &category) const {
         return m_settings.default_download_directory + "/" + it->second;
     }
     return m_settings.default_download_directory;
+}
+
+string SettingsManager::determine_category_for_filename(const string &filename) const {
+    lock_guard<mutex> lock(m_mutex);
+
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos == string::npos || dot_pos + 1 >= filename.length()) {
+        return "";
+    }
+
+    string ext = filename.substr(dot_pos);
+    for (char &c : ext) {
+        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    }
+
+    auto it = m_settings.extension_to_category.find(ext);
+    if (it != m_settings.extension_to_category.end()) {
+        return it->second;
+    }
+
+    return "";
+}
+
+string SettingsManager::get_target_filepath_for_filename(const string &filename) const {
+    lock_guard<mutex> lock(m_mutex);
+
+    string ext;
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos != string::npos && dot_pos + 1 < filename.length()) {
+        ext = filename.substr(dot_pos);
+        for (char &c : ext) {
+            c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        }
+    }
+
+    string folder = m_settings.default_download_directory;
+    auto it_ext = m_settings.extension_to_category.find(ext);
+    if (it_ext != m_settings.extension_to_category.end()) {
+        auto it_folder = m_settings.category_folders.find(it_ext->second);
+        if (it_folder != m_settings.category_folders.end()) {
+            folder += "/" + it_folder->second;
+        }
+    }
+
+    return folder + "/" + filename;
+}
+
+bool SettingsManager::should_intercept_download(uint64_t file_size_bytes, bool user_force_override) const {
+    lock_guard<mutex> lock(m_mutex);
+
+    if (user_force_override) {
+        return true;
+    }
+
+    if (!m_settings.enable_browser_interception) {
+        return false;
+    }
+
+    if (!m_settings.enable_small_file_bypass) {
+        return true;
+    }
+
+    if (file_size_bytes == 0) {
+        return true;
+    }
+
+    return file_size_bytes >= m_settings.min_capture_size_bytes;
 }
