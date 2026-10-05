@@ -10,6 +10,7 @@
 
 #include <filesystem>
 #include "DownloadTask.h"
+#include "AntivirusScanner.h"
 #include "ChunkWorker.h"
 #include <iostream>
 #include <thread>
@@ -323,6 +324,14 @@ bool DownloadTask::probe_url() {
 }
 
 bool DownloadTask::start(ProgressCallback callback) {
+    if(m_antivirus_scan_enabled){
+        auto rep = AntivirusScanner::check_url_reputation(m_url, m_destination_filepath);
+        if(!rep.is_safe){
+            m_last_error = "Pre-flight security check failed: " + rep.details;
+            m_status = DownloadStatus::Failed;
+            return false;
+        }
+    }
     m_pause_requested = false;
 
     bool is_resuming = false;
@@ -444,6 +453,10 @@ bool DownloadTask::start(ProgressCallback callback) {
         m_thread_pool.reset();
         m_file_writer->close();
         ResumeStore::remove(m_sidecar_filepath);
+
+        if(m_antivirus_scan_enabled){
+            AntivirusScanner::apply_mark_of_the_web(m_destination_filepath, m_url);
+        }
         if (callback) {
             m_progress_tracker->update(m_total_size);
             callback(*m_progress_tracker, "Completed");
@@ -486,4 +499,12 @@ DownloadStatus DownloadTask::get_status() const {
 
 string DownloadTask::get_last_error() const {
     return m_last_error;
+}
+
+bool DownloadTask::is_antivirus_scan_enabled() const {
+    return m_antivirus_scan_enabled;
+}
+
+void DownloadTask::set_antivirus_scan_enabled(bool enabled){
+    m_antivirus_scan_enabled = enabled;
 }

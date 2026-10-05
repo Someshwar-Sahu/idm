@@ -37,7 +37,7 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src src/core src/config src/queue src/native_host src/gui)
+include_directories(src src/core src/config src/queue src/native_host src/gui src/security)
 
 # ThreadPool Unit Test
 add_executable(test_threadpool test/test_threadpool.cpp src/core/ThreadPool.cpp)
@@ -67,7 +67,13 @@ add_executable(test_download_task
     src/core/ThreadPool.cpp 
     src/core/ProgressTracker.cpp 
     src/core/ResumeStore.cpp
+    src/security/AntivirusScanner.cpp
 )
+target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+if (WIN32)
+    target_link_libraries(test_download_task PRIVATE ole32 uuid shlwapi)
+endif()
+
 target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
 
 # SettingsManager Unit Test
@@ -85,8 +91,12 @@ add_executable(test_download_queue
     src/core/ThreadPool.cpp 
     src/core/ProgressTracker.cpp 
     src/core/ResumeStore.cpp
+    src/security/AntivirusScanner.cpp
 )
 target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+if (WIN32)
+    target_link_libraries(test_download_queue PRIVATE ole32 uuid shlwapi)
+endif()
 
 # NativeHost Unit Test
 add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp)
@@ -109,7 +119,17 @@ add_executable(idm_app
     src/core/ThreadPool.cpp 
     src/core/ProgressTracker.cpp 
     src/core/ResumeStore.cpp
+    src/security/AntivirusScanner.cpp
 )
 target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+if (WIN32)
+    target_link_libraries(idm_app PRIVATE ole32 uuid shlwapi)
+endif()
 
+# AntivirusScanner Unit Test (Task 9)
+add_executable(test_antivirus_scanner test/test_antivirus_scanner.cpp src/security/AntivirusScanner.cpp)
+target_link_libraries(test_antivirus_scanner PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+if (WIN32)
+    target_link_libraries(test_antivirus_scanner PRIVATE ole32 uuid shlwapi)
+endif()
 

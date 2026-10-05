@@ -66,6 +66,8 @@ public:
 
     DownloadStatus get_status() const;
     std::string get_last_error() const;
+    bool is_antivirus_scan_enabled() const;
+    void set_antivirus_scan_enabled(bool enabled);
 
 private:
     bool probe_url();
@@ -94,6 +96,8 @@ private:
     std::unique_ptr<ProgressTracker> m_progress_tracker;
 
     std::atomic<bool> m_pause_requested{false};
+
+    bool m_antivirus_scan_enabled{true};
 };
 
 #endif
