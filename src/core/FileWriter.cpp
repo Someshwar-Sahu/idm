@@ -83,7 +83,7 @@ bool FileWriter::preallocate_file(const string &path, uint64_t total_size){
     CloseHandle(hFile);
     return true;
 #else
-    int fd = ::open(path.c_str(), ORDWR | O_CREAT | O_TRUNC, 0644);
+    int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
     if(fd < 0){
         return false;
     }

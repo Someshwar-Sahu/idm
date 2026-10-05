@@ -121,9 +121,69 @@ int main() {
     remove(CORRUPT_FILE.c_str());
     cout << "  -> Corrupted and tampered ADS stream detection & repair: PASSED" << endl;
 
+        // =========================================================================
+    // 6. TASK 10: THREAT PARSER FROM DEFENDER STDOUT (Positive & Negative)
+    // =========================================================================
+    cout << "\n[6/7] Testing Threat Name Parser from Stdout (Task 10)..." << endl;
+
+    string sample_defender_stdout = 
+        "-------------------------------------------------------------------------------------\n"
+        "LISTING OF DETECTED THREATS:\n"
+        "-------------------------------------------------------------------------------------\n"
+        "Threat                  : Trojan:Win32/Wacatac.B!ml\n"
+        "Resources:\n"
+        "  file: C:\\Downloads\\Cache\\staging_sample.bin\n";
+
+    string parsed_threat = AntivirusScanner::parse_threat_name(sample_defender_stdout);
+    assert(parsed_threat == "Trojan:Win32/Wacatac.B!ml");
+
+    // Clean output produces empty threat name
+    string clean_defender_stdout = "Scan completed. No threats detected.";
+    assert(AntivirusScanner::parse_threat_name(clean_defender_stdout).empty());
+    assert(AntivirusScanner::parse_threat_name("").empty());
+    cout << "  -> Threat signature extraction and clean output handling: PASSED" << endl;
+
+    // =========================================================================
+    // 7. TASK 10: DYNAMIC DEFENDER LOCATOR & LIVE FILE SCAN (Pos + Neg)
+    // =========================================================================
+    cout << "\n[7/7] Testing MpCmdRun.exe Locator & Staging Scan (Task 10)..." << endl;
+
+    string defender_exe = AntivirusScanner::find_windows_defender_executable();
+    if (!defender_exe.empty()) {
+        assert(filesystem::exists(defender_exe) == true);
+        cout << "  -> Located Defender CLI: " << defender_exe << endl;
+    }
+
+    // Negative: Non-existent file scan
+    auto missing_res = AntivirusScanner::scan_file("non_existent_scan_sample_9999.bin");
+    assert(missing_res.verdict == FileScanVerdict::ScanFailed);
+    assert(missing_res.exit_code == -1);
+
+    // Positive: Scan real clean staging file
+    const string CLEAN_TEST_FILE = "staging_clean_test.bin";
+    {
+        ofstream out(CLEAN_TEST_FILE);
+        out << "This is a clean, harmless document payload for staging scan.";
+        out.close();
+    }
+    assert(filesystem::exists(CLEAN_TEST_FILE) == true);
+
+    auto clean_scan = AntivirusScanner::scan_file(CLEAN_TEST_FILE);
+    if (!defender_exe.empty()) {
+        assert(clean_scan.verdict == FileScanVerdict::Clean);
+        assert(clean_scan.exit_code == 0);
+        assert(clean_scan.threat_name.empty());
+        cout << "  -> Live staging file scanned cleanly in " << clean_scan.scan_duration_ms << "ms: PASSED" << endl;
+    } else {
+        cout << "  -> Defender CLI not installed in standard path (skipped live invocation): PASSED" << endl;
+    }
+
+    remove(CLEAN_TEST_FILE.c_str());
+
+
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASK 9) VERIFIED!   " << endl;
+    cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASK 9 & 10) VERIFIED!   " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

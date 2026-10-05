@@ -5,7 +5,10 @@ project(idm_engine VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_TLS_VERIFY OFF)
 
 # Link MinGW runtime (POSIX threads & C++ standard library) statically
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+if (WIN32)
+    # Link MinGW runtime statically on Windows
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,7 +30,11 @@ if(NOT CURL_FOUND)
     message(STATUS "Local libcurl not found. Fetching libcurl source automatically...")
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE) # Enable Windows native HTTPS/SSL
+    if (WIN32)
+        set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE) # Enable Windows native HTTPS/SSL
+    elseif (APPLE)
+        set(CURL_USE_SECTRANSP ON CACHE BOOL "" FORCE) # Enable Apple SecureTransport on macOS
+    endif()
     FetchContent_Declare(
         curl
         URL https://github.com/curl/curl/archive/refs/tags/curl-8_5_0.tar.gz
