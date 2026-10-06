@@ -1,0 +1,118 @@
+#include "net/NetworkMonitor.h"
+#include <iostream>
+#include <cassert>
+#include <thread>
+#include <chrono>
+
+using namespace std;
+
+int main() {
+    cout << "==========================================================" << endl;
+    cout << "  Comprehensive Unit Test: NetworkMonitor (Task 13)       " << endl;
+    cout << "==========================================================" << endl;
+
+    NetworkMonitor monitor("http://127.0.0.1:9", 100);
+
+    // =========================================================================
+    // 1. BASELINE CALCULATION & NORMAL LATENCY (Positive)
+    // =========================================================================
+    cout << "\n[1/5] Testing Baseline Latency Initialization..." << endl;
+
+    monitor.set_latency_spike_threshold(50);
+    assert(monitor.get_latency_spike_threshold() == 50);
+
+    // Initial baseline sample (e.g. 25ms ping)
+    monitor.evaluate_qos_sample(25);
+    assert(monitor.get_current_rtt() == 25);
+    assert(monitor.get_baseline_rtt() == 25);
+    assert(monitor.is_bufferbloat_detected() == false);
+    assert(monitor.get_suggested_throttle_ratio() == 1.0);
+    cout << "  -> Baseline initialized to 25ms: PASSED" << endl;
+
+    // Normal jitter (30ms - difference is only 5ms < 50ms)
+    monitor.evaluate_qos_sample(30);
+    assert(monitor.get_current_rtt() == 30);
+    assert(monitor.is_bufferbloat_detected() == false);
+    assert(monitor.get_suggested_throttle_ratio() == 1.0);
+    cout << "  -> Normal jitter (30ms) stays uncapped: PASSED" << endl;
+
+    // =========================================================================
+    // 2. MODERATE SPIKE DETECTION (Elevated -> 20% Throttle)
+    // =========================================================================
+    cout << "\n[2/5] Testing Moderate Latency Spike (+55ms -> 20% Throttle)..." << endl;
+
+    monitor.set_baseline_rtt(25);
+    // 25 + 55 = 80ms (diff is 55ms >= 50ms threshold)
+    monitor.evaluate_qos_sample(80);
+    assert(monitor.get_current_rtt() == 80);
+    assert(monitor.is_bufferbloat_detected() == true);
+    assert(monitor.get_suggested_throttle_ratio() == 0.80); // 20% throttle
+    cout << "  -> Moderate spike flagged: Suggested ratio = 0.80 (20% throttle): PASSED" << endl;
+
+    // =========================================================================
+    // 3. CRITICAL BUFFERBLOAT DETECTION (Critical -> 30% Throttle)
+    // =========================================================================
+    cout << "\n[3/5] Testing Critical Bufferbloat (+110ms -> 30% Throttle)..." << endl;
+
+    monitor.set_baseline_rtt(25);
+    // 25 + 110 = 135ms (diff is 110ms >= 100ms [2x threshold])
+    monitor.evaluate_qos_sample(135);
+    assert(monitor.get_current_rtt() == 135);
+    assert(monitor.is_bufferbloat_detected() == true);
+    assert(monitor.get_suggested_throttle_ratio() == 0.70); // 30% throttle
+    cout << "  -> Critical bufferbloat flagged: Suggested ratio = 0.70 (30% throttle): PASSED" << endl;
+
+    // =========================================================================
+    // 4. SPIKE CALLBACK NOTIFICATION & RESTORATION
+    // =========================================================================
+    cout << "\n[4/5] Testing Spike Callback & Auto-Recovery..." << endl;
+
+    uint32_t notified_rtt = 0;
+    double notified_ratio = 0.0;
+    monitor.set_on_latency_spike_callback([&](uint32_t cur, uint32_t base, double ratio) {
+        notified_rtt = cur;
+        notified_ratio = ratio;
+    });
+
+    monitor.set_baseline_rtt(25);
+    monitor.evaluate_qos_sample(150);
+    assert(notified_rtt == 150);
+    assert(notified_ratio == 0.70);
+    cout << "  -> Callback received spike notification: PASSED" << endl;
+
+    // Recovery back to normal (26ms)
+    monitor.evaluate_qos_sample(26);
+    assert(monitor.is_bufferbloat_detected() == false);
+    assert(monitor.get_suggested_throttle_ratio() == 1.0);
+    cout << "  -> Recovery back to 1.0 (uncapped): PASSED" << endl;
+
+    // =========================================================================
+    // 5. BACKGROUND THREAD LIFECYCLE & MOCK PROVIDER
+    // =========================================================================
+    cout << "\n[5/5] Testing Thread Lifecycle with Mock Provider..." << endl;
+
+    atomic<int> probe_count{0};
+    monitor.set_mock_rtt_provider([&]() -> uint32_t {
+        probe_count++;
+        return 22; // 22ms stable ping
+    });
+
+    monitor.set_check_interval(50); // Fast 50ms loop for test
+    assert(monitor.is_running() == false);
+    monitor.start();
+    assert(monitor.is_running() == true);
+
+    this_thread::sleep_for(chrono::milliseconds(200));
+    monitor.stop();
+    assert(monitor.is_running() == false);
+    assert(probe_count.load() >= 2);
+    assert(monitor.get_current_rtt() == 22);
+    assert(monitor.is_bufferbloat_detected() == false);
+    cout << "  -> Background thread executed " << probe_count.load() << " mock probes cleanly: PASSED" << endl;
+
+    cout << "\n==========================================================" << endl;
+    cout << "  [PASSED] 100% OF NETWORKMONITOR (TASK 13) VERIFIED!     " << endl;
+    cout << "==========================================================" << endl;
+
+    return 0;
+}

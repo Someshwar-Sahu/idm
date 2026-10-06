@@ -44,7 +44,7 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src src/core src/config src/queue src/native_host src/gui src/security)
+include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net)
 
 # ThreadPool Unit Test
 add_executable(test_threadpool test/test_threadpool.cpp src/core/ThreadPool.cpp)
@@ -139,4 +139,12 @@ target_link_libraries(test_antivirus_scanner PRIVATE nlohmann_json::nlohmann_jso
 if (WIN32)
     target_link_libraries(test_antivirus_scanner PRIVATE ole32 uuid shlwapi)
 endif()
+
+# NetworkMonitor Unit Test (Task 13)
+add_executable(test_network_monitor test/test_network_monitor.cpp src/net/NetworkMonitor.cpp)
+target_link_libraries(test_network_monitor PRIVATE ${CURL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+if (WIN32)
+    target_link_libraries(test_network_monitor PRIVATE ole32 uuid shlwapi)
+endif()
+
 
