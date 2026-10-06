@@ -64,5 +64,9 @@ public:
     static bool quarantine_file(const std::string &filepath, const std::string &threat_name, std::string &out_quarantined_path, const std::string &source_url = "");
     static bool restore_quarantined_file(const std::string &quarantined_path, const std::string &target_path = "");
     static bool delete_quarantined_file(const std::string &quarantined_path);
+
+    static bool is_amsi_available();
+    static FileScanResult scan_buffer(const void *buffer, size_t length, const std::string &content_name = "DownloadChunk");
+    static void cleanup_amsi();
 };
 #endif

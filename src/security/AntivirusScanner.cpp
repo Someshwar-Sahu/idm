@@ -731,3 +731,184 @@ bool AntivirusScanner::delete_quarantined_file(const std::string &quarantined_pa
     std::filesystem::remove(sidecar_path, ec);
     return ok1;
 }
+
+// =========================================================================
+// Task 12: Dynamic Windows AMSI & Cross-Platform In-Memory Buffer Scanning
+// =========================================================================
+#ifdef _WIN32
+typedef struct HAMSICONTEXT__ *HAMSICONTEXT;
+typedef struct HAMSISESSION__ *HAMSISESSION;
+
+typedef enum AMSI_RESULT {
+    AMSI_RESULT_CLEAN = 0,
+    AMSI_RESULT_NOT_DETECTED = 1,
+    AMSI_RESULT_BLOCKED_BY_ADMIN_START = 16384,
+    AMSI_RESULT_BLOCKED_BY_ADMIN_END = 20479,
+    AMSI_RESULT_DETECTED = 32768
+} AMSI_RESULT;
+
+typedef HRESULT (WINAPI *pfnAmsiInitialize)(LPCWSTR appName, HAMSICONTEXT *amsiContext);
+typedef void (WINAPI *pfnAmsiUninitialize)(HAMSICONTEXT amsiContext);
+typedef HRESULT (WINAPI *pfnAmsiOpenSession)(HAMSICONTEXT amsiContext, HAMSISESSION *amsiSession);
+typedef void (WINAPI *pfnAmsiCloseSession)(HAMSICONTEXT amsiContext, HAMSISESSION amsiSession);
+typedef HRESULT (WINAPI *pfnAmsiScanBuffer)(HAMSICONTEXT amsiContext, PVOID buffer, ULONG length, LPCWSTR contentName, HAMSISESSION amsiSession, AMSI_RESULT *result);
+
+struct AmsiContextHolder {
+    std::mutex mtx;
+    HMODULE hAmsiDll{nullptr};
+    HAMSICONTEXT amsiContext{nullptr};
+    HAMSISESSION amsiSession{nullptr};
+    pfnAmsiInitialize fnInitialize{nullptr};
+    pfnAmsiUninitialize fnUninitialize{nullptr};
+    pfnAmsiOpenSession fnOpenSession{nullptr};
+    pfnAmsiCloseSession fnCloseSession{nullptr};
+    pfnAmsiScanBuffer fnScanBuffer{nullptr};
+    bool initialized{false};
+    bool available{false};
+};
+
+static AmsiContextHolder s_amsi;
+
+static bool ensure_amsi_initialized() {
+    std::lock_guard<std::mutex> lock(s_amsi.mtx);
+    if(s_amsi.initialized) {
+        return s_amsi.available;
+    }
+    s_amsi.initialized = true;
+    s_amsi.available = false;
+
+    s_amsi.hAmsiDll = LoadLibraryA("amsi.dll");
+    if(!s_amsi.hAmsiDll) {
+        return false;
+    }
+
+    s_amsi.fnInitialize = reinterpret_cast<pfnAmsiInitialize>(GetProcAddress(s_amsi.hAmsiDll, "AmsiInitialize"));
+    s_amsi.fnUninitialize = reinterpret_cast<pfnAmsiUninitialize>(GetProcAddress(s_amsi.hAmsiDll, "AmsiUninitialize"));
+    s_amsi.fnOpenSession = reinterpret_cast<pfnAmsiOpenSession>(GetProcAddress(s_amsi.hAmsiDll, "AmsiOpenSession"));
+    s_amsi.fnCloseSession = reinterpret_cast<pfnAmsiCloseSession>(GetProcAddress(s_amsi.hAmsiDll, "AmsiCloseSession"));
+    s_amsi.fnScanBuffer = reinterpret_cast<pfnAmsiScanBuffer>(GetProcAddress(s_amsi.hAmsiDll, "AmsiScanBuffer"));
+
+    if(!s_amsi.fnInitialize || !s_amsi.fnUninitialize || !s_amsi.fnOpenSession || !s_amsi.fnCloseSession || !s_amsi.fnScanBuffer) {
+        FreeLibrary(s_amsi.hAmsiDll);
+        s_amsi.hAmsiDll = nullptr;
+        return false;
+    }
+
+    HRESULT hr = s_amsi.fnInitialize(L"IDM_Engine", &s_amsi.amsiContext);
+    if(FAILED(hr) || !s_amsi.amsiContext) {
+        FreeLibrary(s_amsi.hAmsiDll);
+        s_amsi.hAmsiDll = nullptr;
+        return false;
+    }
+
+    hr = s_amsi.fnOpenSession(s_amsi.amsiContext, &s_amsi.amsiSession);
+    if(FAILED(hr)) {
+        s_amsi.amsiSession = nullptr;
+    }
+
+    s_amsi.available = true;
+    return true;
+}
+#endif
+
+bool AntivirusScanner::is_amsi_available() {
+#ifdef _WIN32
+    return ensure_amsi_initialized();
+#else
+    return false;
+#endif
+}
+
+void AntivirusScanner::cleanup_amsi() {
+#ifdef _WIN32
+    std::lock_guard<std::mutex> lock(s_amsi.mtx);
+    if(s_amsi.hAmsiDll) {
+        if(s_amsi.amsiSession && s_amsi.fnCloseSession) {
+            s_amsi.fnCloseSession(s_amsi.amsiContext, s_amsi.amsiSession);
+            s_amsi.amsiSession = nullptr;
+        }
+        if(s_amsi.amsiContext && s_amsi.fnUninitialize) {
+            s_amsi.fnUninitialize(s_amsi.amsiContext);
+            s_amsi.amsiContext = nullptr;
+        }
+        FreeLibrary(s_amsi.hAmsiDll);
+        s_amsi.hAmsiDll = nullptr;
+    }
+    s_amsi.available = false;
+    s_amsi.initialized = false;
+#endif
+}
+
+FileScanResult AntivirusScanner::scan_buffer(const void *buffer, size_t length, const std::string &content_name) {
+    FileScanResult result;
+    if(!buffer || length == 0) {
+        result.verdict = FileScanVerdict::Clean;
+        result.threat_name = "";
+        result.raw_output = "Empty buffer skipped";
+        result.exit_code = 0;
+        return result;
+    }
+
+    auto start_time = std::chrono::steady_clock::now();
+
+    // 1. Cross-platform heuristic pattern inspection (EICAR standard antivirus test signature)
+    static const std::string EICAR_SIG = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+    std::string_view sv(static_cast<const char*>(buffer), length);
+    if(sv.find(EICAR_SIG) != std::string_view::npos) {
+        auto end_time = std::chrono::steady_clock::now();
+        result.verdict = FileScanVerdict::Infected;
+        result.threat_name = "Virus:DOS/EICAR_Test_File";
+        result.raw_output = "In-memory buffer match: EICAR Standard Antivirus Test signature detected";
+        result.exit_code = 2;
+        result.scan_duration_ms = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count());
+        return result;
+    }
+
+#ifdef _WIN32
+    // 2. Windows Antimalware Scan Interface (AMSI) Deep Inspection
+    if(ensure_amsi_initialized()) {
+        std::wstring w_name = to_wide_string(content_name.empty() ? "DownloadChunk" : content_name);
+        AMSI_RESULT amsi_res = AMSI_RESULT_CLEAN;
+        HRESULT hr = S_OK;
+
+        {
+            std::lock_guard<std::mutex> lock(s_amsi.mtx);
+            hr = s_amsi.fnScanBuffer(
+                s_amsi.amsiContext,
+                const_cast<void*>(buffer),
+                static_cast<ULONG>(length),
+                w_name.c_str(),
+                s_amsi.amsiSession,
+                &amsi_res
+            );
+        }
+
+        auto end_time = std::chrono::steady_clock::now();
+        result.scan_duration_ms = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count());
+
+        if(SUCCEEDED(hr)) {
+            if(amsi_res >= AMSI_RESULT_DETECTED) {
+                result.verdict = FileScanVerdict::Infected;
+                result.threat_name = "Threat:AMSI/MalwareDetected";
+                result.raw_output = "Windows AMSI buffer inspection flagged malicious payload (AMSI_RESULT=" + std::to_string(amsi_res) + ")";
+                result.exit_code = 2;
+                return result;
+            } else if(amsi_res >= AMSI_RESULT_BLOCKED_BY_ADMIN_START && amsi_res <= AMSI_RESULT_BLOCKED_BY_ADMIN_END) {
+                result.verdict = FileScanVerdict::Infected;
+                result.threat_name = "Threat:AMSI/BlockedByAdministrator";
+                result.raw_output = "Windows AMSI policy blocked buffer (AMSI_RESULT=" + std::to_string(amsi_res) + ")";
+                result.exit_code = 2;
+                return result;
+            }
+        }
+    }
+#endif
+
+    auto end_time = std::chrono::steady_clock::now();
+    result.verdict = FileScanVerdict::Clean;
+    result.threat_name = "";
+    result.raw_output = "In-memory buffer clean (scanned " + std::to_string(length) + " bytes)";
+    result.exit_code = 0;
+    result.scan_duration_ms = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count());
+    return result;
+}

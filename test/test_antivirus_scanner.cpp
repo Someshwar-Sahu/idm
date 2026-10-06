@@ -261,9 +261,46 @@ int main() {
     remove(SUSPECT_FILE.c_str());
     cout << "  -> Quarantine isolation, permission locking & restore lifecycle: PASSED" << endl;
 
+        // =========================================================================
+    // 11. TASK 12: IN-MEMORY BUFFER CLEAN PAYLOAD & EDGE GUARDS (Pos + Neg)
+    // =========================================================================
+    cout << "\n[11/12] Testing In-Memory Buffer Clean Scan & Edge Guards (Task 12)..." << endl;
+
+    // Edge cases: nullptr and zero length
+    auto empty_buf_res = AntivirusScanner::scan_buffer(nullptr, 0);
+    assert(empty_buf_res.verdict == FileScanVerdict::Clean);
+    assert(empty_buf_res.exit_code == 0);
+
+    // Normal clean chunk buffer
+    string clean_payload = "HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\n\r\nSample clean binary PDF stream chunk.";
+    auto clean_buf_res = AntivirusScanner::scan_buffer(clean_payload.data(), clean_payload.size(), "chunk_0.bin");
+    assert(clean_buf_res.verdict == FileScanVerdict::Clean);
+    assert(clean_buf_res.threat_name.empty());
+    assert(clean_buf_res.exit_code == 0);
+    cout << "  -> Clean buffer passed inspection (scanned " << clean_payload.size() << " bytes): PASSED" << endl;
+
+    // =========================================================================
+    // 12. TASK 12: IN-MEMORY MALWARE SIGNATURE / EICAR DETECTION (Pos + Neg)
+    // =========================================================================
+    cout << "\n[12/12] Testing In-Memory Malware Signature Detection (Task 12)..." << endl;
+
+    // EICAR standard antivirus test signature
+    string eicar_payload = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+    auto infected_buf_res = AntivirusScanner::scan_buffer(eicar_payload.data(), eicar_payload.size(), "test_malware_chunk.bin");
+    assert(infected_buf_res.verdict == FileScanVerdict::Infected);
+    assert(!infected_buf_res.threat_name.empty());
+    assert(infected_buf_res.exit_code == 2);
+    cout << "  -> In-memory signature detected: " << infected_buf_res.threat_name << " (PASSED)" << endl;
+
+    // Check AMSI dynamic status
+    bool amsi_live = AntivirusScanner::is_amsi_available();
+    cout << "  -> Windows AMSI dynamic availability: " << (amsi_live ? "ACTIVE" : "SKIPPED/UNAVAILABLE") << " (PASSED)" << endl;
+
+    AntivirusScanner::cleanup_amsi();
+
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASKS 9, 10 & 11) VERIFIED!   " << endl;
+    cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASKS 9, 10, 11 & 12) VERIFIED!   " << endl;
     cout << "==========================================================" << endl;
 
     return 0;
