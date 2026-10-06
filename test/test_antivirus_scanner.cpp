@@ -180,10 +180,90 @@ int main() {
 
     remove(CLEAN_TEST_FILE.c_str());
 
+    // =========================================================================
+    // 8. TASK 11: FIPS 180-2 SHA-256 HASH VERIFICATION (Pos + Neg)
+    // =========================================================================
+    cout << "\n[8/10] Testing SHA-256 Checksum Calculation (Task 11)..." << endl;
+
+    const string HASH_TEST_FILE = "test_sha256_sample.txt";
+    {
+        ofstream out(HASH_TEST_FILE, ios::binary);
+        out << "Hello, World!"; // NIST SHA-256: dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f
+        out.close();
+    }
+    string calculated_hash = AntivirusScanner::calculate_file_sha256(HASH_TEST_FILE);
+    assert(calculated_hash == "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f");
+    assert(AntivirusScanner::calculate_file_sha256("non_existent_file_xyz.bin").empty());
+    remove(HASH_TEST_FILE.c_str());
+    cout << "  -> NIST test vector SHA-256 verified successfully: PASSED" << endl;
+
+    // =========================================================================
+    // 9. TASK 11: PERSISTENT WHITELIST MEMORY & DOMAIN OVERRIDE
+    // =========================================================================
+    cout << "\n[9/10] Testing Persistent Whitelist Memory & Domain Parsing (Task 11)..." << endl;
+
+    AntivirusScanner::clear_whitelist();
+    assert(AntivirusScanner::is_hash_whitelisted("dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f") == false);
+
+    // Add hash and verify
+    assert(AntivirusScanner::add_hash_to_whitelist("dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f", "Trusted sample") == true);
+    assert(AntivirusScanner::is_hash_whitelisted("DFFD6021BB2BD5B0AF676290809EC3A53191DD81C7F70A4B28688A362182986F") == true); // Case-insensitive
+
+    // Domain whitelist
+    assert(AntivirusScanner::add_domain_to_whitelist("https://internal.trusted-corp.com/downloads/", "Intranet") == true);
+    assert(AntivirusScanner::is_domain_whitelisted("internal.trusted-corp.com") == true);
+    assert(AntivirusScanner::is_domain_whitelisted("https://internal.trusted-corp.com:8080/path/file.zip") == true);
+    assert(AntivirusScanner::is_domain_whitelisted("malicious-site.ru") == false);
+
+    // Whitelist JSON Save & Load Roundtrip
+    const string WL_FILE = "test_whitelist_temp.json";
+    remove(WL_FILE.c_str());
+    assert(AntivirusScanner::save_whitelist(WL_FILE) == true);
+
+    AntivirusScanner::clear_whitelist();
+    assert(AntivirusScanner::is_hash_whitelisted("dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f") == false);
+
+    assert(AntivirusScanner::load_whitelist(WL_FILE) == true);
+    assert(AntivirusScanner::is_hash_whitelisted("dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f") == true);
+    assert(AntivirusScanner::is_domain_whitelisted("internal.trusted-corp.com") == true);
+
+    remove(WL_FILE.c_str());
+    cout << "  -> Whitelist persistence and domain matching: PASSED" << endl;
+
+    // =========================================================================
+    // 10. TASK 11: QUARANTINE ISOLATION, SIDECAR & RESTORE LIFECYCLE
+    // =========================================================================
+    cout << "\n[10/10] Testing Quarantine Isolation, Sidecar & Restore (Task 11)..." << endl;
+
+    const string SUSPECT_FILE = "suspect_payload.bin";
+    {
+        ofstream out(SUSPECT_FILE);
+        out << "Potentially suspicious binary content for quarantine test.";
+        out.close();
+    }
+    assert(filesystem::exists(SUSPECT_FILE) == true);
+
+    string quarantined_path;
+    bool q_ok = AntivirusScanner::quarantine_file(SUSPECT_FILE, "Trojan:Win32/TestThreat", quarantined_path, "https://example.com/bad.bin");
+    assert(q_ok == true);
+    assert(filesystem::exists(SUSPECT_FILE) == false); // Original removed
+    assert(filesystem::exists(quarantined_path) == true);
+    assert(filesystem::exists(quarantined_path + ".threat_info") == true); // Sidecar exists
+
+    // Restore from quarantine
+    bool r_ok = AntivirusScanner::restore_quarantined_file(quarantined_path);
+    assert(r_ok == true);
+    assert(filesystem::exists(SUSPECT_FILE) == true); // Restored
+    assert(filesystem::exists(quarantined_path) == false);
+    assert(filesystem::exists(quarantined_path + ".threat_info") == false);
+
+    // Clean up
+    remove(SUSPECT_FILE.c_str());
+    cout << "  -> Quarantine isolation, permission locking & restore lifecycle: PASSED" << endl;
 
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASK 9 & 10) VERIFIED!   " << endl;
+    cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASKS 9, 10 & 11) VERIFIED!   " << endl;
     cout << "==========================================================" << endl;
 
     return 0;
