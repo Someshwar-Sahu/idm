@@ -3,7 +3,6 @@
 
 #include <string>
 #include <atomic>
-#include <memory>
 #include <functional>
 #include <nlohmann/json.hpp>
 

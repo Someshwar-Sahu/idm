@@ -4,30 +4,31 @@
 
 #include "ChunkManager.h"
 #include "FileWriter.h"
-#include <iostream>
 #include <cassert>
-#include <cstdio>
 #include <chrono>
+#include <cstdio>
 #include <cstring>
-#include <vector>
+#include <iostream>
+
 
 using namespace std;
 
 int main() {
-    setvbuf(stdout, NULL, _IONBF, 0);
+  setvbuf(stdout, NULL, _IONBF, 0);
 
-    cout << "==========================================================" << endl;
-    cout << "  Comprehensive Unit Test: ChunkWorker (Pos + Neg)        " << endl;
-    cout << "==========================================================" << endl;
+  cout << "==========================================================" << endl;
+  cout << "  Comprehensive Unit Test: ChunkWorker (Pos + Neg)        " << endl;
+  cout << "==========================================================" << endl;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+  curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    const string TEST_FILE = "test_worker_output.bin";
-    constexpr uint64_t FILE_SIZE = 4096;
+  const string TEST_FILE = "test_worker_output.bin";
+  constexpr uint64_t FILE_SIZE = 4096;
 
-    // Clean up any stale artifacts from prior runs
-    remove(TEST_FILE.c_str());
+  // Clean up any stale artifacts from prior runs
+  remove(TEST_FILE.c_str());
 
+  {
     // =========================================================================
     // 1. SPEED LIMITER TESTS (Positive & Dynamic Changes)
     // =========================================================================
@@ -42,11 +43,9 @@ int main() {
     FileWriter fw_speed;
 
     uint64_t initial_speed = 250 * 1024; // 250 KB/s
-    ChunkWorker worker_speed("https://raw.githubusercontent.com/curl/curl/master/README.md",
-                             dummy_chunk,
-                             mgr_speed,
-                             fw_speed,
-                             initial_speed);
+    ChunkWorker worker_speed(
+        "https://raw.githubusercontent.com/curl/curl/master/README.md",
+        dummy_chunk, mgr_speed, fw_speed, initial_speed);
 
     // 1.1 Initial speed limit check
     assert(worker_speed.get_speed_limit() == initial_speed);
@@ -64,7 +63,8 @@ int main() {
     // =========================================================================
     // 2. WRITE_CALLBACK UNIT TESTS (Positive & Negative)
     // =========================================================================
-    cout << "\n[2/5] Testing write_callback() edge cases (Pos + Neg)..." << endl;
+    cout << "\n[2/5] Testing write_callback() edge cases (Pos + Neg)..."
+         << endl;
 
     bool prealloc_ok = FileWriter::preallocate_file(TEST_FILE, FILE_SIZE);
     assert(prealloc_ok);
@@ -75,12 +75,14 @@ int main() {
 
     ChunkManager mgr_callback(FILE_SIZE, 4);
     // Chunks: 0:[0-1023], 1:[1024-2047], 2:[2048-3071], 3:[3072-4095]
-    // Dispatch chunks 0..3 so their states transition from Pending to InProgress
+    // Dispatch chunks 0..3 so their states transition from Pending to
+    // InProgress
     auto c0 = mgr_callback.get_next_pending_chunk();
     auto c1 = mgr_callback.get_next_pending_chunk();
     auto c2 = mgr_callback.get_next_pending_chunk();
     auto c3 = mgr_callback.get_next_pending_chunk();
-    assert(c3.has_value() && c3->id == 3 && c3->state == ChunkState::InProgress);
+    assert(c3.has_value() && c3->id == 3 &&
+           c3->state == ChunkState::InProgress);
 
     ChunkWorker::WriteContext ctx;
     ctx.file_writer = &fw_callback;
@@ -94,7 +96,8 @@ int main() {
     memset(test_data, 'A', sizeof(test_data));
 
     // 2.1 Negative: Null userdata must return 0
-    size_t res_null_ud = ChunkWorker::write_callback(test_data, 1, 100, nullptr);
+    size_t res_null_ud =
+        ChunkWorker::write_callback(test_data, 1, 100, nullptr);
     assert(res_null_ud == 0);
 
     // 2.2 Negative: 0-byte write must return 0
@@ -109,23 +112,25 @@ int main() {
     assert(ctx.bytes_written == 100);
     assert(mgr_callback.get_total_downloaded_bytes() == 100);
 
-        // 2.4 Positive / Dynamic Stealing: Buffer crossing dynamic end byte gets truncated!
+    // 2.4 Positive / Dynamic Stealing: Buffer crossing dynamic end byte gets
+    // truncated!
     // Mark chunks 1, 2, 3 Done so Chunk 0 is the sole active donor
     mgr_callback.mark_chunk_done(1);
     mgr_callback.mark_chunk_done(2);
     mgr_callback.mark_chunk_done(3);
 
-    // Chunk 0 has 100 bytes written, 924 remaining. Split gives 462 bytes to each half.
-    // Chunk 0 new end_byte: 100 + 462 - 1 = 561
-    // Stolen Chunk 4: [562 .. 1023]
-    auto stolen_c4 = mgr_callback.steal_slowest_chunk(100); 
+    // Chunk 0 has 100 bytes written, 924 remaining. Split gives 462 bytes to
+    // each half. Chunk 0 new end_byte: 100 + 462 - 1 = 561 Stolen Chunk 4: [562
+    // .. 1023]
+    auto stolen_c4 = mgr_callback.steal_slowest_chunk(100);
     assert(stolen_c4.has_value());
     assert(stolen_c4->id == 4);
     assert(stolen_c4->start_byte == 562 && stolen_c4->end_byte == 1023);
     assert(mgr_callback.get_chunk_end_byte(0) == 561);
 
     // Now test Chunk 0 boundary truncation in write_callback:
-    // Advance ctx offset to 500: exactly (561 - 500 + 1) = 62 bytes remain before boundary
+    // Advance ctx offset to 500: exactly (561 - 500 + 1) = 62 bytes remain
+    // before boundary
     ctx.current_offset = 500;
     ctx.bytes_written = 500;
 
@@ -135,7 +140,8 @@ int main() {
     assert(ctx.current_offset == 562);
     assert(ctx.bytes_written == 562);
 
-    // 2.5 Negative: Calling write_callback when offset is past dynamic_end_byte returns 0 (abort signal)
+    // 2.5 Negative: Calling write_callback when offset is past dynamic_end_byte
+    // returns 0 (abort signal)
     size_t res_past_bound = ChunkWorker::write_callback(test_data, 1, 50, &ctx);
     assert(res_past_bound == 0);
 
@@ -148,11 +154,13 @@ int main() {
     ctx_err.current_offset = 0;
     ctx_err.end_byte = 561;
     ctx_err.bytes_written = 0;
-    size_t res_disk_fail = ChunkWorker::write_callback(test_data, 1, 50, &ctx_err);
+    size_t res_disk_fail =
+        ChunkWorker::write_callback(test_data, 1, 50, &ctx_err);
     assert(res_disk_fail == 0);
 
     fw_callback.close();
-    cout << "  -> write_callback() all branch conditions (Pos + Neg): PASSED" << endl;
+    cout << "  -> write_callback() all branch conditions (Pos + Neg): PASSED"
+         << endl;
 
     // =========================================================================
     // 3. LIVE DOWNLOAD & HTTP RANGE TESTS (Positive)
@@ -172,11 +180,10 @@ int main() {
     auto live_chunk = mgr_live.get_next_pending_chunk();
     assert(live_chunk.has_value());
 
-    ChunkWorker live_worker("https://raw.githubusercontent.com/curl/curl/master/README.md",
-                            live_chunk.value(),
-                            mgr_live,
-                            fw_live,
-                            500 * 1024); // 500 KB/s
+    ChunkWorker live_worker(
+        "https://raw.githubusercontent.com/curl/curl/master/README.md",
+        live_chunk.value(), mgr_live, fw_live,
+        500 * 1024); // 500 KB/s
 
     auto start_time = chrono::steady_clock::now();
     bool live_success = live_worker.download();
@@ -186,18 +193,22 @@ int main() {
     assert(mgr_live.is_complete() == true);
     assert(mgr_live.get_total_downloaded_bytes() == LIVE_DOWNLOAD_SIZE);
 
-    auto duration_ms = chrono::duration_cast<chrono::milliseconds>(end_time - start_time).count();
-    cout << "  -> Download finished successfully in " << duration_ms << " ms: PASSED" << endl;
+    auto duration_ms =
+        chrono::duration_cast<chrono::milliseconds>(end_time - start_time)
+            .count();
+    cout << "  -> Download finished successfully in " << duration_ms
+         << " ms: PASSED" << endl;
 
     fw_live.close();
 
     // =========================================================================
     // 4. NETWORK & HTTP FAILURE MODES (Negative)
     // =========================================================================
-        // =========================================================================
+    // =========================================================================
     // 4. NETWORK & HTTP FAILURE MODES (Negative)
     // =========================================================================
-    cout << "\n[4/5] Testing Network & HTTP Failure Handling (Negative)..." << endl;
+    cout << "\n[4/5] Testing Network & HTTP Failure Handling (Negative)..."
+         << endl;
 
     FileWriter fw_neg;
     fw_neg.open(TEST_FILE);
@@ -208,9 +219,7 @@ int main() {
     assert(neg_chunk_1.has_value());
 
     ChunkWorker worker_refused("http://127.0.0.1:59999/unreachable_port",
-                               neg_chunk_1.value(),
-                               mgr_refused,
-                               fw_neg);
+                               neg_chunk_1.value(), mgr_refused, fw_neg);
 
     cout << "  [Simulating Connection Refused with 3 Retries]..." << endl;
     bool refused_res = worker_refused.download();
@@ -225,10 +234,9 @@ int main() {
     auto neg_chunk_2 = mgr_404.get_next_pending_chunk();
     assert(neg_chunk_2.has_value());
 
-    ChunkWorker worker_404("https://raw.githubusercontent.com/curl/curl/master/non_existent_file_404.bin",
-                           neg_chunk_2.value(),
-                           mgr_404,
-                           fw_neg);
+    ChunkWorker worker_404("https://raw.githubusercontent.com/curl/curl/master/"
+                           "non_existent_file_404.bin",
+                           neg_chunk_2.value(), mgr_404, fw_neg);
 
     cout << "  [Simulating HTTP 404 Not Found with 3 Retries]..." << endl;
     bool not_found_res = worker_404.download();
@@ -243,31 +251,33 @@ int main() {
     // =========================================================================
     // 5. CLOSED FILE WRITER ERROR HANDLING (Negative)
     // =========================================================================
-    cout << "\n[5/5] Testing Download with Unopened FileWriter (Negative)..." << endl;
+    cout << "\n[5/5] Testing Download with Unopened FileWriter (Negative)..."
+         << endl;
 
     ChunkManager mgr_closed_fw(LIVE_DOWNLOAD_SIZE, 1);
     auto chunk_closed = mgr_closed_fw.get_next_pending_chunk();
     assert(chunk_closed.has_value());
 
     FileWriter fw_closed; // Not opened!
-    ChunkWorker worker_unopened("https://raw.githubusercontent.com/curl/curl/master/README.md",
-                                chunk_closed.value(),
-                                mgr_closed_fw,
-                                fw_closed);
+    ChunkWorker worker_unopened(
+        "https://raw.githubusercontent.com/curl/curl/master/README.md",
+        chunk_closed.value(), mgr_closed_fw, fw_closed);
 
     cout << "  [Simulating Disk Write Failure]..." << endl;
     bool disk_fail_res = worker_unopened.download();
     assert(disk_fail_res == false);
     assert(mgr_closed_fw.get_all_chunks()[0].retry_count == 1);
     cout << "  -> Disk Write Failure Handling: PASSED" << endl;
+  }
 
-    // Clean up temporary binary test file
-    remove(TEST_FILE.c_str());
-    curl_global_cleanup();
+  // Clean up temporary binary test file
+  remove(TEST_FILE.c_str());
+  curl_global_cleanup();
 
-    cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF CHUNKWORKER FUNCTIONS VERIFIED!        " << endl;
-    cout << "==========================================================" << endl;
+  cout << "\n=========================================================="
+       << endl;
+  cout << "  [PASSED] 100% OF CHUNKWORKER FUNCTIONS VERIFIED!        " << endl;
+  cout << "==========================================================" << endl;
 
-    return 0;
+  return 0;
 }

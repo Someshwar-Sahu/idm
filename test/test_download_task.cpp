@@ -8,7 +8,6 @@
 #include <cassert>
 #include <cstdio>
 #include <fstream>
-#include <iomanip>
 #include <filesystem>
 
 using namespace std;

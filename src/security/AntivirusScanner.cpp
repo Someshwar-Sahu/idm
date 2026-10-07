@@ -1,5 +1,4 @@
 #include "AntivirusScanner.h"
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <chrono>
@@ -8,7 +7,6 @@
 #include <iomanip>
 #include <mutex>
 #include <unordered_map>
-#include <algorithm>
 #include <nlohmann/json.hpp>
 
 #ifdef _WIN32

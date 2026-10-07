@@ -1,6 +1,5 @@
 #include "FileWriter.h"
-#include <iostream>
-#include<filesystem>
+#include <filesystem>
 
 #ifdef _WIN32
 #include <windows.h>

@@ -1,7 +1,6 @@
 #ifndef PROGRESS_TRACKER_H
 #define PROGRESS_TRACKER_H
 
-#include "ChunkManager.h"
 #include <chrono>
 #include <string>
 #include <cstdint>
