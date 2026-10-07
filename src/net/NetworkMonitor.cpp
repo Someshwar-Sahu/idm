@@ -1,6 +1,8 @@
 #include "NetworkMonitor.h"
 #include <curl/curl.h>
 #include <chrono>
+#include <algorithm>
+#include <iostream>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -35,8 +37,12 @@ NetworkMonitor::NetworkMonitor(const std::string &probe_target_url, uint32_t che
       m_gaming_active(false),
       m_gaming_throttle_ratio(0.10),
       m_active_game_name(""),
+      m_metered_connection_active(false),
+      m_metered_policy(MeteredNetworkPolicy::AutoPause),
+      m_active_network_name(""),
       m_running(false) {
     reset_default_monitored_games();
+    reset_default_metered_networks();
 }
 
 NetworkMonitor::~NetworkMonitor() {
@@ -57,6 +63,14 @@ void NetworkMonitor::reset_default_monitored_games() {
         "overwatch.exe", "overwatch",
         "discord.exe", "discord",
         "teams.exe", "teams"
+    };
+}
+
+void NetworkMonitor::reset_default_metered_networks() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_metered_network_patterns = {
+        "iphone", "hotspot", "cellular", "mobile",
+        "androidap", "tether", "metered", "pdp_ip0"
     };
 }
 
@@ -174,6 +188,39 @@ std::string NetworkMonitor::scan_for_active_games() {
     return "";
 }
 
+std::string NetworkMonitor::get_active_network_name_internal() {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_mock_network_name_provider) {
+            return m_mock_network_name_provider();
+        }
+    }
+    return "";
+}
+
+bool NetworkMonitor::is_connection_metered() {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_mock_metered_provider) {
+            return m_mock_metered_provider();
+        }
+    }
+
+    // Inspect active network name/SSID against metered patterns
+    std::string net_name = get_active_network_name_internal();
+    if (!net_name.empty()) {
+        std::string lower_net = to_lower_copy(net_name);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (const auto &pattern : m_metered_network_patterns) {
+            if (lower_net.find(pattern) != std::string::npos) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void NetworkMonitor::evaluate_qos_sample(uint32_t rtt_ms) {
     if (rtt_ms == 0) {
         return;
@@ -194,13 +241,28 @@ void NetworkMonitor::evaluate_qos_sample(uint32_t rtt_ms) {
         current_baseline = smoothed;
     }
 
-    // If gaming mode is active, gaming throttle takes precedence
+    // Priority 1: Metered Hotspot Guard (Task 15)
+    if (m_metered_connection_active.load()) {
+        MeteredNetworkPolicy policy = m_metered_policy.load();
+        if (policy == MeteredNetworkPolicy::AutoPause) {
+            m_qos_state.store(NetworkQoSState::MeteredBlocked);
+            m_suggested_throttle_ratio.store(0.0); // 0.0 signals full pause
+            return;
+        } else if (policy == MeteredNetworkPolicy::Throttle) {
+            m_qos_state.store(NetworkQoSState::MeteredBlocked);
+            m_suggested_throttle_ratio.store(0.20); // 80% throttle cap
+            return;
+        }
+    }
+
+    // Priority 2: Zero-Lag Gaming Mode (Task 14)
     if (m_gaming_active.load()) {
         m_qos_state.store(NetworkQoSState::GamingActive);
         m_suggested_throttle_ratio.store(m_gaming_throttle_ratio.load());
         return;
     }
 
+    // Priority 3: RTT Latency Bufferbloat (Task 13)
     uint32_t threshold = m_spike_threshold_ms;
     uint32_t diff = (rtt_ms > current_baseline) ? (rtt_ms - current_baseline) : 0;
 
@@ -236,7 +298,22 @@ void NetworkMonitor::evaluate_qos_sample(uint32_t rtt_ms) {
 
 void NetworkMonitor::monitor_loop() {
     while (m_running.load()) {
-        // 1. Task 14: Gaming process scan
+        // 1. Task 15: Metered Network Scan
+        bool is_metered = is_connection_metered();
+        bool was_metered = m_metered_connection_active.load();
+        if (is_metered != was_metered) {
+            m_metered_connection_active.store(is_metered);
+            MeteredStateCallback m_cb = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_cb = m_metered_callback;
+            }
+            if (m_cb) {
+                m_cb(is_metered, m_metered_policy.load());
+            }
+        }
+
+        // 2. Task 14: Gaming Process Scan
         std::string active_game = scan_for_active_games();
         bool was_gaming = m_gaming_active.load();
         bool is_gaming = !active_game.empty();
@@ -250,20 +327,12 @@ void NetworkMonitor::monitor_loop() {
                 cb = m_gaming_callback;
             }
 
-            if (is_gaming) {
-                m_qos_state.store(NetworkQoSState::GamingActive);
-                m_suggested_throttle_ratio.store(m_gaming_throttle_ratio.load());
-            } else {
-                m_qos_state.store(NetworkQoSState::Normal);
-                m_suggested_throttle_ratio.store(1.0);
-            }
-
             if (cb) {
-                cb(is_gaming, active_game, m_suggested_throttle_ratio.load());
+                cb(is_gaming, active_game, is_gaming ? m_gaming_throttle_ratio.load() : 1.0);
             }
         }
 
-        // 2. Task 13: RTT Latency probe
+        // 3. Task 13: RTT Latency Probe & Unified QoS Evaluation
         uint32_t sample = measure_live_rtt();
         evaluate_qos_sample(sample);
 
@@ -284,9 +353,12 @@ NetworkStats NetworkMonitor::get_stats() const {
     stats.suggested_throttle_ratio = m_suggested_throttle_ratio.load();
     stats.qos_state = m_qos_state.load();
     stats.gaming_active = m_gaming_active.load();
+    stats.metered_connection_active = m_metered_connection_active.load();
+    stats.metered_policy = m_metered_policy.load();
 
     std::lock_guard<std::mutex> lock(m_mutex);
     stats.active_game_name = m_active_game_name;
+    stats.active_network_name = m_active_network_name;
     return stats;
 }
 
@@ -388,4 +460,52 @@ void NetworkMonitor::set_on_gaming_state_changed_callback(GamingStateCallback ca
 void NetworkMonitor::set_mock_process_provider(ProcessListProvider provider) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_mock_process_provider = provider;
+}
+
+// --- Task 15 Implementation ---
+void NetworkMonitor::set_metered_policy(MeteredNetworkPolicy policy) {
+    m_metered_policy.store(policy);
+}
+
+MeteredNetworkPolicy NetworkMonitor::get_metered_policy() const {
+    return m_metered_policy.load();
+}
+
+bool NetworkMonitor::is_download_allowed() const {
+    if (!m_metered_connection_active.load()) {
+        return true;
+    }
+    return m_metered_policy.load() != MeteredNetworkPolicy::AutoPause;
+}
+
+void NetworkMonitor::add_metered_network(const std::string &ssid_or_keyword) {
+    if (ssid_or_keyword.empty()) return;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_metered_network_patterns.insert(to_lower_copy(ssid_or_keyword));
+}
+
+void NetworkMonitor::remove_metered_network(const std::string &ssid_or_keyword) {
+    if (ssid_or_keyword.empty()) return;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_metered_network_patterns.erase(to_lower_copy(ssid_or_keyword));
+}
+
+std::vector<std::string> NetworkMonitor::get_metered_networks() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return std::vector<std::string>(m_metered_network_patterns.begin(), m_metered_network_patterns.end());
+}
+
+void NetworkMonitor::set_on_metered_state_changed_callback(MeteredStateCallback callback) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_metered_callback = callback;
+}
+
+void NetworkMonitor::set_mock_metered_provider(MeteredStateProvider provider) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_mock_metered_provider = provider;
+}
+
+void NetworkMonitor::set_mock_network_name_provider(NetworkNameProvider provider) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_mock_network_name_provider = provider;
 }

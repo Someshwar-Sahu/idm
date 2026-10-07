@@ -14,7 +14,14 @@ enum class NetworkQoSState {
     Normal,        // Latency is within normal baseline range
     Elevated,      // Latency moderately higher than normal
     Critical,      // Severe bufferbloat detected, throttle required
-    GamingActive   // Active game or voice client detected, extreme ping protection active
+    GamingActive,  // Active game or voice client detected, extreme ping protection
+    MeteredBlocked // Metered/hotspot connection detected, download paused or capped
+};
+
+enum class MeteredNetworkPolicy {
+    AutoPause,
+    Throttle,
+    Allow
 };
 
 struct NetworkStats {
@@ -25,12 +32,18 @@ struct NetworkStats {
     NetworkQoSState qos_state{NetworkQoSState::Normal};
     bool gaming_active{false};
     std::string active_game_name;
+    bool metered_connection_active{false};
+    MeteredNetworkPolicy metered_policy{MeteredNetworkPolicy::AutoPause};
+    std::string active_network_name;
 };
 
 using LatencySpikeCallback = std::function<void(uint32_t current_rtt, uint32_t baseline_rtt, double throttle_ratio)>;
 using GamingStateCallback = std::function<void(bool game_active, const std::string &game_name, double throttle_ratio)>;
+using MeteredStateCallback = std::function<void(bool is_metered, MeteredNetworkPolicy policy)>;
 using RttProbeFunction = std::function<uint32_t()>;
 using ProcessListProvider = std::function<std::vector<std::string>()>;
+using MeteredStateProvider = std::function<bool()>;
+using NetworkNameProvider = std::function<std::string()>;
 
 class NetworkMonitor {
 public:
@@ -82,9 +95,25 @@ public:
     void set_on_gaming_state_changed_callback(GamingStateCallback callback);
     void set_mock_process_provider(ProcessListProvider provider);
 
+    // --- Task 15: Metered Wi-Fi & Mobile Hotspot Guard ---
+    bool is_connection_metered();
+    void set_metered_policy(MeteredNetworkPolicy policy);
+    MeteredNetworkPolicy get_metered_policy() const;
+    bool is_download_allowed() const;
+
+    void add_metered_network(const std::string &ssid_or_keyword);
+    void remove_metered_network(const std::string &ssid_or_keyword);
+    std::vector<std::string> get_metered_networks() const;
+    void reset_default_metered_networks();
+
+    void set_on_metered_state_changed_callback(MeteredStateCallback callback);
+    void set_mock_metered_provider(MeteredStateProvider provider);
+    void set_mock_network_name_provider(NetworkNameProvider provider);
+
 private:
     void monitor_loop();
     std::vector<std::string> get_running_process_names();
+    std::string get_active_network_name_internal();
 
     std::string m_probe_target{"http://www.google.com/generate_204"};
     uint32_t m_check_interval_ms{1000};
@@ -103,14 +132,23 @@ private:
     std::string m_active_game_name;
     std::unordered_set<std::string> m_monitored_games;
 
+    //Task 15 State
+    std::atomic<bool> m_metered_connection_active{false};
+    std::atomic<MeteredNetworkPolicy> m_metered_policy{MeteredNetworkPolicy::AutoPause};
+    std::unordered_set<std::string> m_metered_network_patterns;
+    std::string m_active_network_name;
+
     std::atomic<bool> m_running{false};
     std::thread m_worker_thread;
     mutable std::mutex m_mutex;
 
     LatencySpikeCallback m_spike_callback{nullptr};
     GamingStateCallback m_gaming_callback{nullptr};
+    MeteredStateCallback m_metered_callback{nullptr};
     RttProbeFunction m_mock_provider{nullptr};
     ProcessListProvider m_mock_process_provider{nullptr};
+    MeteredStateProvider m_mock_metered_provider{nullptr};
+    NetworkNameProvider m_mock_network_name_provider{nullptr};
 };
 
 #endif

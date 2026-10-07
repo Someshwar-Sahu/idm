@@ -181,6 +181,76 @@ int main() {
 
     monitor.stop();
 
+        // =========================================================================
+    // 8. TASK 15: METERED WI-FI & MOBILE HOTSPOT DETECTION (Pos + Neg)
+    // =========================================================================
+    cout << "\n[8/9] Testing Metered Wi-Fi & Hotspot Detection (Task 15)..." << endl;
+
+    // Normal non-metered home fiber Wi-Fi
+    monitor.set_mock_network_name_provider([&]() { return "Home_Fiber_5GHz"; });
+    assert(monitor.is_connection_metered() == false);
+    cout << "  -> Regular home fiber connection flagged as unmetered: PASSED" << endl;
+
+    // Tethered to iPhone Mobile Hotspot
+    monitor.set_mock_network_name_provider([&]() { return "Alex_iPhone_15_Hotspot"; });
+    assert(monitor.is_connection_metered() == true);
+    cout << "  -> Mobile hotspot detected via SSID pattern matching: PASSED" << endl;
+
+    // Custom metered network keyword addition
+    monitor.set_mock_network_name_provider([&]() { return "InFlight_GogoWiFi"; });
+    assert(monitor.is_connection_metered() == false); // Not yet added
+
+    monitor.add_metered_network("gogowifi");
+    assert(monitor.is_connection_metered() == true);
+    cout << "  -> Custom metered network registration verified: PASSED" << endl;
+
+    // =========================================================================
+    // 9. TASK 15: METERED POLICY ENFORCEMENT (AutoPause vs Throttle vs Allow)
+    // =========================================================================
+    cout << "\n[9/9] Testing Metered Policy Enforcement (Task 15)..." << endl;
+
+    bool metered_cb_called = false;
+    MeteredNetworkPolicy received_policy = MeteredNetworkPolicy::AutoPause;
+    monitor.set_on_metered_state_changed_callback([&](bool metered, MeteredNetworkPolicy policy) {
+        metered_cb_called = metered;
+        received_policy = policy;
+    });
+
+    // Policy 1: AutoPause (Default - completely block heavy downloads)
+    monitor.set_metered_policy(MeteredNetworkPolicy::AutoPause);
+    monitor.set_mock_metered_provider([&]() { return true; }); // Simulate metered
+    monitor.set_check_interval(30);
+
+    monitor.start();
+    this_thread::sleep_for(chrono::milliseconds(150));
+
+    assert(monitor.is_download_allowed() == false);
+    assert(monitor.get_suggested_throttle_ratio() == 0.0); // 0.0 signals full pause
+    assert(metered_cb_called == true);
+    cout << "  -> AutoPause policy paused downloads (ratio = 0.0): PASSED" << endl;
+
+    // Policy 2: Throttle (Allow with heavy 80% throttle cap to conserve data)
+    monitor.set_metered_policy(MeteredNetworkPolicy::Throttle);
+    monitor.evaluate_qos_sample(25);
+    assert(monitor.is_download_allowed() == true);
+    assert(monitor.get_suggested_throttle_ratio() == 0.20);
+    cout << "  -> Throttle policy throttled downloads to 0.20 (80% reduction): PASSED" << endl;
+
+    // Policy 3: Allow (User override to download at full speed)
+    monitor.set_metered_policy(MeteredNetworkPolicy::Allow);
+    monitor.evaluate_qos_sample(25);
+    assert(monitor.is_download_allowed() == true);
+    assert(monitor.get_suggested_throttle_ratio() == 1.0);
+    cout << "  -> Allow policy granted full speed override (ratio = 1.0): PASSED" << endl;
+
+    // Disconnecting from metered hotspot (restores unmetered state)
+    monitor.set_mock_metered_provider([&]() { return false; });
+    this_thread::sleep_for(chrono::milliseconds(150));
+    assert(monitor.is_download_allowed() == true);
+    assert(monitor.get_suggested_throttle_ratio() == 1.0);
+    cout << "  -> Unmetered restoration verified cleanly: PASSED" << endl;
+
+    monitor.stop();
 
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF NETWORKMONITOR (TASK 13 & 14) VERIFIED!     " << endl;

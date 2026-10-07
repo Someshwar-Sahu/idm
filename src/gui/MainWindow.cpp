@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <filesystem>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -42,28 +43,26 @@ bool MainWindow::init(const std::string& title, int width, int height, const std
 
 void MainWindow::run_event_loop() {
     if(!m_is_running.load()) return;
-    std::cout<<"[MainWindow] Launching Desktop Window for "<<m_ui_path<<"..."<<std::endl;
+    std::cout << "[MainWindow] Launching Desktop Window for " << m_ui_path << "..." << std::endl;
+
+    std::error_code ec;
+    std::string abs_path = std::filesystem::absolute(m_ui_path, ec).string();
 
 #ifdef _WIN32
-    std::string full_path = GetFullPathNameA ? "" : "";
-    char abs_path[MAX_PATH];
-    GetFullPathNameA(m_ui_path.c_str(), MAX_PATH, abs_path, NULL);
-
-    std::string cmd = "start msedge --app=\"file:///" + std::string(abs_path)+"\" --window-size="+std::to_string(m_width)+","+std::to_string(m_height);
+    std::string cmd = "start msedge --app=\"file:///" + abs_path + "\" --window-size=" + std::to_string(m_width) + "," + std::to_string(m_height);
     std::system(cmd.c_str());
-
-#elif __APPLE__
-
-    std::string cmd = "open -a \"Google Chrome\" --args --app=\"file:///" +m_ui_path+"\" &";
+#elif defined(__APPLE__)
+    std::string cmd = "open -a \"Google Chrome\" --args --app=\"file:///" + abs_path + "\" &";
     std::system(cmd.c_str());
 #else
     // Linux
-    std::string cmd = "google-chrome --app=\"file:///" +m_ui_path+"\"";
+    std::string cmd = "google-chrome --app=\"file:///" + abs_path + "\"";
     std::system(cmd.c_str());
 #endif
 
-    std::cout<<"[MainWindow] Native GUI Window launched successfully."<<std::endl;
+    std::cout << "[MainWindow] Native GUI Window launched successfully." << std::endl;
 }
+
 
 void MainWindow::close() {
     if(m_is_running.load()){
