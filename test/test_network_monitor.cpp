@@ -110,8 +110,80 @@ int main() {
     assert(monitor.is_bufferbloat_detected() == false);
     cout << "  -> Background thread executed " << probe_count.load() << " mock probes cleanly: PASSED" << endl;
 
+        // =========================================================================
+    // 6. TASK 14: GAMING PROCESS DETECTION & ZERO-LAG QOS (Pos + Neg)
+    // =========================================================================
+    cout << "\n[6/7] Testing Zero-Lag Gaming Process Detection (Task 14)..." << endl;
+
+    // Normal non-gaming processes
+    vector<string> regular_apps = {"explorer.exe", "notepad.exe", "chrome.exe"};
+    monitor.set_mock_process_provider([&]() { return regular_apps; });
+
+    string detected_game = monitor.scan_for_active_games();
+    assert(detected_game.empty());
+    assert(monitor.is_game_active() == false);
+    cout << "  -> Non-gaming apps detected cleanly without false triggers: PASSED" << endl;
+
+    // Launching game process (e.g. valorant.exe)
+    vector<string> gaming_apps = {"explorer.exe", "chrome.exe", "Valorant.exe"}; // Mixed case
+    monitor.set_mock_process_provider([&]() { return gaming_apps; });
+
+    detected_game = monitor.scan_for_active_games();
+    assert(!detected_game.empty());
+    cout << "  -> Game process detected: " << detected_game << " (PASSED)" << endl;
+
+    // Custom game process addition
+    assert(monitor.scan_for_active_games().empty() == false);
+    vector<string> custom_game_apps = {"MyCustomIndieGame.exe"};
+    monitor.set_mock_process_provider([&]() { return custom_game_apps; });
+    assert(monitor.scan_for_active_games().empty() == true); // Not yet monitored
+
+    monitor.add_monitored_game("MyCustomIndieGame.exe");
+    assert(monitor.scan_for_active_games() == "MyCustomIndieGame.exe");
+    cout << "  -> Dynamic custom game addition verified: PASSED" << endl;
+
+    // =========================================================================
+    // 7. TASK 14: GAMING AUTO-THROTTLE & RESTORATION LIFECYCLE
+    // =========================================================================
+    cout << "\n[7/7] Testing Gaming QoS Auto-Throttle & Restoration..." << endl;
+
+    bool cb_game_active = false;
+    string cb_game_name = "";
+    double cb_throttle = 1.0;
+
+    monitor.set_on_gaming_state_changed_callback([&](bool active, const string &name, double ratio) {
+        cb_game_active = active;
+        cb_game_name = name;
+        cb_throttle = ratio;
+    });
+
+    vector<string> active_processes = {"discord.exe"};
+    monitor.set_mock_process_provider([&]() { return active_processes; });
+    monitor.set_check_interval(30);
+
+    monitor.start();
+    this_thread::sleep_for(chrono::milliseconds(150));
+
+    assert(monitor.is_game_active() == true);
+    assert(monitor.get_suggested_throttle_ratio() == 0.10); // 90% throttle
+    assert(cb_game_active == true);
+    assert(cb_game_name == "discord.exe");
+    cout << "  -> Active game throttled download to 0.10 (90% reduction): PASSED" << endl;
+
+    // Game closes
+    active_processes = {"notepad.exe"};
+    this_thread::sleep_for(chrono::milliseconds(150));
+
+    assert(monitor.is_game_active() == false);
+    assert(monitor.get_suggested_throttle_ratio() == 1.0); // Full speed restored
+    assert(cb_game_active == false);
+    cout << "  -> Game exited: 100% full speed restored automatically: PASSED" << endl;
+
+    monitor.stop();
+
+
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF NETWORKMONITOR (TASK 13) VERIFIED!     " << endl;
+    cout << "  [PASSED] 100% OF NETWORKMONITOR (TASK 13 & 14) VERIFIED!     " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

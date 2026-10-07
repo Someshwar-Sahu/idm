@@ -1,17 +1,15 @@
 cmake_minimum_required(VERSION 3.15)
 project(idm_engine VERSION 1.0.0 LANGUAGES CXX)
 
-# Disable SSL verification for FetchContent downloads on local MinGW
-set(CMAKE_TLS_VERIFY OFF)
-
-# Link MinGW runtime (POSIX threads & C++ standard library) statically
-if (WIN32)
-    # Link MinGW runtime statically on Windows
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-endif()
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_TLS_VERIFY OFF)
+
+if(WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+    set(PLATFORM_LIBS ole32 uuid shlwapi)
+endif()
 
 include(FetchContent)
 
@@ -25,15 +23,14 @@ FetchContent_MakeAvailable(json)
 
 # 2. libcurl (Find system installed CURL, or FetchContent fallback)
 find_package(CURL QUIET)
-
 if(NOT CURL_FOUND)
     message(STATUS "Local libcurl not found. Fetching libcurl source automatically...")
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    if (WIN32)
-        set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE) # Enable Windows native HTTPS/SSL
-    elseif (APPLE)
-        set(CURL_USE_SECTRANSP ON CACHE BOOL "" FORCE) # Enable Apple SecureTransport on macOS
+    if(WIN32)
+        set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+    elseif(APPLE)
+        set(CURL_USE_SECTRANSP ON CACHE BOOL "" FORCE)
     endif()
     FetchContent_Declare(
         curl
@@ -46,105 +43,64 @@ endif()
 
 include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net)
 
-# ThreadPool Unit Test
+# Shared Core Engine Sources
+set(CORE_SOURCES
+    src/core/ChunkManager.cpp
+    src/core/ChunkWorker.cpp
+    src/core/DownloadTask.cpp
+    src/core/FileWriter.cpp
+    src/core/ProgressTracker.cpp
+    src/core/ResumeStore.cpp
+    src/core/ThreadPool.cpp
+    src/security/AntivirusScanner.cpp
+)
+
+# ---------------------------------------------------------
+# IDM Desktop Application
+# ---------------------------------------------------------
+add_executable(idm_app
+    src/main.cpp
+    src/gui/MainWindow.cpp
+    src/queue/DownloadQueue.cpp
+    src/config/SettingsManager.cpp
+    ${CORE_SOURCES}
+)
+target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+# ---------------------------------------------------------
+# Unit Tests
+# ---------------------------------------------------------
 add_executable(test_threadpool test/test_threadpool.cpp src/core/ThreadPool.cpp)
-target_link_libraries(test_threadpool PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(test_chunk_manager test/test_chunk_manager.cpp src/core/ChunkManager.cpp)
-target_link_libraries(test_chunk_manager PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(test_file_writer test/test_file_writer.cpp src/core/FileWriter.cpp src/core/ThreadPool.cpp)
-target_link_libraries(test_file_writer PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(test_chunk_worker test/test_chunk_worker.cpp src/core/ChunkWorker.cpp src/core/ChunkManager.cpp src/core/FileWriter.cpp)
-target_link_libraries(test_chunk_worker PRIVATE ${CURL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(test_chunk_worker PRIVATE ${CURL_LIBRARIES})
 
 add_executable(test_resume_store test/test_resume_store.cpp src/core/ResumeStore.cpp src/core/ChunkManager.cpp)
-target_link_libraries(test_resume_store PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(test_resume_store PRIVATE nlohmann_json::nlohmann_json)
 
 add_executable(test_progress_tracker test/test_progress_tracker.cpp src/core/ProgressTracker.cpp src/core/ChunkManager.cpp)
-target_link_libraries(test_progress_tracker PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(test_download_task 
-    test/test_download_task.cpp 
-    src/core/DownloadTask.cpp 
-    src/core/ChunkWorker.cpp 
-    src/core/ChunkManager.cpp 
-    src/core/FileWriter.cpp 
-    src/core/ThreadPool.cpp 
-    src/core/ProgressTracker.cpp 
-    src/core/ResumeStore.cpp
-    src/security/AntivirusScanner.cpp
-)
-target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
-if (WIN32)
-    target_link_libraries(test_download_task PRIVATE ole32 uuid shlwapi)
-endif()
+add_executable(test_download_task test/test_download_task.cpp ${CORE_SOURCES})
+target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
-target_link_libraries(test_download_task PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
-
-# SettingsManager Unit Test
 add_executable(test_settings_manager test/test_settings_manager.cpp src/config/SettingsManager.cpp)
-target_link_libraries(test_settings_manager PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(test_settings_manager PRIVATE nlohmann_json::nlohmann_json)
 
-# DownloadQueue Unit Test
-add_executable(test_download_queue 
-    test/test_download_queue.cpp 
-    src/queue/DownloadQueue.cpp 
-    src/core/DownloadTask.cpp 
-    src/core/ChunkWorker.cpp 
-    src/core/ChunkManager.cpp 
-    src/core/FileWriter.cpp 
-    src/core/ThreadPool.cpp 
-    src/core/ProgressTracker.cpp 
-    src/core/ResumeStore.cpp
-    src/security/AntivirusScanner.cpp
-)
-target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
-if (WIN32)
-    target_link_libraries(test_download_queue PRIVATE ole32 uuid shlwapi)
-endif()
+add_executable(test_download_queue test/test_download_queue.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
+target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
-# NativeHost Unit Test
 add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp)
-target_link_libraries(test_native_host PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(test_native_host PRIVATE nlohmann_json::nlohmann_json)
 
-# MainWindow Unit Test
 add_executable(test_main_window test/test_main_window.cpp src/gui/MainWindow.cpp)
-target_link_libraries(test_main_window PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(test_main_window PRIVATE nlohmann_json::nlohmann_json)
 
-# IDM Main Desktop Application Executable
-add_executable(idm_app 
-    src/main.cpp 
-    src/gui/MainWindow.cpp 
-    src/queue/DownloadQueue.cpp 
-    src/config/SettingsManager.cpp
-    src/core/DownloadTask.cpp 
-    src/core/ChunkWorker.cpp 
-    src/core/ChunkManager.cpp 
-    src/core/FileWriter.cpp 
-    src/core/ThreadPool.cpp 
-    src/core/ProgressTracker.cpp 
-    src/core/ResumeStore.cpp
-    src/security/AntivirusScanner.cpp
-)
-target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
-if (WIN32)
-    target_link_libraries(idm_app PRIVATE ole32 uuid shlwapi)
-endif()
-
-# AntivirusScanner Unit Test (Task 9)
 add_executable(test_antivirus_scanner test/test_antivirus_scanner.cpp src/security/AntivirusScanner.cpp)
-target_link_libraries(test_antivirus_scanner PRIVATE nlohmann_json::nlohmann_json ${CMAKE_THREAD_LIBS_INIT})
-if (WIN32)
-    target_link_libraries(test_antivirus_scanner PRIVATE ole32 uuid shlwapi)
-endif()
+target_link_libraries(test_antivirus_scanner PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
-# NetworkMonitor Unit Test (Task 13)
 add_executable(test_network_monitor test/test_network_monitor.cpp src/net/NetworkMonitor.cpp)
-target_link_libraries(test_network_monitor PRIVATE ${CURL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-if (WIN32)
-    target_link_libraries(test_network_monitor PRIVATE ole32 uuid shlwapi)
-endif()
-
-
+target_link_libraries(test_network_monitor PRIVATE ${CURL_LIBRARIES} ${PLATFORM_LIBS})
