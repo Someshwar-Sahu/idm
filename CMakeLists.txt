@@ -104,3 +104,7 @@ target_link_libraries(test_antivirus_scanner PRIVATE nlohmann_json::nlohmann_jso
 
 add_executable(test_network_monitor test/test_network_monitor.cpp src/net/NetworkMonitor.cpp)
 target_link_libraries(test_network_monitor PRIVATE ${CURL_LIBRARIES} ${PLATFORM_LIBS})
+
+add_executable(test_power_monitor test/test_power_monitor.cpp src/net/PowerMonitor.cpp)
+target_link_libraries(test_power_monitor PRIVATE ${PLATFORM_LIBS})
+
