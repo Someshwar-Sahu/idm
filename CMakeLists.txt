@@ -8,7 +8,7 @@ set(CMAKE_TLS_VERIFY OFF)
 
 if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-    set(PLATFORM_LIBS ole32 uuid shlwapi)
+    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi)
 endif()
 
 include(FetchContent)
@@ -108,3 +108,5 @@ target_link_libraries(test_network_monitor PRIVATE ${CURL_LIBRARIES} ${PLATFORM_
 add_executable(test_power_monitor test/test_power_monitor.cpp src/net/PowerMonitor.cpp)
 target_link_libraries(test_power_monitor PRIVATE ${PLATFORM_LIBS})
 
+add_executable(test_channel_bonding test/test_channel_bonding.cpp src/net/ChannelBonding.cpp)
+target_link_libraries(test_channel_bonding PRIVATE ${CURL_LIBRARIES} ${PLATFORM_LIBS})
