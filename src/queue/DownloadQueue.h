@@ -28,6 +28,7 @@ enum class QueueState{
 class DownloadQueue{
 public:
     using QueueCompletionCallback = std::function<void(PostQueueAction action)>;
+    using NativeActionExecutor = std::function<bool(PostQueueAction action)>;
 
     explicit DownloadQueue(const std::string &queue_name = "Main Queue", int max_concurrent_tasks = 3);
     ~DownloadQueue();
@@ -52,6 +53,10 @@ public:
 
     std::vector<std::shared_ptr<DownloadTask>> get_tasks() const;
     size_t get_task_count() const;
+    
+    bool execute_post_queue_action(PostQueueAction action);
+    void set_mock_native_action_executor(NativeActionExecutor executor);
+    static bool execute_native_post_action(PostQueueAction action, bool dry_run = false);
 
 private:
 
@@ -69,6 +74,7 @@ private:
 
     mutable std::mutex m_mutex;
     QueueCompletionCallback m_completion_callback;
+    NativeActionExecutor m_mock_action_executor{nullptr};
 };
 
 #endif

@@ -167,6 +167,51 @@ int main() {
     curl_global_cleanup();
     cout << "  -> Live multi-task batch execution & completion callback: PASSED" << endl;
 
+        // =========================================================================
+    // 6. POST-QUEUE NATIVE DISPATCH VIA MOCK EXECUTOR (Task 18)
+    // =========================================================================
+    cout << "\n[6/7] Testing Post-Queue Action Dispatch via Mock (Task 18)..." << endl;
+    DownloadQueue action_queue("Action Queue", 1);
+
+    PostQueueAction last_dispatched_action = PostQueueAction::None;
+    action_queue.set_mock_native_action_executor([&](PostQueueAction action) {
+        last_dispatched_action = action;
+        return true;
+    });
+
+    // Test ShutdownPC dispatch
+    action_queue.set_post_queue_action(PostQueueAction::ShutdownPC);
+    assert(action_queue.execute_post_queue_action(PostQueueAction::ShutdownPC) == true);
+    assert(last_dispatched_action == PostQueueAction::ShutdownPC);
+    cout << "  -> ShutdownPC action safely intercepted by executor: PASSED" << endl;
+
+    // Test SleepPC dispatch
+    action_queue.set_post_queue_action(PostQueueAction::SleepPC);
+    assert(action_queue.execute_post_queue_action(PostQueueAction::SleepPC) == true);
+    assert(last_dispatched_action == PostQueueAction::SleepPC);
+    cout << "  -> SleepPC action safely intercepted by executor: PASSED" << endl;
+
+    // Test HibernatePC dispatch
+    action_queue.set_post_queue_action(PostQueueAction::HibernatePC);
+    assert(action_queue.execute_post_queue_action(PostQueueAction::HibernatePC) == true);
+    assert(last_dispatched_action == PostQueueAction::HibernatePC);
+    cout << "  -> HibernatePC action safely intercepted by executor: PASSED" << endl;
+
+    // =========================================================================
+    // 7. NATIVE DRY-RUN VALIDATION & LIVE SOUND ALERT (Task 18)
+    // =========================================================================
+    cout << "\n[7/7] Testing Native Dry-Run Actions & Live Sound Alert (Task 18)..." << endl;
+    assert(DownloadQueue::execute_native_post_action(PostQueueAction::ShutdownPC, /*dry_run=*/true) == true);
+    assert(DownloadQueue::execute_native_post_action(PostQueueAction::SleepPC, /*dry_run=*/true) == true);
+    assert(DownloadQueue::execute_native_post_action(PostQueueAction::HibernatePC, /*dry_run=*/true) == true);
+    assert(DownloadQueue::execute_native_post_action(PostQueueAction::None, /*dry_run=*/false) == true);
+
+    // Test live sound playback (harmless chime notification)
+    bool sound_played = DownloadQueue::execute_native_post_action(PostQueueAction::PlaySound, /*dry_run=*/false);
+    assert(sound_played == true);
+    cout << "  -> Native Win32 PlaySoundA & dry-run power API validation: PASSED" << endl;
+
+
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF DOWNLOADQUEUE FUNCTIONS VERIFIED!      " << endl;
     cout << "==========================================================" << endl;

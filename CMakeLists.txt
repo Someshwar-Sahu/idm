@@ -8,7 +8,7 @@ set(CMAKE_TLS_VERIFY OFF)
 
 if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi)
+    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof)
 endif()
 
 include(FetchContent)
