@@ -41,7 +41,7 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net src/ipc)
+include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net src/ipc src/media)
 
 # Shared Core Engine Sources
 set(CORE_SOURCES
@@ -117,9 +117,9 @@ target_link_libraries(test_notification_manager PRIVATE ${PLATFORM_LIBS})
 add_executable(test_local_server test/test_local_server.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_local_server PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
-add_executable(test_swarm_download 
-    test/test_swarm_download.cpp 
-    src/net/SwarmDownloader.cpp 
-    ${CORE_SOURCES}
-)
+add_executable(test_swarm_download test/test_swarm_download.cpp src/net/SwarmDownloader.cpp ${CORE_SOURCES})
 target_link_libraries(test_swarm_download PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_media_extractor test/test_media_extractor.cpp src/media/MediaExtractor.cpp )
+target_link_libraries(test_media_extractor PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+

@@ -135,9 +135,10 @@ This document tracks all **mistakes/gaps identified in the current code** and se
   - Split chunks across multiple mirror URLs simultaneously to bypass single-server bandwidth caps and multiply speed 3x.
   - Metalink XML/JSON parsers with substring guards, dynamic mirror registration & health demotion, round-robin & priority multiplexing, live failover, and SHA-256 bit-exact assembly verification.
   - *Verification Target*: `test_swarm_download` (PASSED ✅)
-- [ ] **Task 23: Universal Video & Audio Extraction Pipeline (`yt-dlp` & FFmpeg)**
+- [x] **Task 23: Universal Video & Audio Extraction Pipeline (`yt-dlp` & FFmpeg)** ✅
   - Native backend pipeline supporting 1,000+ streaming sites with resolution selector (4K 60fps, 1080p, audio-only 320kbps MP3).
-  - *Verification Target*: `test_media_extractor`
+  - Stream format matrix parsing, smart presets, real-time line-by-line stdout progress tracker, cancellation lifecycle, and mock process execution.
+  - *Verification Target*: `test_media_extractor` (PASSED ✅)
 - [ ] **Task 24: Instant In-App Stream Preview**
   - Stream and play partially downloaded video/audio files directly from disk buffer while downloading.
   - *Verification Target*: `test_stream_preview`
