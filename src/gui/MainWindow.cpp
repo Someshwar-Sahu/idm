@@ -1,11 +1,27 @@
 #include "MainWindow.h"
+#include "../ipc/LocalServer.h"
+#include <chrono>
+#include <handleapi.h>
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
 #include <filesystem>
+#include <minwinbase.h>
+#include <minwindef.h>
+#include <mutex>
+#include <processthreadsapi.h>
+#include <vector>
+#include <winnt.h>
+#include <winscard.h>
 
 #ifdef _WIN32
-#include <windows.h>
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #include <windows.h>
 #endif
 
 namespace idm {
@@ -16,7 +32,10 @@ MainWindow::MainWindow()
       m_height(720),
       m_ui_path(""),
       m_is_running(false),
-      m_ipc_handler(nullptr){
+      m_ipc_handler(nullptr),
+      m_close_callback(nullptr),
+      m_server(nullptr),
+      m_process_handler(nullptr){
 }
 
 MainWindow::~MainWindow() {
@@ -41,8 +60,15 @@ bool MainWindow::init(const std::string& title, int width, int height, const std
     return true;
 }
 
-void MainWindow::run_event_loop() {
+void MainWindow::run_event_loop(bool headless) {
     if(!m_is_running.load()) return;
+
+    if(headless){
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_cv.wait(lock, [this]() { return !m_is_running.load(); });
+        std::cout<<"[MainWindow] Headless keep-alive event loop unblocked and terminated cleanly."<<std::endl;
+        return;
+    }
     std::cout << "[MainWindow] Launching Desktop Window for " << m_ui_path << "..." << std::endl;
 
     std::error_code ec;
@@ -50,23 +76,78 @@ void MainWindow::run_event_loop() {
 
 #ifdef _WIN32
     std::string cmd = "start msedge --app=\"file:///" + abs_path + "\" --window-size=" + std::to_string(m_width) + "," + std::to_string(m_height);
-    std::system(cmd.c_str());
+
+    STARTUPINFOA si{};
+    PROCESS_INFORMATION pi{};
+    si.cb = sizeof(si);
+
+    std::vector<char> cmd_buf(cmd.begin(), cmd.end());
+    cmd_buf.push_back('\0');
+
+    BOOL created = CreateProcessA(NULL, cmd_buf.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+
+    if(created){
+        m_process_handler = pi.hProcess;
+        CloseHandle(pi.hThread);
+        std::cout<< "[MainWindow] Native GUI Window process launched (PID: "<<pi.dwProcessId<< ")."<<std::endl;
+
+        while(m_is_running.load()){
+            std::unique_lock<std::mutex> lock(m_mutex);
+            if(m_cv.wait_for(lock, std::chrono::milliseconds(100), [this]() { return !m_is_running.load(); })) {
+                break;
+            }
+
+            DWORD exit_code = 0;
+            if(GetExitCodeProcess(pi.hProcess, &exit_code) && exit_code != STILL_ACTIVE){
+                std::cout<< "[MainWindow] Window was closed by user (Exit code: "<<exit_code<<")."<<std::endl;
+                close();
+                break;
+            }
+        }
+        CloseHandle(pi.hProcess);
+        m_process_handler = nullptr;
+    } else {
+        std::cerr<<"[MainWindow] Failed to create process, falling back to contional wait."<<std::endl;
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_cv.wait(lock, [this]() { return !m_is_running.load(); });
+    }
 #elif defined(__APPLE__)
     std::string cmd = "open -a \"Google Chrome\" --args --app=\"file:///" + abs_path + "\" &";
     std::system(cmd.c_str());
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_cv.wait(lock, [this]() { return !m_is_running.load(); });
 #else
-    // Linux
     std::string cmd = "google-chrome --app=\"file:///" + abs_path + "\"";
     std::system(cmd.c_str());
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_cv.wait(lock, [this]() { return !m_is_running.load(); });
 #endif
 
-    std::cout << "[MainWindow] Native GUI Window launched successfully." << std::endl;
+    std::cout << "[MainWindow] Native GUI Window loop finished." << std::endl;
 }
 
 
 void MainWindow::close() {
-    if(m_is_running.load()){
-        m_is_running = false;
+    bool was_running = m_is_running.exchange(false);
+    if(was_running){
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_cv.notify_all();
+        }
+
+#ifdef _WIN32
+        if(m_process_handler != nullptr){
+            TerminateProcess(static_cast<HANDLE>(m_process_handler), 0);
+        }
+#endif
+        if(m_server != nullptr){
+            m_server -> stop();
+        }
+
+        if(m_close_callback){
+            m_close_callback();
+        }
+
         std::cout<<"[MainWindow] Window closed and resources freed."<<std::endl;
     }
 }
@@ -93,6 +174,14 @@ int MainWindow::get_height() const {
 
 void MainWindow::set_ipc_handler(IPCHandler handler){
     m_ipc_handler = handler;
+}
+
+void MainWindow::set_close_callback(WindowCloseCallback callback){
+    m_close_callback = callback;
+}
+
+void MainWindow::attach_server(LocalServer *server){
+    m_server = server;
 }
 
 std::string MainWindow::dispatch_ipc_message(const std::string& raw_json_message){

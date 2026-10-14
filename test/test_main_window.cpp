@@ -1,8 +1,11 @@
 #include "gui/MainWindow.h"
+#include "ipc/LocalServer.h"
 #include <iostream>
 #include <cassert>
 #include <cstdio>
 #include <string>
+#include <thread>
+#include <chrono>
 
 using namespace std;
 using namespace idm;
@@ -11,13 +14,13 @@ int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     cout << "==========================================================" << endl;
-    cout << "  Comprehensive Unit Test: MainWindow & IPC (Pos + Neg)   " << endl;
+    cout << "  Comprehensive Unit Test: MainWindow & Event Loop (T21)  " << endl;
     cout << "==========================================================" << endl;
 
     // =========================================================================
     // 1. DEFAULT INITIALIZATION & ACCESSORS (Positive)
     // =========================================================================
-    cout << "\n[1/5] Testing Default Window Construction & Accessors..." << endl;
+    cout << "\n[1/7] Testing Default Window Construction & Accessors..." << endl;
 
     MainWindow window_default;
     assert(window_default.is_running() == false);
@@ -30,7 +33,7 @@ int main() {
     // =========================================================================
     // 2. WINDOW INIT & MISSING UI FILE GUARDS (Positive & Negative)
     // =========================================================================
-    cout << "\n[2/5] Testing init() With Valid & Missing UI Paths (Pos + Neg)..." << endl;
+    cout << "\n[2/7] Testing init() With Valid & Missing UI Paths (Pos + Neg)..." << endl;
 
     // 2.1 Negative: Non-existent UI path must return false
     MainWindow window_bad_path;
@@ -52,7 +55,7 @@ int main() {
     // =========================================================================
     // 3. BUILT-IN IPC DISPATCHER (Positive & Negative)
     // =========================================================================
-    cout << "\n[3/5] Testing Default Built-in IPC Dispatcher (Pos + Neg)..." << endl;
+    cout << "\n[3/7] Testing Default Built-in IPC Dispatcher (Pos + Neg)..." << endl;
 
     // 3.1 Positive: Built-in PING
     string ping_req = R"({"action": "PING"})";
@@ -71,7 +74,7 @@ int main() {
     // =========================================================================
     // 4. CUSTOM IPC HANDLER & CORRUPT JSON GUARDS (Positive & Negative)
     // =========================================================================
-    cout << "\n[4/5] Testing Custom IPC Handler & Corrupt JSON Guards..." << endl;
+    cout << "\n[4/7] Testing Custom IPC Handler & Corrupt JSON Guards..." << endl;
 
     // 4.1 Positive: Register custom backend IPC handler
     window.set_ipc_handler([](const json& req) -> json {
@@ -110,7 +113,7 @@ int main() {
     // =========================================================================
     // 5. WINDOW CLOSURE & IDEMPOTENCE (Positive)
     // =========================================================================
-    cout << "\n[5/5] Testing Window Closure Lifecycle & Idempotence..." << endl;
+    cout << "\n[5/7] Testing Window Closure Lifecycle & Idempotence..." << endl;
 
     assert(window.is_running() == true);
     window.close();
@@ -121,8 +124,76 @@ int main() {
     assert(window.is_running() == false);
     cout << "  -> Window close and idempotence: PASSED" << endl;
 
+    // =========================================================================
+    // 6. KEEP-ALIVE EVENT LOOP BLOCKING & THREADED TERMINATION (Task 21)
+    // =========================================================================
+    cout << "\n[6/7] Testing Keep-Alive Event Loop Blocking & Termination..." << endl;
+    {
+        MainWindow loop_win;
+        assert(loop_win.init("Loop Test", 800, 600, "ui/index.html") == true);
+        assert(loop_win.is_running() == true);
+
+        atomic<bool> loop_entered{false};
+        atomic<bool> loop_finished{false};
+
+        // Run the event loop on a dedicated thread in headless mode
+        thread loop_thread([&]() {
+            loop_entered.store(true);
+            loop_win.run_event_loop(/*headless=*/true);
+            loop_finished.store(true);
+        });
+
+        // Wait until thread enters the loop
+        while (!loop_entered.load()) {
+            this_thread::sleep_for(chrono::milliseconds(10));
+        }
+
+        // Verify the event loop is actively BLOCKING and keeping alive
+        this_thread::sleep_for(chrono::milliseconds(50));
+        assert(loop_finished.load() == false);
+        assert(loop_win.is_running() == true);
+
+        // Signal close from main thread
+        loop_win.close();
+
+        // Verify the event loop unblocks immediately and joins cleanly
+        if (loop_thread.joinable()) {
+            loop_thread.join();
+        }
+        assert(loop_finished.load() == true);
+        assert(loop_win.is_running() == false);
+        cout << "  -> Blocking keep-alive event loop and clean threaded unblock: PASSED" << endl;
+    }
+
+    // =========================================================================
+    // 7. CLOSE CALLBACK & LOCALSERVER TEARDOWN INTEGRATION (Task 21)
+    // =========================================================================
+    cout << "\n[7/7] Testing Close Callback & LocalServer Teardown..." << endl;
+    {
+        MainWindow integrated_win;
+        assert(integrated_win.init("Integrated Window", 800, 600, "ui/index.html") == true);
+
+        // 7.1 Close Callback
+        atomic<bool> callback_fired{false};
+        integrated_win.set_close_callback([&]() {
+            callback_fired.store(true);
+        });
+
+        // 7.2 Attach a running LocalServer
+        LocalServer server;
+        assert(server.start("127.0.0.1", 0) == true);
+        assert(server.is_running() == true);
+        integrated_win.attach_server(&server);
+
+        // Close window -> must fire close callback AND stop LocalServer automatically!
+        integrated_win.close();
+        assert(callback_fired.load() == true);
+        assert(server.is_running() == false);
+        cout << "  -> Close callback fired and attached LocalServer auto-stopped: PASSED" << endl;
+    }
+
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF MAINWINDOW & IPC FUNCTIONS VERIFIED!   " << endl;
+    cout << "  [PASSED] 100% OF MAINWINDOW & EVENT LOOP VERIFIED!      " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

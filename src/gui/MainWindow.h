@@ -4,13 +4,18 @@
 #include <string>
 #include <atomic>
 #include <functional>
+#include <mutex>
+#include <condition_variable>
 #include <nlohmann/json.hpp>
+#include <wincontypes.h>
 
 namespace idm {
 
-using json = nlohmann::json;
+class LocalServer;
 
+using json = nlohmann::json;
 using IPCHandler = std::function<json(const json&)>;
+using WindowCloseCallback = std::function<void()>;
 
 class MainWindow{
 public: 
@@ -19,7 +24,7 @@ public:
 
     bool init(const std::string& title, int width, int height, const std::string& ui_index_path);
 
-    void run_event_loop();
+    void run_event_loop(bool headless = false);
 
     void close();
 
@@ -30,6 +35,8 @@ public:
     int get_height() const;
 
     void set_ipc_handler(IPCHandler handler);
+    void set_close_callback(WindowCloseCallback callback);
+    void attach_server(LocalServer* server);
 
     std::string dispatch_ipc_message(const std::string& raw_json_message);
 
@@ -38,8 +45,15 @@ private:
     int m_width;
     int m_height;
     std::string m_ui_path;
-    std::atomic<bool> m_is_running;
-    IPCHandler m_ipc_handler;
+    std::atomic<bool> m_is_running{false};
+    IPCHandler m_ipc_handler{nullptr};
+    WindowCloseCallback m_close_callback{nullptr};
+    LocalServer* m_server{nullptr};
+
+    mutable std::mutex m_mutex;
+    std::condition_variable m_cv;
+    void* m_process_handler{nullptr};
+
 };
 }
 
