@@ -8,7 +8,7 @@ set(CMAKE_TLS_VERIFY OFF)
 
 if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32)
+    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32 crypt32)
 endif()
 
 include(FetchContent)
@@ -131,3 +131,6 @@ target_link_libraries(test_stream_preview PRIVATE ${CURL_LIBRARIES} nlohmann_jso
 
 add_executable(test_archive_verifier test/test_archive_verifier.cpp src/tools/ArchiveVerifier.cpp src/security/AntivirusScanner.cpp)
 target_link_libraries(test_archive_verifier PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_vault test/test_vault.cpp src/security/Vault.cpp ${CORE_SOURCES})
+target_link_libraries(test_vault PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})

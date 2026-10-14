@@ -154,9 +154,10 @@ This document tracks all **mistakes/gaps identified in the current code** and se
   - Manifest V3 extension bundle (`manifest.json`, `background.js`, `popup.html`, `popup.js`, `com.idm.native_host.json`) intercepting browser downloads, harvesting domain cookies and Referers.
   - Native messaging host binary (`idm_native_host.exe`) with 4-byte stdio protocol framing, Chrome/Edge HKCU registry installation/uninstallation, and real-time loopback TCP forwarding to `LocalServer` (`POST /api/add_download`).
   - *Verification Target*: `test_native_host` (PASSED ✅)
-- [ ] **Task 27: Site Logins Vault & Cookie Persistence (`src/security/Vault.h`)**
-  - Encrypted storage for session cookies (`session_id`, `auth_token`, `cf_clearance`) and credentials for protected hosters (Google Drive, Mega, 1Fichier, private forums), auto-injected into libcurl headers.
-  - *Verification Target*: `test_vault`
+- [x] **Task 27: Site Logins Vault & Cookie Persistence (`Vault`)** ✅
+ - Hardware/OS-level Windows DPAPI (`CryptProtectData`/`CryptUnprotectData` via `crypt32`) and password-keyed cipher credential encryption.
+ - Domain wildcard & suffix matching, session cookie (`cf_clearance`, `auth_token`) and OAuth2 Bearer token storage, expiry timestamp guards, automatic injection into `DownloadTask` HTTP context, encrypted disk persistence, and master password locking.
+ - *Verification Target*: `test_vault` (PASSED ✅)
 - [ ] **Task 28: Local Wi-Fi Remote Dashboard & Floating Desktop Mini-Dock**
   - Enable local network access so users can monitor/add downloads from their phone or tablet on the same Wi-Fi, plus a floating desktop mini-dock widget for drag-and-drop link catching.
   - *Verification Target*: `test_remote_dashboard`
