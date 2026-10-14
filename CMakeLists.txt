@@ -123,3 +123,5 @@ target_link_libraries(test_swarm_download PRIVATE ${CURL_LIBRARIES} nlohmann_jso
 add_executable(test_media_extractor test/test_media_extractor.cpp src/media/MediaExtractor.cpp )
 target_link_libraries(test_media_extractor PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
+add_executable(test_stream_preview test/test_stream_preview.cpp src/media/StreamPreviewer.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
+target_link_libraries(test_stream_preview PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})

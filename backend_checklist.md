@@ -139,9 +139,10 @@ This document tracks all **mistakes/gaps identified in the current code** and se
   - Native backend pipeline supporting 1,000+ streaming sites with resolution selector (4K 60fps, 1080p, audio-only 320kbps MP3).
   - Stream format matrix parsing, smart presets, real-time line-by-line stdout progress tracker, cancellation lifecycle, and mock process execution.
   - *Verification Target*: `test_media_extractor` (PASSED ✅)
-- [ ] **Task 24: Instant In-App Stream Preview**
-  - Stream and play partially downloaded video/audio files directly from disk buffer while downloading.
-  - *Verification Target*: `test_stream_preview`
+- [x] **Task 24: Instant In-App Stream Preview (`StreamPreviewer`)** ✅
+  - Stream and play partially downloaded video/audio files directly from disk buffer while downloading via non-exclusive read-shared handles.
+  - Multi-container magic header analysis (MP4, WebM, MKV, WAV, MP3), MP4 fast-start `moov` atom placement verification, contiguous playable range estimation across active chunks, readiness threshold gates, and dynamic loopback HTTP 206 Partial Content server routing.
+  - *Verification Target*: `test_stream_preview` (PASSED ✅)
 - [ ] **Task 25: Automated Archive Unpacking & Integrity Verification**
   - Auto-extract `.zip`, `.rar`, `.7z` archives upon completion. Automatically verify clipboard MD5/SHA256 checksums.
   - *Verification Target*: `test_archive_verifier`
