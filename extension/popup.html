@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 300px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #11141a;
+      color: #e6edf3;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #21262d;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #58a6ff;
+    }
+    .status-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #238636;
+      color: #fff;
+    }
+    .status-badge.offline {
+      background: #da3633;
+    }
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #30363d;
+      transition: .3s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #1f6feb; }
+    input:checked + .slider:before { transform: translateX(16px); }
+    .input-box {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .btn {
+      width: 100%;
+      padding: 8px;
+      background: #238636;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn:hover { background: #2ea043; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">IDM Integration</div>
+    <div id="status" class="status-badge">Checking...</div>
+  </div>
+  <div class="toggle-row">
+    <span>Capture Downloads</span>
+    <label class="switch">
+      <input type="checkbox" id="toggleCapture" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div style="margin-top: 14px;">
+    <input type="text" id="manualUrl" class="input-box" placeholder="Paste link to download...">
+    <button id="btnDownload" class="btn">Catch Link</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

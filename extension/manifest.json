@@ -1,0 +1,23 @@
+{
+    "manifest_version": 3,
+    "name": "IDM Integration Module",
+    "version": "1.0.0",
+    "description": "High-performance download interceptor and Native Messaging bridge for IDM.",
+    "permissions": [
+        "downloads",
+        "cookies",
+        "nativeMessaging",
+        "contextMenus",
+        "storage"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "IDM Download Interceptor"
+    }
+}

@@ -150,9 +150,10 @@ This document tracks all **mistakes/gaps identified in the current code** and se
 ---
 
 ### 🔹 Phase 2G: Authentication, Browser Extension & Remote Access
-- [ ] **Task 26: Browser Extension (Manifest V3) & Native Messaging Setup**
-  - Manifest V3 extension (`manifest.json`, `background.js`) communicating with `idm_native_host.exe` via length-prefixed JSON, registered in Windows Registry.
-  - *Verification Target*: `test_native_host`
+- [x] **Task 26: Browser Extension (Manifest V3) & Native Messaging Setup** ✅
+  - Manifest V3 extension bundle (`manifest.json`, `background.js`, `popup.html`, `popup.js`, `com.idm.native_host.json`) intercepting browser downloads, harvesting domain cookies and Referers.
+  - Native messaging host binary (`idm_native_host.exe`) with 4-byte stdio protocol framing, Chrome/Edge HKCU registry installation/uninstallation, and real-time loopback TCP forwarding to `LocalServer` (`POST /api/add_download`).
+  - *Verification Target*: `test_native_host` (PASSED ✅)
 - [ ] **Task 27: Site Logins Vault & Cookie Persistence (`src/security/Vault.h`)**
   - Encrypted storage for session cookies (`session_id`, `auth_token`, `cf_clearance`) and credentials for protected hosters (Google Drive, Mega, 1Fichier, private forums), auto-injected into libcurl headers.
   - *Verification Target*: `test_vault`

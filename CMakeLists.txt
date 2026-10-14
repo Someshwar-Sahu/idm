@@ -93,8 +93,11 @@ target_link_libraries(test_settings_manager PRIVATE nlohmann_json::nlohmann_json
 add_executable(test_download_queue test/test_download_queue.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
-add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp)
-target_link_libraries(test_native_host PRIVATE nlohmann_json::nlohmann_json)
+add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
+target_link_libraries(test_native_host PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(idm_native_host src/native_host/main_native_host.cpp src/native_host/NativeHost.cpp)
+target_link_libraries(idm_native_host PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
 add_executable(test_main_window test/test_main_window.cpp src/gui/MainWindow.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_main_window PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})

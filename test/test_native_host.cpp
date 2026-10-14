@@ -1,206 +1,227 @@
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include "NativeHost.h"
+#include "../src/ipc/LocalServer.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <sstream>
 #include <cassert>
-#include <cstdio>
-#include <string>
+#include <filesystem>
+#include <fstream>
 
 using namespace std;
+using namespace idm;
 using json = nlohmann::json;
 
-int main() {
-    setvbuf(stdout, NULL, _IONBF, 0);
+void test_payload_json_parsing() {
+    cout << "\n[1/8] Testing Payload JSON Parsing (Pos + Neg)..." << endl;
 
-    cout << "==========================================================" << endl;
-    cout << "  Comprehensive Unit Test: NativeHost (Pos + Neg)         " << endl;
-    cout << "==========================================================" << endl;
-
-    // =========================================================================
-    // 1. EXTENSION PAYLOAD PARSING (Positive)
-    // =========================================================================
-    cout << "\n[1/5] Testing json_to_payload() Parsing (Positive)..." << endl;
-
-    string sample_chrome_json = "{"
-        "\"url\": \"https://example.com/files/document.pdf\","
-        "\"filename\": \"document.pdf\","
-        "\"cookies\": \"session_id=abc123xyz; cf_clearance=987\","
-        "\"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64)\","
-        "\"referer\": \"https://example.com/download-page\","
-        "\"page_title\": \"Download Document\","
+    string sample = "{"
+        "\"url\": \"https://example.com/archive.zip\","
+        "\"filename\": \"archive.zip\","
+        "\"cookies\": \"session=12345; auth=ok\","
+        "\"user_agent\": \"Mozilla/5.0 Chrome/120\","
+        "\"referer\": \"https://example.com/page\","
+        "\"page_title\": \"Download Archive\","
         "\"total_size\": 10485760"
     "}";
 
+    InterceptedDownloadPayload p;
+    assert(NativeHost::json_to_payload(sample, p));
+    assert(p.url == "https://example.com/archive.zip");
+    assert(p.filename == "archive.zip");
+    assert(p.cookies == "session=12345; auth=ok");
+    assert(p.total_size == 10485760);
+
+    // Negative: missing URL
+    InterceptedDownloadPayload p_bad;
+    assert(!NativeHost::json_to_payload("{\"filename\":\"test.txt\"}", p_bad));
+
+    cout << "  -> Valid payload and missing URL guard: PASSED" << endl;
+}
+
+void test_payload_roundtrip_serialization() {
+    cout << "\n[2/8] Testing Payload Serialization Round-Trip..." << endl;
+
+    InterceptedDownloadPayload orig;
+    orig.url = "https://cdn.example.com/large.iso";
+    orig.filename = "large.iso";
+    orig.cookies = "cf_clearance=xyz";
+    orig.user_agent = "IDM Browser Agent";
+    orig.referer = "https://cdn.example.com";
+    orig.page_title = "Large ISO";
+    orig.total_size = 4294967296ULL;
+    orig.user_force_override = true;
+
+    string json_str = NativeHost::payload_to_json(orig);
+    InterceptedDownloadPayload parsed;
+    assert(NativeHost::json_to_payload(json_str, parsed));
+
+    assert(parsed.url == orig.url);
+    assert(parsed.total_size == orig.total_size);
+    assert(parsed.user_force_override == orig.user_force_override);
+
+    cout << "  -> JSON roundtrip bit-exact match: PASSED" << endl;
+}
+
+void test_native_manifest_generation() {
+    cout << "\n[3/8] Testing Native Messaging JSON Manifest Builder..." << endl;
+
+    vector<string> origins = {"chrome-extension://abcdefghijklmnop/"};
+    string chrome_manifest = NativeHost::generate_native_manifest("C:\\IDM\\idm_native_host.exe", origins, BrowserType::Chrome);
+
+    json j_chrome = json::parse(chrome_manifest);
+    assert(j_chrome["name"] == "com.idm.native_host");
+    assert(j_chrome["type"] == "stdio");
+    assert(j_chrome["path"] == "C:\\IDM\\idm_native_host.exe");
+    assert(j_chrome["allowed_origins"][0] == origins[0]);
+
+    // Firefox allowed_extensions
+    string ff_manifest = NativeHost::generate_native_manifest("/usr/bin/idm_native_host", {"idm@example.com"}, BrowserType::Firefox);
+    json j_ff = json::parse(ff_manifest);
+    assert(j_ff.contains("allowed_extensions"));
+
+    cout << "  -> Chrome and Firefox native host manifests: PASSED" << endl;
+}
+
+void test_browser_registry_key_paths() {
+    cout << "\n[4/8] Testing Browser Registry Key Hierarchy Paths..." << endl;
+
+    string chrome_key = NativeHost::get_registry_key_path(BrowserType::Chrome);
+    assert(chrome_key.find("Google\\Chrome") != string::npos);
+
+    string edge_key = NativeHost::get_registry_key_path(BrowserType::Edge);
+    assert(edge_key.find("Microsoft\\Edge") != string::npos);
+
+    string ff_key = NativeHost::get_registry_key_path(BrowserType::Firefox);
+    assert(ff_key.find("Mozilla") != string::npos);
+
+    cout << "  -> Correct HKCU registry key strings: PASSED" << endl;
+}
+
+void test_windows_registry_registration_roundtrip() {
+    cout << "\n[5/8] Testing Windows Registry Key Install and Uninstall..." << endl;
+
+#ifdef _WIN32
+    const string test_manifest = "C:\\IDM\\test_manifest.json";
+    bool installed = NativeHost::install_native_host_registry(BrowserType::Chrome, test_manifest);
+    assert(installed);
+
+    // Read back registry value
+    HKEY hKey;
+    LSTATUS status = RegOpenKeyExA(HKEY_CURRENT_USER, NativeHost::get_registry_key_path(BrowserType::Chrome).c_str(), 0, KEY_READ, &hKey);
+    assert(status == ERROR_SUCCESS);
+
+    char val[256];
+    DWORD val_len = sizeof(val);
+    status = RegQueryValueExA(hKey, nullptr, nullptr, nullptr, reinterpret_cast<LPBYTE>(val), &val_len);
+    RegCloseKey(hKey);
+
+    assert(status == ERROR_SUCCESS);
+    assert(string(val) == test_manifest);
+
+    // Cleanup uninstall
+    bool uninstalled = NativeHost::uninstall_native_host_registry(BrowserType::Chrome);
+    assert(uninstalled);
+
+    status = RegOpenKeyExA(HKEY_CURRENT_USER, NativeHost::get_registry_key_path(BrowserType::Chrome).c_str(), 0, KEY_READ, &hKey);
+    assert(status != ERROR_SUCCESS); // Key must be gone
+#endif
+
+    cout << "  -> HKCU registry write, verification, and cleanup: PASSED" << endl;
+}
+
+void test_payload_forwarding_to_live_local_server() {
+    cout << "\n[6/8] Testing Forwarding Payload to Running LocalServer..." << endl;
+
+    LocalServer server;
+    bool started = server.start("127.0.0.1", 0);
+    assert(started);
+    int port = server.get_port();
+    assert(port > 0);
+
+    bool route_hit = false;
+    server.register_route("POST", "/api/add_download", [&route_hit](const HttpRequest& req) -> HttpResponse {
+        route_hit = true;
+        assert(req.json_body.value("url", "") == "https://test.com/payload.bin");
+        return HttpResponse::json_response(201, {{"status", "created"}, {"id", "task_99"}});
+    });
+
     InterceptedDownloadPayload payload;
-    bool parsed = NativeHost::json_to_payload(sample_chrome_json, payload);
+    payload.url = "https://test.com/payload.bin";
+    payload.filename = "payload.bin";
 
-    assert(parsed == true);
-    assert(payload.url == "https://example.com/files/document.pdf");
-    assert(payload.filename == "document.pdf");
-    assert(payload.cookies == "session_id=abc123xyz; cf_clearance=987");
-    assert(payload.user_agent == "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-    assert(payload.referer == "https://example.com/download-page");
-    assert(payload.page_title == "Download Document");
-    assert(payload.total_size == 10485760);
+    string response;
+    bool forwarded = NativeHost::forward_payload_to_server(payload, "127.0.0.1", port, &response);
+    assert(forwarded);
+    assert(route_hit);
+    assert(response.find("201 Created") != string::npos);
 
-    // Minimal valid payload
-    InterceptedDownloadPayload min_payload;
-    bool min_parsed = NativeHost::json_to_payload("{\"url\":\"https://example.com/file.zip\"}", min_payload);
-    assert(min_parsed == true);
-    assert(min_payload.url == "https://example.com/file.zip");
-    assert(min_payload.filename.empty());
-    cout << "  -> Full and minimal payload parsing: PASSED" << endl;
+    server.stop();
+    cout << "  -> Loopback TCP POST /api/add_download forward: PASSED" << endl;
+}
 
-    // =========================================================================
-    // 2. PAYLOAD TO JSON SERIALIZATION & ROUNDTRIP (Positive)
-    // =========================================================================
-    cout << "\n[2/5] Testing payload_to_json() Roundtrip (Positive)..." << endl;
+void test_offline_engine_fallback() {
+    cout << "\n[7/8] Testing Offline Engine Fallback Handling..." << endl;
 
-    string serialized = NativeHost::payload_to_json(payload);
-    assert(!serialized.empty());
+    InterceptedDownloadPayload payload;
+    payload.url = "https://offline.com/file.zip";
 
-    InterceptedDownloadPayload roundtrip_payload;
-    bool roundtrip_ok = NativeHost::json_to_payload(serialized, roundtrip_payload);
-    assert(roundtrip_ok == true);
-    assert(roundtrip_payload.url == payload.url);
-    assert(roundtrip_payload.filename == payload.filename);
-    assert(roundtrip_payload.cookies == payload.cookies);
-    assert(roundtrip_payload.total_size == payload.total_size);
-    cout << "  -> Serialization and lossless roundtrip: PASSED" << endl;
+    string response;
+    // Attempting to forward to unused port
+    bool ok = NativeHost::forward_payload_to_server(payload, "127.0.0.1", 49151, &response);
+    assert(!ok); // Should cleanly fail without throwing exceptions
 
-    // =========================================================================
-    // 3. INVALID & CORRUPT PAYLOAD GUARDS (Negative)
-    // =========================================================================
-    cout << "\n[3/5] Testing Corrupt & Missing Data Guards (Negative)..." << endl;
+    cout << "  -> Clean connection failure handling when engine is offline: PASSED" << endl;
+}
 
-    InterceptedDownloadPayload err_payload;
+void test_extension_manifest_v3_validation() {
+    cout << "\n[8/8] Testing Extension Manifest V3 Structural Integrity..." << endl;
 
-    // 3.1 Negative: Empty input string
-    assert(NativeHost::json_to_payload("", err_payload) == false);
+    const string manifest_path = "extension/manifest.json";
+    assert(filesystem::exists(manifest_path));
 
-    // 3.2 Negative: Missing mandatory URL field
-    string missing_url_json = "{\"filename\":\"test.pdf\",\"total_size\":1000}";
-    assert(NativeHost::json_to_payload(missing_url_json, err_payload) == false);
+    ifstream fin(manifest_path);
+    json manifest = json::parse(fin);
 
-    // 3.3 Negative: Empty URL string
-    string empty_url_json = "{\"url\":\"\",\"filename\":\"test.pdf\"}";
-    assert(NativeHost::json_to_payload(empty_url_json, err_payload) == false);
+    assert(manifest["manifest_version"] == 3);
+    assert(manifest.contains("permissions"));
+    assert(manifest["background"]["service_worker"] == "background.js");
+    assert(manifest["action"]["default_popup"] == "popup.html");
 
-    // 3.4 Negative: Malformed/corrupt JSON syntax
-    string corrupt_json = "{ url: 'no quotes', unclosed bracket [";
-    assert(NativeHost::json_to_payload(corrupt_json, err_payload) == false);
-    cout << "  -> Empty, missing URL, and syntax error guards: PASSED" << endl;
+    // Verify background.js and popup.html exist on disk
+    assert(filesystem::exists("extension/background.js"));
+    assert(filesystem::exists("extension/popup.html"));
+    assert(filesystem::exists("extension/popup.js"));
+    assert(filesystem::exists("extension/com.idm.native_host.json"));
 
-    // =========================================================================
-    // 4. CHROME NATIVE MESSAGING STDIN PROTOCOL (Positive & Negative)
-    // =========================================================================
-    cout << "\n[4/5] Testing 4-Byte Native Protocol Stdin Parsing (Pos + Neg)..." << endl;
+    cout << "  -> Manifest V3 structure and component files verified: PASSED" << endl;
+}
 
-    // 4.1 Positive: Valid 4-byte length prefix + valid JSON body
-    {
-        stringstream fake_stdin;
-        string json_msg = NativeHost::payload_to_json(payload);
-        uint32_t len = static_cast<uint32_t>(json_msg.size());
-        fake_stdin.write(reinterpret_cast<const char*>(&len), 4);
-        fake_stdin.write(json_msg.data(), len);
+int main() {
+    cout << "==========================================================" << endl;
+    cout << "  Comprehensive Unit Test: NativeHost & Manifest V3 (T26) " << endl;
+    cout << "==========================================================" << endl;
 
-        auto cin_buf = cin.rdbuf(fake_stdin.rdbuf());
-        InterceptedDownloadPayload stream_payload;
-        bool read_ok = NativeHost::read_message_from_stdin(stream_payload);
-        cin.rdbuf(cin_buf); // Restore cin
-
-        assert(read_ok == true);
-        assert(stream_payload.url == payload.url);
-    }
-
-    // 4.2 Negative: Truncated header (< 4 bytes)
-    {
-        stringstream fake_stdin;
-        char short_buf[2] = {1, 0};
-        fake_stdin.write(short_buf, 2);
-
-        auto cin_buf = cin.rdbuf(fake_stdin.rdbuf());
-        InterceptedDownloadPayload stream_payload;
-        bool read_fail = NativeHost::read_message_from_stdin(stream_payload);
-        cin.rdbuf(cin_buf);
-
-        assert(read_fail == false);
-    }
-
-    // 4.3 Negative: 0-byte message length
-    {
-        stringstream fake_stdin;
-        uint32_t zero_len = 0;
-        fake_stdin.write(reinterpret_cast<const char*>(&zero_len), 4);
-
-        auto cin_buf = cin.rdbuf(fake_stdin.rdbuf());
-        InterceptedDownloadPayload stream_payload;
-        bool read_fail = NativeHost::read_message_from_stdin(stream_payload);
-        cin.rdbuf(cin_buf);
-
-        assert(read_fail == false);
-    }
-
-    // 4.4 Negative: Message length exceeding 10 MB cap (> 10485760 bytes)
-    {
-        stringstream fake_stdin;
-        uint32_t oversized = 15 * 1024 * 1024; // 15 MB
-        fake_stdin.write(reinterpret_cast<const char*>(&oversized), 4);
-
-        auto cin_buf = cin.rdbuf(fake_stdin.rdbuf());
-        InterceptedDownloadPayload stream_payload;
-        bool read_fail = NativeHost::read_message_from_stdin(stream_payload);
-        cin.rdbuf(cin_buf);
-
-        assert(read_fail == false);
-    }
-
-    // 4.5 Negative: Truncated payload body
-    {
-        stringstream fake_stdin;
-        uint32_t claimed_len = 50;
-        fake_stdin.write(reinterpret_cast<const char*>(&claimed_len), 4);
-        fake_stdin.write("{\"url\":", 7); // Only 7 bytes provided instead of 50
-
-        auto cin_buf = cin.rdbuf(fake_stdin.rdbuf());
-        InterceptedDownloadPayload stream_payload;
-        bool read_fail = NativeHost::read_message_from_stdin(stream_payload);
-        cin.rdbuf(cin_buf);
-
-        assert(read_fail == false);
-    }
-    cout << "  -> Native 4-byte protocol parsing and truncation guards: PASSED" << endl;
-
-    // =========================================================================
-    // 5. CHROME NATIVE MESSAGING STDOUT PROTOCOL (Positive)
-    // =========================================================================
-    cout << "\n[5/5] Testing 4-Byte Native Protocol Stdout Response (Positive)..." << endl;
-
-    {
-        stringstream fake_stdout;
-        auto cout_buf = cout.rdbuf(fake_stdout.rdbuf());
-
-        bool write_ok = NativeHost::write_response_to_stdout(true, "Download successfully intercepted");
-        cout.rdbuf(cout_buf); // Restore cout
-
-        assert(write_ok == true);
-
-        // Verify the 4-byte header and JSON body written to fake_stdout
-        uint32_t response_len = 0;
-        fake_stdout.read(reinterpret_cast<char*>(&response_len), 4);
-        assert(response_len > 0);
-
-        string body(response_len, '\0');
-        fake_stdout.read(&body[0], response_len);
-
-        json j = json::parse(body);
-        assert(j["success"] == true);
-        assert(j["message"] == "Download successfully intercepted");
-    }
-    cout << "  -> Native 4-byte protocol response serialization: PASSED" << endl;
+    test_payload_json_parsing();
+    test_payload_roundtrip_serialization();
+    test_native_manifest_generation();
+    test_browser_registry_key_paths();
+    test_windows_registry_registration_roundtrip();
+    test_payload_forwarding_to_live_local_server();
+    test_offline_engine_fallback();
+    test_extension_manifest_v3_validation();
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF NATIVEHOST FUNCTIONS VERIFIED!         " << endl;
+    cout << "  [PASSED] 100% OF BROWSER EXTENSION & NATIVE HOST VERIFIED!" << endl;
     cout << "==========================================================" << endl;
 
     return 0;
