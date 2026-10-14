@@ -1,351 +1,573 @@
 [
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\main.cpp.obj -c E:\\Projects\\idm\\src\\main.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\main.cpp.obj -c E:\\Projects\\idm\\src\\main.cpp",
   "file": "E:/Projects/idm/src/main.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/main.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\gui\\MainWindow.cpp.obj -c E:\\Projects\\idm\\src\\gui\\MainWindow.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\gui\\MainWindow.cpp.obj -c E:\\Projects\\idm\\src\\gui\\MainWindow.cpp",
   "file": "E:/Projects/idm/src/gui/MainWindow.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/gui/MainWindow.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\queue\\DownloadQueue.cpp.obj -c E:\\Projects\\idm\\src\\queue\\DownloadQueue.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\queue\\DownloadQueue.cpp.obj -c E:\\Projects\\idm\\src\\queue\\DownloadQueue.cpp",
   "file": "E:/Projects/idm/src/queue/DownloadQueue.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/queue/DownloadQueue.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\config\\SettingsManager.cpp.obj -c E:\\Projects\\idm\\src\\config\\SettingsManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\config\\SettingsManager.cpp.obj -c E:\\Projects\\idm\\src\\config\\SettingsManager.cpp",
   "file": "E:/Projects/idm/src/config/SettingsManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/config/SettingsManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
   "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/ChunkWorker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
   "file": "E:/Projects/idm/src/core/DownloadTask.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/DownloadTask.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
   "file": "E:/Projects/idm/src/core/FileWriter.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/FileWriter.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
   "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/ProgressTracker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
   "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/ResumeStore.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
   "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/core/ThreadPool.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\idm_app.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
   "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/idm_app.dir/src/security/AntivirusScanner.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_threadpool.dir\\test\\test_threadpool.cpp.obj -c E:\\Projects\\idm\\test\\test_threadpool.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_threadpool.dir\\test\\test_threadpool.cpp.obj -c E:\\Projects\\idm\\test\\test_threadpool.cpp",
   "file": "E:/Projects/idm/test/test_threadpool.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_threadpool.dir/test/test_threadpool.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_threadpool.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_threadpool.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
   "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_threadpool.dir/src/core/ThreadPool.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_chunk_manager.dir\\test\\test_chunk_manager.cpp.obj -c E:\\Projects\\idm\\test\\test_chunk_manager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_chunk_manager.dir\\test\\test_chunk_manager.cpp.obj -c E:\\Projects\\idm\\test\\test_chunk_manager.cpp",
   "file": "E:/Projects/idm/test/test_chunk_manager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_chunk_manager.dir/test/test_chunk_manager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_chunk_manager.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_chunk_manager.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_chunk_manager.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_file_writer.dir\\test\\test_file_writer.cpp.obj -c E:\\Projects\\idm\\test\\test_file_writer.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_file_writer.dir\\test\\test_file_writer.cpp.obj -c E:\\Projects\\idm\\test\\test_file_writer.cpp",
   "file": "E:/Projects/idm/test/test_file_writer.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_file_writer.dir/test/test_file_writer.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_file_writer.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_file_writer.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
   "file": "E:/Projects/idm/src/core/FileWriter.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_file_writer.dir/src/core/FileWriter.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_file_writer.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_file_writer.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
   "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_file_writer.dir/src/core/ThreadPool.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\test\\test_chunk_worker.cpp.obj -c E:\\Projects\\idm\\test\\test_chunk_worker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\test\\test_chunk_worker.cpp.obj -c E:\\Projects\\idm\\test\\test_chunk_worker.cpp",
   "file": "E:/Projects/idm/test/test_chunk_worker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_chunk_worker.dir/test/test_chunk_worker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
   "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_chunk_worker.dir/src/core/ChunkWorker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_chunk_worker.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_chunk_worker.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
   "file": "E:/Projects/idm/src/core/FileWriter.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_chunk_worker.dir/src/core/FileWriter.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_resume_store.dir\\test\\test_resume_store.cpp.obj -c E:\\Projects\\idm\\test\\test_resume_store.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_resume_store.dir\\test\\test_resume_store.cpp.obj -c E:\\Projects\\idm\\test\\test_resume_store.cpp",
   "file": "E:/Projects/idm/test/test_resume_store.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_resume_store.dir/test/test_resume_store.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_resume_store.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_resume_store.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
   "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_resume_store.dir/src/core/ResumeStore.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_resume_store.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_resume_store.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_resume_store.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_progress_tracker.dir\\test\\test_progress_tracker.cpp.obj -c E:\\Projects\\idm\\test\\test_progress_tracker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_progress_tracker.dir\\test\\test_progress_tracker.cpp.obj -c E:\\Projects\\idm\\test\\test_progress_tracker.cpp",
   "file": "E:/Projects/idm/test/test_progress_tracker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_progress_tracker.dir/test/test_progress_tracker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_progress_tracker.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_progress_tracker.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
   "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_progress_tracker.dir/src/core/ProgressTracker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -g -std=gnu++17 -o CMakeFiles\\test_progress_tracker.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_progress_tracker.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_progress_tracker.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\test\\test_download_task.cpp.obj -c E:\\Projects\\idm\\test\\test_download_task.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\test\\test_download_task.cpp.obj -c E:\\Projects\\idm\\test\\test_download_task.cpp",
   "file": "E:/Projects/idm/test/test_download_task.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/test/test_download_task.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
   "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/ChunkWorker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
   "file": "E:/Projects/idm/src/core/DownloadTask.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/DownloadTask.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
   "file": "E:/Projects/idm/src/core/FileWriter.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/FileWriter.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
   "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/ProgressTracker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
   "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/ResumeStore.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
   "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/core/ThreadPool.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_task.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
   "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_task.dir/src/security/AntivirusScanner.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_settings_manager.dir\\test\\test_settings_manager.cpp.obj -c E:\\Projects\\idm\\test\\test_settings_manager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_settings_manager.dir\\test\\test_settings_manager.cpp.obj -c E:\\Projects\\idm\\test\\test_settings_manager.cpp",
   "file": "E:/Projects/idm/test/test_settings_manager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_settings_manager.dir/test/test_settings_manager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_settings_manager.dir\\src\\config\\SettingsManager.cpp.obj -c E:\\Projects\\idm\\src\\config\\SettingsManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_settings_manager.dir\\src\\config\\SettingsManager.cpp.obj -c E:\\Projects\\idm\\src\\config\\SettingsManager.cpp",
   "file": "E:/Projects/idm/src/config/SettingsManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_settings_manager.dir/src/config/SettingsManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\test\\test_download_queue.cpp.obj -c E:\\Projects\\idm\\test\\test_download_queue.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\test\\test_download_queue.cpp.obj -c E:\\Projects\\idm\\test\\test_download_queue.cpp",
   "file": "E:/Projects/idm/test/test_download_queue.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/test/test_download_queue.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\queue\\DownloadQueue.cpp.obj -c E:\\Projects\\idm\\src\\queue\\DownloadQueue.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\queue\\DownloadQueue.cpp.obj -c E:\\Projects\\idm\\src\\queue\\DownloadQueue.cpp",
   "file": "E:/Projects/idm/src/queue/DownloadQueue.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/queue/DownloadQueue.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
   "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/ChunkManager.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
   "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/ChunkWorker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
   "file": "E:/Projects/idm/src/core/DownloadTask.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/DownloadTask.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
   "file": "E:/Projects/idm/src/core/FileWriter.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/FileWriter.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
   "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/ProgressTracker.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
   "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/ResumeStore.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
   "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/core/ThreadPool.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_download_queue.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
   "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_download_queue.dir/src/security/AntivirusScanner.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_native_host.dir\\test\\test_native_host.cpp.obj -c E:\\Projects\\idm\\test\\test_native_host.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_native_host.dir\\test\\test_native_host.cpp.obj -c E:\\Projects\\idm\\test\\test_native_host.cpp",
   "file": "E:/Projects/idm/test/test_native_host.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_native_host.dir/test/test_native_host.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_native_host.dir\\src\\native_host\\NativeHost.cpp.obj -c E:\\Projects\\idm\\src\\native_host\\NativeHost.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_native_host.dir\\src\\native_host\\NativeHost.cpp.obj -c E:\\Projects\\idm\\src\\native_host\\NativeHost.cpp",
   "file": "E:/Projects/idm/src/native_host/NativeHost.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_native_host.dir/src/native_host/NativeHost.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\test\\test_main_window.cpp.obj -c E:\\Projects\\idm\\test\\test_main_window.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\test\\test_main_window.cpp.obj -c E:\\Projects\\idm\\test\\test_main_window.cpp",
   "file": "E:/Projects/idm/test/test_main_window.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/test/test_main_window.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\gui\\MainWindow.cpp.obj -c E:\\Projects\\idm\\src\\gui\\MainWindow.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\gui\\MainWindow.cpp.obj -c E:\\Projects\\idm\\src\\gui\\MainWindow.cpp",
   "file": "E:/Projects/idm/src/gui/MainWindow.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/gui/MainWindow.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_antivirus_scanner.dir\\test\\test_antivirus_scanner.cpp.obj -c E:\\Projects\\idm\\test\\test_antivirus_scanner.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\ipc\\LocalServer.cpp.obj -c E:\\Projects\\idm\\src\\ipc\\LocalServer.cpp",
+  "file": "E:/Projects/idm/src/ipc/LocalServer.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/ipc/LocalServer.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\queue\\DownloadQueue.cpp.obj -c E:\\Projects\\idm\\src\\queue\\DownloadQueue.cpp",
+  "file": "E:/Projects/idm/src/queue/DownloadQueue.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/queue/DownloadQueue.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/ChunkManager.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/ChunkWorker.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
+  "file": "E:/Projects/idm/src/core/DownloadTask.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/DownloadTask.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "file": "E:/Projects/idm/src/core/FileWriter.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/FileWriter.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/ProgressTracker.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/ResumeStore.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/core/ThreadPool.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_main_window.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_main_window.dir/src/security/AntivirusScanner.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_antivirus_scanner.dir\\test\\test_antivirus_scanner.cpp.obj -c E:\\Projects\\idm\\test\\test_antivirus_scanner.cpp",
   "file": "E:/Projects/idm/test/test_antivirus_scanner.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_antivirus_scanner.dir/test/test_antivirus_scanner.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_antivirus_scanner.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_antivirus_scanner.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
   "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_antivirus_scanner.dir/src/security/AntivirusScanner.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_network_monitor.dir\\test\\test_network_monitor.cpp.obj -c E:\\Projects\\idm\\test\\test_network_monitor.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_network_monitor.dir\\test\\test_network_monitor.cpp.obj -c E:\\Projects\\idm\\test\\test_network_monitor.cpp",
   "file": "E:/Projects/idm/test/test_network_monitor.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_network_monitor.dir/test/test_network_monitor.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
-  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_network_monitor.dir\\src\\net\\NetworkMonitor.cpp.obj -c E:\\Projects\\idm\\src\\net\\NetworkMonitor.cpp",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_network_monitor.dir\\src\\net\\NetworkMonitor.cpp.obj -c E:\\Projects\\idm\\src\\net\\NetworkMonitor.cpp",
   "file": "E:/Projects/idm/src/net/NetworkMonitor.cpp",
   "output": "E:/Projects/idm/build/CMakeFiles/test_network_monitor.dir/src/net/NetworkMonitor.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_power_monitor.dir\\test\\test_power_monitor.cpp.obj -c E:\\Projects\\idm\\test\\test_power_monitor.cpp",
+  "file": "E:/Projects/idm/test/test_power_monitor.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_power_monitor.dir/test/test_power_monitor.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_power_monitor.dir\\src\\net\\PowerMonitor.cpp.obj -c E:\\Projects\\idm\\src\\net\\PowerMonitor.cpp",
+  "file": "E:/Projects/idm/src/net/PowerMonitor.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_power_monitor.dir/src/net/PowerMonitor.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_channel_bonding.dir\\test\\test_channel_bonding.cpp.obj -c E:\\Projects\\idm\\test\\test_channel_bonding.cpp",
+  "file": "E:/Projects/idm/test/test_channel_bonding.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_channel_bonding.dir/test/test_channel_bonding.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -g -std=gnu++17 -o CMakeFiles\\test_channel_bonding.dir\\src\\net\\ChannelBonding.cpp.obj -c E:\\Projects\\idm\\src\\net\\ChannelBonding.cpp",
+  "file": "E:/Projects/idm/src/net/ChannelBonding.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_channel_bonding.dir/src/net/ChannelBonding.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_notification_manager.dir\\test\\test_notification_manager.cpp.obj -c E:\\Projects\\idm\\test\\test_notification_manager.cpp",
+  "file": "E:/Projects/idm/test/test_notification_manager.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_notification_manager.dir/test/test_notification_manager.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -g -std=gnu++17 -o CMakeFiles\\test_notification_manager.dir\\src\\queue\\NotificationManager.cpp.obj -c E:\\Projects\\idm\\src\\queue\\NotificationManager.cpp",
+  "file": "E:/Projects/idm/src/queue/NotificationManager.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_notification_manager.dir/src/queue/NotificationManager.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\test\\test_local_server.cpp.obj -c E:\\Projects\\idm\\test\\test_local_server.cpp",
+  "file": "E:/Projects/idm/test/test_local_server.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/test/test_local_server.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\ipc\\LocalServer.cpp.obj -c E:\\Projects\\idm\\src\\ipc\\LocalServer.cpp",
+  "file": "E:/Projects/idm/src/ipc/LocalServer.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/ipc/LocalServer.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\queue\\DownloadQueue.cpp.obj -c E:\\Projects\\idm\\src\\queue\\DownloadQueue.cpp",
+  "file": "E:/Projects/idm/src/queue/DownloadQueue.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/queue/DownloadQueue.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/ChunkManager.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/ChunkWorker.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
+  "file": "E:/Projects/idm/src/core/DownloadTask.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/DownloadTask.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "file": "E:/Projects/idm/src/core/FileWriter.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/FileWriter.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/ProgressTracker.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/ResumeStore.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/core/ThreadPool.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_local_server.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_local_server.dir/src/security/AntivirusScanner.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\test\\test_swarm_download.cpp.obj -c E:\\Projects\\idm\\test\\test_swarm_download.cpp",
+  "file": "E:/Projects/idm/test/test_swarm_download.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/test/test_swarm_download.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\net\\SwarmDownloader.cpp.obj -c E:\\Projects\\idm\\src\\net\\SwarmDownloader.cpp",
+  "file": "E:/Projects/idm/src/net/SwarmDownloader.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/net/SwarmDownloader.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\ChunkManager.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkManager.cpp",
+  "file": "E:/Projects/idm/src/core/ChunkManager.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/ChunkManager.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\ChunkWorker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ChunkWorker.cpp",
+  "file": "E:/Projects/idm/src/core/ChunkWorker.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/ChunkWorker.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\DownloadTask.cpp.obj -c E:\\Projects\\idm\\src\\core\\DownloadTask.cpp",
+  "file": "E:/Projects/idm/src/core/DownloadTask.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/DownloadTask.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\FileWriter.cpp.obj -c E:\\Projects\\idm\\src\\core\\FileWriter.cpp",
+  "file": "E:/Projects/idm/src/core/FileWriter.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/FileWriter.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\ProgressTracker.cpp.obj -c E:\\Projects\\idm\\src\\core\\ProgressTracker.cpp",
+  "file": "E:/Projects/idm/src/core/ProgressTracker.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/ProgressTracker.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\ResumeStore.cpp.obj -c E:\\Projects\\idm\\src\\core\\ResumeStore.cpp",
+  "file": "E:/Projects/idm/src/core/ResumeStore.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/ResumeStore.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\core\\ThreadPool.cpp.obj -c E:\\Projects\\idm\\src\\core\\ThreadPool.cpp",
+  "file": "E:/Projects/idm/src/core/ThreadPool.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/core/ThreadPool.cpp.obj"
+},
+{
+  "directory": "E:/Projects/idm/build",
+  "command": "D:\\mingw64\\bin\\g++.exe -DCURL_STATICLIB -IE:/Projects/idm/src -IE:/Projects/idm/src/core -IE:/Projects/idm/src/config -IE:/Projects/idm/src/queue -IE:/Projects/idm/src/native_host -IE:/Projects/idm/src/gui -IE:/Projects/idm/src/security -IE:/Projects/idm/src/net -IE:/Projects/idm/src/ipc -IE:/Projects/idm/build/_deps/curl-src/include -IE:/Projects/idm/build/_deps/json-src/include -g -std=gnu++17 -o CMakeFiles\\test_swarm_download.dir\\src\\security\\AntivirusScanner.cpp.obj -c E:\\Projects\\idm\\src\\security\\AntivirusScanner.cpp",
+  "file": "E:/Projects/idm/src/security/AntivirusScanner.cpp",
+  "output": "E:/Projects/idm/build/CMakeFiles/test_swarm_download.dir/src/security/AntivirusScanner.cpp.obj"
 },
 {
   "directory": "E:/Projects/idm/build",
