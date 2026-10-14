@@ -35,92 +35,106 @@ This document tracks all **mistakes/gaps identified in the current code** and se
 - [x] **Task 1: Dynamic Chunk Stealing in `ChunkManager`** ✅
   - Implemented `steal_slowest_chunk()` so idle threads cut active chunks with >10 MB remaining in half and finish in parallel.
   - *Verification Target*: `test_chunk_manager` (PASSED ✅)
-- [ ] **Task 2: Token-Bucket Speed Throttler in `ChunkWorker`**
-  - Implement token-bucket byte rate limiter to enforce user-configured manual speed caps and Auto-QoS limits.
-  - *Verification Target*: `test_chunk_worker`
-- [ ] **Task 3: HTTP 429 / 503 Rate-Limit Exponential Backoff in `ChunkWorker`**
-  - Detect CDN rate-limiting responses, apply exponential retry delay (2s, 4s), and dynamically reduce thread concurrency.
-  - *Verification Target*: `test_chunk_worker`
-- [ ] **Task 4: Pre-Flight Disk Space Verification in `DownloadTask`**
-  - Add `GetDiskFreeSpaceExA` check before downloading starts; abort cleanly if free space < file size.
-  - *Verification Target*: `test_download_task`
-- [ ] **Task 5: Duplicate File Collision & Auto-Renaming in `FileWriter`**
-  - Add `generate_unique_filepath()` to avoid overwriting existing files (e.g. `file (1).zip`).
-  - *Verification Target*: `test_file_writer`
-- [ ] **Task 6: Expired 24-Hour Link Refresh in `DownloadTask`**
-  - Add `update_url(new_url)` for resuming expired hoster links without losing already downloaded chunks.
-  - *Verification Target*: `test_download_task`
-- [ ] **Task 7: Centralized Cache Directory Management in `DownloadTask` & `SettingsManager`**
-  - Route all `.progress.json` sidecars to centralized `Cache/` directory (e.g. `E:\IDM\Cache\`) with auto-purge upon 100% completion.
-  - *Verification Target*: `test_download_task`
-- [ ] **Task 8: Automatic File Category Routing**
-  - Route completed downloads into category subfolders (`Documents`, `Videos`, `Music`, `Compressed`, `Programs`) based on file extension.
-  - *Verification Target*: `test_settings_manager`
+- [x] **Task 2: Token-Bucket Speed Throttler in `ChunkWorker` & `DownloadTask`** ✅
+  - Implemented token-bucket byte rate limiter via `CURLOPT_MAX_RECV_SPEED_LARGE` and dynamically partitioned total speed limit evenly across worker threads (`worker_speed = total_limit / worker_count`).
+  - *Verification Target*: `test_chunk_worker` (PASSED ✅), `test_download_task` (PASSED ✅)
+- [x] **Task 3: HTTP 429 / 503 Rate-Limit Exponential Backoff in `ChunkWorker`** ✅
+  - Detect CDN rate-limiting responses (HTTP 429 / 503), apply exponential retry backoff delay (2s, 4s, 8s), and track chunk retry counts.
+  - *Verification Target*: `test_chunk_worker` (PASSED ✅)
+- [x] **Task 4: Pre-Flight Disk Space Verification in `DownloadTask`** ✅
+  - Implemented `GetDiskFreeSpaceExA` native volume query with parent traversal and safe root guards; pre-flight aborts cleanly before allocating or downloading if free space < file size.
+  - *Verification Target*: `test_download_task` (PASSED ✅)
+- [x] **Task 5: Duplicate File Collision & Auto-Renaming in `FileWriter`** ✅
+  - Implemented zero-latency `file_exists()` and `generate_unique_filepath()` sequence numbering (`(1)`, `(2)`) with extension-less file support, enabling instantaneous GUI duplicate prompt checks and auto-renaming.
+  - *Verification Target*: `test_file_writer` (PASSED ✅)
+- [x] **Task 6: Expired 24-Hour Link Refresh in `DownloadTask`** ✅
+  - Implemented `update_url()` with pre-flight server validation and file size compatibility guards, plus session context forwarding (`Referer`, `Cookies`, `User-Agent`) to bypass hoster link expiry and anti-hotlinking.
+  - *Verification Target*: `test_download_task` (PASSED ✅)
+- [x] **Task 7: Centralized Cache Directory Management in `DownloadTask` & `SettingsManager`** ✅
+  - Routed `.progress.json` sidecars to centralized `Cache/` directory with path-hashed uniqueness, keeping user download folders clutter-free with automatic purge upon 100% completion and cancellation.
+  - *Verification Target*: `test_download_task` (PASSED ✅), `test_resume_store` (PASSED ✅)
+- [x] **Task 8: Automatic File Category Routing** ✅
+  - Route completed downloads into category subfolders (`Documents`, `Videos`, `Music`, `Compressed`, `Programs`) based on file extension. Full pipeline wiring into `DownloadTask`, `main.cpp` IPC dispatcher, and `SettingsManager`.
+  - *Verification Target*: `test_settings_manager` (PASSED ✅), `test_download_task` (PASSED ✅), `idm_app` (PASSED ✅)
+- [x] **Task 8B: Small File Bypass & Browser Fallback Threshold (`SettingsManager` & Extension)** ✅
+  - Configurable threshold (default 10–20 MB); files below threshold bypass IDM and download via browser unless user overrides (Alt-click, right-click "Download with IDM", or GUI Add URL). Also auto-use single thread for small files. Full wiring into `NativeHost` and `main.cpp`.
+  - *Verification Target*: `test_settings_manager` (PASSED ✅), `test_native_host` (PASSED ✅), `idm_app` (PASSED ✅)
 
 ---
 
 ### 🔹 Phase 2B: Antivirus & Link Security Engine (`src/security/`)
-- [ ] **Task 9: Pre-Flight Link/URL Reputation Check (`IAttachmentExecute`)**
-  - Use Windows COM interface (`CLSID_AttachmentServices`) to check links against Microsoft Defender SmartScreen before downloading.
-  - *Verification Target*: `test_antivirus_scanner`
-- [ ] **Task 10: Staging Cache Scan (`MpCmdRun.exe`) & Threat Parser**
+- [x] **Task 9: Pre-Flight Link/URL Reputation Check (`IAttachmentExecute`) & MOTW** ✅
+  - Uses Windows COM interface (`CLSID_AttachmentServices`) to pre-check URLs against SmartScreen and attaches native Windows Mark-of-the-Web (ZoneId=3 Alternate Data Stream) upon download completion. Fully wired into `DownloadTask`, `DownloadQueue`, and `idm_app`.
+  - *Verification Target*: `test_antivirus_scanner` (PASSED ✅), `test_download_task` (PASSED ✅), `test_download_queue` (PASSED ✅), `idm_app` (PASSED ✅)
+- [x] **Task 10: Staging Cache Scan (`MpCmdRun.exe` / `spctl`) & Threat Parser** ✅
   - Scan completed files in `Cache/` with `-DisableRemediation` (prevents silent deletion).
-  - Capture malware names from stdout and evaluate exit codes (`0` clean, `2` threat).
-  - *Verification Target*: `test_antivirus_scanner`
-- [ ] **Task 11: False-Positive Override & Persistent Whitelist Memory**
+  - Capture malware names from stdout and evaluate exit codes (`0` clean, `2`/`3` threat). Added cross-platform macOS/Linux scanner parity.
+  - *Verification Target*: `test_antivirus_scanner` (PASSED ✅)
+- [x] **Task 11: False-Positive Override & Persistent Whitelist Memory** ✅
   - Provide security prompt logic (`Quarantine` vs `Override & Keep`) and persist user-approved domains/hashes in whitelist.
-  - *Verification Target*: `test_antivirus_scanner`
-- [ ] **Task 12: In-Memory Chunk Buffer Scanning via Windows AMSI (`amsi.dll`)**
+  - Implemented zero-dependency FIPS 180-2 SHA-256 calculation, persistent whitelist JSON storage, quarantine file isolation with permission revocation, metadata sidecar generation, and safe restore/deletion lifecycle.
+  - *Verification Target*: `test_antivirus_scanner` (PASSED ✅)
+- [x] **Task 12: In-Memory Chunk Buffer Scanning via Windows AMSI (`amsi.dll`) & Heuristics** ✅
   - Deep buffer inspection using `AmsiScanBuffer` as chunks arrive in memory before flushing to disk.
-  - *Verification Target*: `test_antivirus_scanner`
+  - Implemented dynamic runtime loading of `amsi.dll` with cross-platform heuristic pattern inspection (EICAR detection) and clean fallback.
+  - *Verification Target*: `test_antivirus_scanner` (PASSED ✅)
 
 ---
 
 ### 🔹 Phase 2C: Smart QoS, Hardware & Network Intelligence (`src/net/`)
-- [ ] **Task 13: Smart Auto-QoS RTT Latency Monitor (`NetworkMonitor`)**
+- [x] **Task 13: Smart Auto-QoS RTT Latency Monitor (`NetworkMonitor`)** ✅
   - Background thread measuring network RTT (round-trip time).
   - Auto-throttle downloads by 20–30% during 4K streaming or Zoom calls to prevent lag spikes.
-  - *Verification Target*: `test_network_monitor`
-- [ ] **Task 14: Zero-Lag Gaming QoS Mode**
+  - *Verification Target*: `test_network_monitor` (PASSED ✅)
+- [x] **Task 14: Zero-Lag Gaming QoS Mode** ✅
   - Detect active gaming processes (Steam, Epic, Riot) or Discord voice calls and automatically throttle downloads to protect gaming ping.
-  - *Verification Target*: `test_network_monitor`
-- [ ] **Task 15: Metered Wi-Fi & Mobile Hotspot Guard**
-  - Detect metered Wi-Fi or phone hotspot connections via Windows Network List Manager API and auto-pause heavy downloads.
-  - *Verification Target*: `test_network_monitor`
-- [ ] **Task 16: Laptop Battery & Thermal Throttler Guard**
-  - Use `GetSystemPowerStatus` to detect battery power or high CPU thermal load, automatically reducing worker threads from 32 to 4.
-  - *Verification Target*: `test_network_monitor`
-- [ ] **Task 17: Multi-Adapter Channel Bonding (`ChannelBonding`)**
-  - Bind chunk sockets to alternate network adapters (Wi-Fi + Ethernet) via `CURLOPT_INTERFACE` to multiply bandwidth.
-  - *Verification Target*: `test_channel_bonding`
+  - Implemented cross-platform active process enumeration (Windows Toolhelp32 & macOS libproc) with configurable monitored games and automatic 90% throttle / restore lifecycle.
+  - *Verification Target*: `test_network_monitor` (PASSED ✅)
+- [x] **Task 15: Metered Wi-Fi & Mobile Hotspot Guard** ✅
+  - Detect metered Wi-Fi or phone hotspot connections via Windows Network List Manager / SSID heuristic patterns and auto-pause or throttle heavy downloads.
+  - Implemented configurable policies (`AutoPause`, `Throttle`, `Allow`), dynamic SSID pattern matching, and state-change callbacks.
+  - *Verification Target*: `test_network_monitor` (PASSED ✅)
+- [x] **Task 16: Laptop Battery & Thermal Throttler Guard (`PowerMonitor`)** ✅
+  - Cross-platform power querying using native Windows `GetSystemPowerStatus` and `GetSystemTimes` (plus macOS `IOPowerSources` and CPU load fallbacks).
+  - Dynamically throttles worker threads from 32 down to 4 in `AggressiveEco` battery mode, clamps to 2 in emergency critical battery (< 15%), and throttles under heavy thermal/CPU loads (> 85%).
+  - Fully decoupled background monitor thread with state callbacks and deterministic mock providers.
+  - *Verification Target*: `test_power_monitor` (PASSED ✅)
+- [x] **Task 17: Multi-Adapter Channel Bonding (`ChannelBonding`)** ✅
+  - Native adapter discovery via Windows `GetAdaptersAddresses` (and macOS `getifaddrs`), identifying adapter types (Ethernet, Wi-Fi), MACs, and link speeds.
+  - Multi-socket binding via libcurl's `CURLOPT_INTERFACE` with Round-Robin, Weighted Ratio (3:1 proportional throughput), and Failover Primary modes.
+  - Automatic degradation handling, hot-unplug failover rerouting, and per-adapter byte transfer tracking.
+  - *Verification Target*: `test_channel_bonding` (PASSED ✅)
 
 ---
 
 ### 🔹 Phase 2D: Queue Scheduler & Windows OS Integration (`src/queue/`)
-- [ ] **Task 18: Post-Queue Native Windows Actions**
-  - Implement `ExitWindowsEx` (Shutdown), `SetSystemPowerState` (Sleep/Hibernate), and `PlaySoundA`.
-  - *Verification Target*: `test_download_queue`
-- [ ] **Task 19: Windows 10/11 Native Action Center Toast Notifications**
+- [x] **Task 18: Post-Queue Native Windows Actions** ✅
+  - Native Win32 PC Shutdown (`ExitWindowsEx` with `SE_SHUTDOWN_NAME` privilege acquisition), Sleep/Hibernate (`SetSystemPowerState` / `SetSuspendState`), and completion chime (`PlaySoundA` with `winmm`).
+  - Thread-safe deadlock-free queue dispatch with pluggable `NativeActionExecutor` mock for deterministic test interception and dry-run validation.
+  - *Verification Target*: `test_download_queue` (PASSED ✅)
+- [x] **Task 19: Windows 10/11 Native Action Center Toast Notifications** ✅
   - Trigger native Windows notification toasts with interactive `[Open File]` and `[Open Folder]` buttons upon download completion.
-  - *Verification Target*: `test_download_queue`
+  - *Verification Target*: `test_notification_manager` (PASSED ✅)
 
 ---
 
 ### 🔹 Phase 2E: Local C++ IPC Server & Keep-Alive Event Loop (`src/ipc/` & `src/gui/`)
-- [ ] **Task 20: Embedded Zero-Dependency Local REST Server (`LocalServer`)**
+- [x] **Task 20: Embedded Zero-Dependency Local REST Server (`LocalServer`)** ✅
   - Lightweight Winsock HTTP server listening on `127.0.0.1:port`.
   - Endpoints: `POST /api/add_download`, `POST /api/pause`, `POST /api/resume`, `POST /api/delete`, `GET /api/tasks`, `GET /api/chunks?id=...`, `POST /api/av_override`.
-  - *Verification Target*: `test_local_server`
-- [ ] **Task 21: `MainWindow` Keep-Alive Event Loop**
+  - *Verification Target*: `test_local_server` (PASSED ✅)
+- [x] **Task 21: `MainWindow` Keep-Alive Event Loop** ✅
   - Block while the desktop window is open and shut down cleanly when closed.
-  - *Verification Target*: `test_main_window`
+  - Headless/live modes, child process tracking (`CreateProcessA`/`TerminateProcess`), `LocalServer` auto-teardown, and thread unblocking.
+  - *Verification Target*: `test_main_window` (PASSED ✅)
 
 ---
 
 ### 🔹 Phase 2F: Media, Archives & Swarm Acceleration (`src/media/` & `src/tools/`)
-- [ ] **Task 22: Multi-Mirror Swarm Downloading (Metalink Multiplexing)**
+- [x] **Task 22: Multi-Mirror Swarm Downloading (Metalink Multiplexing)** ✅
   - Split chunks across multiple mirror URLs simultaneously to bypass single-server bandwidth caps and multiply speed 3x.
-  - *Verification Target*: `test_swarm_download`
+  - Metalink XML/JSON parsers with substring guards, dynamic mirror registration & health demotion, round-robin & priority multiplexing, live failover, and SHA-256 bit-exact assembly verification.
+  - *Verification Target*: `test_swarm_download` (PASSED ✅)
 - [ ] **Task 23: Universal Video & Audio Extraction Pipeline (`yt-dlp` & FFmpeg)**
   - Native backend pipeline supporting 1,000+ streaming sites with resolution selector (4K 60fps, 1080p, audio-only 320kbps MP3).
   - *Verification Target*: `test_media_extractor`

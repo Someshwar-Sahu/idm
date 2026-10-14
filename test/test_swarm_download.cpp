@@ -6,7 +6,6 @@
 #include <fstream>
 #include <vector>
 #include <string>
-#include <thread>
 
 using namespace std;
 using namespace idm;
