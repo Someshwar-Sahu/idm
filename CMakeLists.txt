@@ -41,7 +41,7 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net src/ipc src/media)
+include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net src/ipc src/media src/tools)
 
 # Shared Core Engine Sources
 set(CORE_SOURCES
@@ -125,3 +125,6 @@ target_link_libraries(test_media_extractor PRIVATE nlohmann_json::nlohmann_json 
 
 add_executable(test_stream_preview test/test_stream_preview.cpp src/media/StreamPreviewer.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_stream_preview PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_archive_verifier test/test_archive_verifier.cpp src/tools/ArchiveVerifier.cpp src/security/AntivirusScanner.cpp)
+target_link_libraries(test_archive_verifier PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})

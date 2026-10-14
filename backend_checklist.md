@@ -143,10 +143,10 @@ This document tracks all **mistakes/gaps identified in the current code** and se
   - Stream and play partially downloaded video/audio files directly from disk buffer while downloading via non-exclusive read-shared handles.
   - Multi-container magic header analysis (MP4, WebM, MKV, WAV, MP3), MP4 fast-start `moov` atom placement verification, contiguous playable range estimation across active chunks, readiness threshold gates, and dynamic loopback HTTP 206 Partial Content server routing.
   - *Verification Target*: `test_stream_preview` (PASSED ✅)
-- [ ] **Task 25: Automated Archive Unpacking & Integrity Verification**
-  - Auto-extract `.zip`, `.rar`, `.7z` archives upon completion. Automatically verify clipboard MD5/SHA256 checksums.
-  - *Verification Target*: `test_archive_verifier`
-
+- [x] **Task 25: Automated Archive Unpacking & Integrity Verification (`ArchiveVerifier`)** ✅
+  - Auto-extract `.zip`, `.rar`, `.7z`, `.tar`, `.gz`, `.bz2` archives upon completion into canonical subfolders with Zip-Slip path traversal protection.
+  - Full RFC 1321 MD5, RFC 3174 SHA-1, and SHA-256 streaming file digest computation, automatic clipboard hex checksum extraction, and platform extraction command dispatching.
+  - *Verification Target*: `test_archive_verifier` (PASSED ✅)
 ---
 
 ### 🔹 Phase 2G: Authentication, Browser Extension & Remote Access
