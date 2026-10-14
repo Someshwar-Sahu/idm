@@ -158,6 +158,6 @@ This document tracks all **mistakes/gaps identified in the current code** and se
  - Hardware/OS-level Windows DPAPI (`CryptProtectData`/`CryptUnprotectData` via `crypt32`) and password-keyed cipher credential encryption.
  - Domain wildcard & suffix matching, session cookie (`cf_clearance`, `auth_token`) and OAuth2 Bearer token storage, expiry timestamp guards, automatic injection into `DownloadTask` HTTP context, encrypted disk persistence, and master password locking.
  - *Verification Target*: `test_vault` (PASSED ✅)
-- [ ] **Task 28: Local Wi-Fi Remote Dashboard & Floating Desktop Mini-Dock**
+- [x] **Task 28: Local Wi-Fi Remote Dashboard & Floating Desktop Mini-Dock** ✅
   - Enable local network access so users can monitor/add downloads from their phone or tablet on the same Wi-Fi, plus a floating desktop mini-dock widget for drag-and-drop link catching.
-  - *Verification Target*: `test_remote_dashboard`
+  - *Verification Target*: `test_remote_dashboard` (PASSED ✅)

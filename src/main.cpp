@@ -1,6 +1,8 @@
 #include "gui/MainWindow.h"
 #include "queue/DownloadQueue.h"
 #include "config/SettingsManager.h"
+#include "ipc/LocalServer.h"
+#include "net/RemoteDashboard.h"
 #include <iostream>
 
 using namespace idm;
@@ -22,10 +24,31 @@ int main(int argc, char* argv[]) {
     DownloadQueue queue("Main Queue", max_concurrent);
     queue.start();
 
-    // 3. Initialize Native GUI Window
+    // 3. Initialize Local REST API Server (Port 8080) & Remote Dashboard
+    LocalServer server;
+    server.attach_queue(&queue);
+
+    RemoteDashboard remote_dashboard;
+    remote_dashboard.attach_to_server(server, &queue);
+
+    int port = 8080;
+    if (server.start("127.0.0.1", port)) {
+        std::cout << "[Main] Local REST Server listening on: http://127.0.0.1:" << port << std::endl;
+        std::cout << "[Main] Remote Web Dashboard: " << remote_dashboard.get_dashboard_url(port) << std::endl;
+        if (remote_dashboard.is_pin_required()) {
+            std::cout << "[Main] Remote Pairing PIN: " << remote_dashboard.get_pin() << std::endl;
+        }
+    } else {
+        std::cerr << "[Main] Warning: Failed to bind Local Server to port " << port << std::endl;
+    }
+
+    // 4. Initialize Native GUI Window
     MainWindow window;
+    window.attach_server(&server);
     if (!window.init("Internet Download Manager Pro", 1150, 750, "ui/index.html")) {
         std::cerr << "[Main] Failed to initialize GUI Window." << std::endl;
+        server.stop();
+        queue.stop();
         return 1;
     }
 
@@ -93,9 +116,16 @@ int main(int argc, char* argv[]) {
 
 
     // 5. Open Desktop Application Window
-    window.run_event_loop();
+    bool headless = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--headless" || std::string(argv[i]) == "-h") {
+            headless = true;
+        }
+    }
+    window.run_event_loop(headless);
 
     std::cout << "[Main] IDM Application closing..." << std::endl;
+    server.stop();
     queue.stop();
     return 0;
 }

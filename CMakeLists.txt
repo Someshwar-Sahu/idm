@@ -63,6 +63,8 @@ add_executable(idm_app
     src/gui/MainWindow.cpp
     src/queue/DownloadQueue.cpp
     src/config/SettingsManager.cpp
+    src/ipc/LocalServer.cpp
+    src/net/RemoteDashboard.cpp
     ${CORE_SOURCES}
 )
 target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
@@ -134,3 +136,6 @@ target_link_libraries(test_archive_verifier PRIVATE nlohmann_json::nlohmann_json
 
 add_executable(test_vault test/test_vault.cpp src/security/Vault.cpp ${CORE_SOURCES})
 target_link_libraries(test_vault PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_remote_dashboard test/test_remote_dashboard.cpp src/net/RemoteDashboard.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
+target_link_libraries(test_remote_dashboard PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
