@@ -22,6 +22,7 @@
     #define NOMINMAX
     #endif
     #include <windows.h>
+    #include <shellapi.h>
 #endif
 
 namespace idm {
@@ -75,16 +76,38 @@ void MainWindow::run_event_loop(bool headless) {
     std::string abs_path = std::filesystem::absolute(m_ui_path, ec).string();
 
 #ifdef _WIN32
-    std::string cmd = "start msedge --app=\"file:///" + abs_path + "\" --window-size=" + std::to_string(m_width) + "," + std::to_string(m_height);
+    // Search for Microsoft Edge or Google Chrome executable
+    std::string browser_exe = "";
+    const std::vector<std::string> candidates = {
+        "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+    };
+    for (const auto& path : candidates) {
+        if (std::filesystem::exists(path)) {
+            browser_exe = path;
+            break;
+        }
+    }
 
+    BOOL created = FALSE;
     STARTUPINFOA si{};
     PROCESS_INFORMATION pi{};
     si.cb = sizeof(si);
 
-    std::vector<char> cmd_buf(cmd.begin(), cmd.end());
-    cmd_buf.push_back('\0');
+    if (!browser_exe.empty()) {
+        char temp_path[MAX_PATH];
+        DWORD tp_len = GetTempPathA(MAX_PATH, temp_path);
+        std::string profile_dir = (tp_len > 0) ? (std::string(temp_path) + "idm_app_profile") : "idm_app_profile";
 
-    BOOL created = CreateProcessA(NULL, cmd_buf.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+        std::string cmd = "\"" + browser_exe + "\" --app=\"file:///" + abs_path + "\" --user-data-dir=\"" + profile_dir + "\" --window-size=" + std::to_string(m_width) + "," + std::to_string(m_height);
+
+        std::vector<char> cmd_buf(cmd.begin(), cmd.end());
+        cmd_buf.push_back('\0');
+
+        created = CreateProcessA(NULL, cmd_buf.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+    }
 
     if(created){
         m_process_handler = pi.hProcess;
@@ -107,7 +130,8 @@ void MainWindow::run_event_loop(bool headless) {
         CloseHandle(pi.hProcess);
         m_process_handler = nullptr;
     } else {
-        std::cerr<<"[MainWindow] Failed to create process, falling back to contional wait."<<std::endl;
+        std::cout << "[MainWindow] Launching UI in default browser via ShellExecute..." << std::endl;
+        ShellExecuteA(NULL, "open", abs_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cv.wait(lock, [this]() { return !m_is_running.load(); });
     }

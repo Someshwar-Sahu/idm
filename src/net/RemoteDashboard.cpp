@@ -24,7 +24,6 @@
 #include <sstream>
 #include <algorithm>
 #include <random>
-#include <cctype>
 
 using namespace std;
 using json = nlohmann::json;

@@ -11,7 +11,6 @@
 
 #include "Vault.h"
 #include "../core/DownloadTask.h"
-#include "AntivirusScanner.h"
 
 #include <nlohmann/json.hpp>
 #include <fstream>

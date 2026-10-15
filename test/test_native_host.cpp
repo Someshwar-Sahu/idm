@@ -12,7 +12,6 @@
 #include "../src/ipc/LocalServer.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
-#include <sstream>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
