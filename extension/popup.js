@@ -27,10 +27,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Manual download catch
-  btnDownload.addEventListener("click", () => {
+  btnDownload.addEventListener("click", async () => {
     const url = manualUrl.value.trim();
     if (!url) return;
-    chrome.runtime.sendNativeMessage("com.idm.native_host", {
+    const payload = {
       url: url,
       filename: "",
       cookies: "",
@@ -39,7 +39,28 @@ document.addEventListener("DOMContentLoaded", async () => {
       page_title: "Manual Catch",
       total_size: 0,
       user_force_override: true
+    };
+
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/add_download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        manualUrl.value = "";
+        btnDownload.textContent = "Added to IDM!";
+        setTimeout(() => { btnDownload.textContent = "Catch Link"; }, 2000);
+        return;
+      }
+    } catch (e) {
+      // Fallback to native host
+    }
+
+    chrome.runtime.sendNativeMessage("com.idm.native_host", payload, () => {
+      manualUrl.value = "";
+      btnDownload.textContent = "Dispatched!";
+      setTimeout(() => { btnDownload.textContent = "Catch Link"; }, 2000);
     });
-    manualUrl.value = "";
   });
 });
