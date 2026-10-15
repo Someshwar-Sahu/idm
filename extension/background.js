@@ -32,6 +32,26 @@ chrome.runtime.onStartup.addListener(() => {
   ensureSettings();
 });
 
+// In-page link click listener from content.js
+chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
+  if (msg.action === "INTERCEPT_URL" && msg.url) {
+    console.log("[IDM Extension] In-page link click caught:", msg.url);
+    const cookies = await getCookiesForUrl(msg.url);
+    const payload = {
+      url: msg.url,
+      filename: "",
+      cookies: cookies,
+      user_agent: navigator.userAgent,
+      referer: msg.referer || sender?.tab?.url || "",
+      page_title: msg.page_title || sender?.tab?.title || "Page Download",
+      total_size: 0,
+      user_force_override: true
+    };
+    sendToNativeHost(payload);
+    sendResponse({ success: true });
+  }
+});
+
 // Context menu click listener
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const targetUrl = info.linkUrl || info.srcUrl;

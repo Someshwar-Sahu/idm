@@ -285,6 +285,12 @@ bool DownloadTask::probe_url() {
         return false;
     }
 
+    char *effective_url = nullptr;
+    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective_url);
+    if (effective_url && strlen(effective_url) > 0) {
+        m_url = effective_url;
+    }
+
     curl_off_t cl = 0;
     curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
     if (cl > 0) {
