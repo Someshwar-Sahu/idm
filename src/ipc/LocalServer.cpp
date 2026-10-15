@@ -268,6 +268,7 @@ void LocalServer::init_default_routes() {
                 url, save_path, threads, speed_limit, referer, cookies, user_agent
             );
             m_queue->add_task(task);
+            std::cout << "[LocalServer] Download task added to queue: " << url << " -> " << save_path << std::endl;
 
             json res;
             res["status"] = "SUCCESS";

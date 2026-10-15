@@ -7,7 +7,7 @@ const LOCAL_API_URL = "http://127.0.0.1:8080/api/add_download";
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({
     enabled: true,
-    fileTypes: "zip,rar,7z,iso,tar,gz,exe,msi,mp4,mkv,webm,mp3,flac,wav,pdf,dmg",
+    fileTypes: "zip,rar,7z,iso,tar,gz,exe,msi,mp4,mkv,webm,mp3,flac,wav,pdf,dmg,dat,bin,apk,csv,tsv",
     minSizeThreshold: 0
   });
 

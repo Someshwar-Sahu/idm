@@ -3,6 +3,7 @@
    ========================================================================== */
 
 const App = {
+    apiBase: 'http://127.0.0.1:8080',
     downloads: [],
     selectedId: null,
     activeFilter: 'all',
@@ -12,6 +13,62 @@ const App = {
     init() {
         this.bindEvents();
         this.renderTable();
+        this.fetchTasks();
+        setInterval(() => this.fetchTasks(), 1000);
+    },
+
+    formatBytes(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    async fetchTasks() {
+        try {
+            const res = await fetch(`${this.apiBase}/api/tasks`);
+            if (!res.ok) return;
+            const tasks = await res.json();
+            if (!Array.isArray(tasks)) return;
+
+            this.downloads = tasks.map(t => {
+                const savePath = t.save_path || t.id || '';
+                const filename = savePath.substring(Math.max(savePath.lastIndexOf('/'), savePath.lastIndexOf('\\')) + 1) || t.url;
+                
+                let category = 'Other';
+                const ext = filename.includes('.') ? filename.substring(filename.lastIndexOf('.')).toLowerCase() : '';
+                if (['.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.dat', '.bin', '.csv'].includes(ext)) category = 'Compressed';
+                else if (['.mp4', '.mkv', '.avi', '.webm', '.mov'].includes(ext)) category = 'Videos';
+                else if (['.mp3', '.wav', '.flac', '.aac'].includes(ext)) category = 'Music';
+                else if (['.pdf', '.doc', '.docx', '.txt', '.xlsx'].includes(ext)) category = 'Documents';
+                else if (['.exe', '.msi', '.apk', '.bat'].includes(ext)) category = 'Programs';
+
+                const total = t.total_bytes || 0;
+                const downloaded = t.downloaded_bytes || 0;
+                const pct = t.progress_pct !== undefined ? Math.min(100, Math.max(0, Math.round(t.progress_pct))) : (total > 0 ? Math.round((downloaded * 100) / total) : 0);
+                const speed = t.speed_bps > 0 ? this.formatBytes(t.speed_bps) + '/s' : (t.status === 'Downloading' ? 'Active' : '--');
+
+                return {
+                    id: t.id,
+                    filename: filename,
+                    url: t.url,
+                    category: category,
+                    sizeFormatted: total > 0 ? this.formatBytes(total) : (downloaded > 0 ? this.formatBytes(downloaded) : '--'),
+                    totalBytes: total,
+                    downloadedBytes: downloaded,
+                    status: t.status || 'Downloading',
+                    progress: pct,
+                    speed: speed,
+                    eta: '--',
+                    threads: 8,
+                    chunks: []
+                };
+            });
+            this.renderTable();
+        } catch (e) {
+            // C++ server offline or reconnecting
+        }
     },
 
     bindEvents() {
@@ -112,37 +169,27 @@ const App = {
         if (modal) modal.classList.remove('open');
     },
 
-    submitNewDownload() {
+    async submitNewDownload() {
         const urlInput = document.getElementById('input-download-url').value.trim();
-        const category = document.getElementById('input-category').value;
-        const threads = parseInt(document.getElementById('input-threads').value, 10);
+        const threads = parseInt(document.getElementById('input-threads').value, 10) || 8;
 
         if (!urlInput) {
             alert('Please enter a valid HTTP/HTTPS download URL.');
             return;
         }
 
-        const filename = urlInput.substring(urlInput.lastIndexOf('/') + 1) || 'download_file.bin';
-
-        const newDownload = {
-            id: Date.now().toString(),
-            filename: filename,
-            url: urlInput,
-            category: category,
-            sizeFormatted: 'Fetching...',
-            totalBytes: 0,
-            downloadedBytes: 0,
-            status: 'Downloading',
-            progress: 0,
-            speed: '0.0 KB/s',
-            eta: '--',
-            threads: threads,
-            chunks: []
-        };
-
-        this.downloads.unshift(newDownload);
-        this.closeModal('add-url-modal');
-        this.renderTable();
+        try {
+            await fetch(`${this.apiBase}/api/add_download`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput, threads: threads })
+            });
+            this.closeModal('add-url-modal');
+            document.getElementById('input-download-url').value = '';
+            await this.fetchTasks();
+        } catch (err) {
+            alert('Failed to connect to IDM engine: ' + err.message);
+        }
     },
 
     toggleInterception() {
@@ -159,42 +206,54 @@ const App = {
         }
     },
 
-    resumeSelected() {
+    async resumeSelected() {
         if (!this.selectedId) return;
-        const task = this.downloads.find(d => d.id === this.selectedId);
-        if (task && (task.status === 'Paused' || task.status === 'Failed')) {
-            task.status = 'Downloading';
-            this.renderTable();
-        }
+        try {
+            await fetch(`${this.apiBase}/api/resume`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: this.selectedId })
+            });
+            await this.fetchTasks();
+        } catch (e) {}
     },
 
-    pauseSelected() {
+    async pauseSelected() {
         if (!this.selectedId) return;
-        const task = this.downloads.find(d => d.id === this.selectedId);
-        if (task && task.status === 'Downloading') {
-            task.status = 'Paused';
-            task.speed = '--';
-            task.eta = '--';
-            this.renderTable();
-        }
+        try {
+            await fetch(`${this.apiBase}/api/pause`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: this.selectedId })
+            });
+            await this.fetchTasks();
+        } catch (e) {}
     },
 
-    stopAll() {
-        this.downloads.forEach(task => {
+    async stopAll() {
+        for (const task of this.downloads) {
             if (task.status === 'Downloading') {
-                task.status = 'Paused';
-                task.speed = '--';
-                task.eta = '--';
+                await fetch(`${this.apiBase}/api/pause`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: task.id })
+                }).catch(() => {});
             }
-        });
-        this.renderTable();
+        }
+        await this.fetchTasks();
     },
 
-    deleteSelected() {
+    async deleteSelected() {
         if (!this.selectedId) return;
-        this.downloads = this.downloads.filter(d => d.id !== this.selectedId);
-        this.selectedId = null;
-        this.renderTable();
+        try {
+            await fetch(`${this.apiBase}/api/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: this.selectedId, delete_file: false })
+            });
+            this.selectedId = null;
+            await this.fetchTasks();
+        } catch (e) {}
     },
 
     renderTable() {
