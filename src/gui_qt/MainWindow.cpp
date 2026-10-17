@@ -15,6 +15,9 @@
 #include "OptionsDialog.h"
 #include "../queue/DownloadQueue.h"
 #include "../config/SettingsManager.h"
+#include "../media/StreamPreviewer.h"
+#include "../tools/ArchiveVerifier.h"
+#include "../security/Vault.h"
 
 #include <QMenuBar>
 #include <QMenu>
@@ -34,6 +37,13 @@
 #include <QStyle>
 #include <QPainter>
 #include <QColor>
+#include <QDialog>
+#include <QFormLayout>
+#include <QTableWidget>
+#include <QUrlQuery>
+#include <QGroupBox>
+#include <QDialogButtonBox>
+#include <QFileDialog>
 #include <sstream>
 #include <iomanip>
 #include <filesystem>
@@ -85,6 +95,15 @@ MainWindow::MainWindow(DownloadQueue* queue, SettingsManager* settings, QWidget*
     setupUi();
     createTrayIcon();
 
+    // Start background intelligence engines
+    m_networkMonitor = std::make_unique<NetworkMonitor>();
+    m_networkMonitor->start();
+
+    m_powerMonitor = std::make_unique<PowerMonitor>();
+    m_powerMonitor->start();
+
+    m_vault.load_from_file("vault.dat");
+
     m_refreshTimer = new QTimer(this);
     connect(m_refreshTimer, &QTimer::timeout, this, &MainWindow::onRefreshTimerTick);
     m_refreshTimer->start(100);
@@ -94,6 +113,13 @@ MainWindow::~MainWindow() {
     if (m_refreshTimer) {
         m_refreshTimer->stop();
     }
+    if (m_networkMonitor) {
+        m_networkMonitor->stop();
+    }
+    if (m_powerMonitor) {
+        m_powerMonitor->stop();
+    }
+    m_vault.save_to_file("vault.dat");
 }
 
 void MainWindow::setupUi() {
@@ -148,6 +174,14 @@ void MainWindow::createMenuBar() {
     QMenu* downloadsMenu = menuBar()->addMenu(QStringLiteral("&Downloads"));
     downloadsMenu->addAction(style()->standardIcon(QStyle::SP_FileDialogDetailedView), QStringLiteral("&Options..."), this, &MainWindow::onOptionsClicked);
     downloadsMenu->addAction(style()->standardIcon(QStyle::SP_ArrowRight), QStringLiteral("&Scheduler..."), this, &MainWindow::onSchedulerClicked);
+
+    auto* speedMenu = downloadsMenu->addMenu(QStringLiteral("&Speed Limiter"));
+    speedMenu->addAction(QStringLiteral("🚀 Maximum Speed (Uncapped)"), this, [this]() { onSetSpeedMode(0); });
+    speedMenu->addAction(QStringLiteral("🧠 Smart Auto-QoS (Dynamic Auto-Cap)"), this, [this]() { onSetSpeedMode(1); });
+    speedMenu->addAction(QStringLiteral("🐢 Manual Cap..."), this, [this]() { onSetSpeedMode(2); });
+
+    downloadsMenu->addSeparator();
+    downloadsMenu->addAction(style()->standardIcon(QStyle::SP_FileDialogListView), QStringLiteral("Site &Logins (Vault)..."), this, &MainWindow::onSiteLoginsClicked);
     downloadsMenu->addSeparator();
     downloadsMenu->addAction(style()->standardIcon(QStyle::SP_MediaPlay), QStringLiteral("Start &Queue"), this, &MainWindow::onStartQueueClicked);
     downloadsMenu->addAction(style()->standardIcon(QStyle::SP_MediaPause), QStringLiteral("Stop Q&ueue"), this, &MainWindow::onStopQueueClicked);
@@ -321,6 +355,13 @@ void MainWindow::createTrayIcon() {
         activateWindow();
     });
     trayMenu->addAction(QStringLiteral("Add Download..."), this, &MainWindow::onAddUrlClicked);
+    trayMenu->addSeparator();
+
+    auto* traySpeedMenu = trayMenu->addMenu(QStringLiteral("Speed Limiter"));
+    traySpeedMenu->addAction(QStringLiteral("🚀 Maximum Speed"), this, [this]() { onSetSpeedMode(0); });
+    traySpeedMenu->addAction(QStringLiteral("🧠 Smart Auto-QoS"), this, [this]() { onSetSpeedMode(1); });
+    traySpeedMenu->addAction(QStringLiteral("🐢 Manual Cap..."), this, [this]() { onSetSpeedMode(2); });
+
     trayMenu->addSeparator();
     trayMenu->addAction(QStringLiteral("Stop All"), this, &MainWindow::onStopAllClicked);
     trayMenu->addSeparator();
@@ -543,6 +584,7 @@ void MainWindow::onAddUrlClicked() {
         bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
 
         auto task = std::make_shared<DownloadTask>(url, fullPath, connections, speedLimit, "", "", "", cacheDir);
+        m_vault.inject_into_task(*task);
         task->set_queue_name(qName);
         task->set_antivirus_scan_enabled(avEnabled);
         if (dlg.isSecurityOverride()) {
@@ -829,6 +871,26 @@ void MainWindow::onTableContextMenuRequested(const QPoint& pos) {
     if (!isCompleted) {
         menu.addAction(style()->standardIcon(QStyle::SP_MediaPlay), QStringLiteral("Resume"), this, &MainWindow::onResumeClicked);
         menu.addAction(style()->standardIcon(QStyle::SP_MediaPause), QStringLiteral("Pause"), this, &MainWindow::onPauseClicked);
+        menu.addAction(style()->standardIcon(QStyle::SP_BrowserReload), QStringLiteral("Refresh Download Address..."), this, &MainWindow::onRefreshUrlClicked);
+        menu.addSeparator();
+    }
+
+    std::string ext = std::filesystem::path(task->get_destination_filepath()).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    bool isMedia = (ext == ".mp4" || ext == ".mkv" || ext == ".webm" || ext == ".avi" || ext == ".flv" ||
+                    ext == ".mp3" || ext == ".wav" || ext == ".aac" || ext == ".m4a");
+    if (isMedia) {
+        menu.addAction(style()->standardIcon(QStyle::SP_MediaPlay), QStringLiteral("🎬 Preview Media / Stream..."), this, &MainWindow::onStreamPreviewClicked);
+        menu.addSeparator();
+    }
+
+    if (isCompleted && fileExists && idm::ArchiveVerifier::is_supported_archive(task->get_destination_filepath())) {
+        menu.addAction(style()->standardIcon(QStyle::SP_FileDialogContentsView), QStringLiteral("📦 Extract Archive..."), this, &MainWindow::onExtractArchiveClicked);
+        menu.addSeparator();
+    }
+
+    if (fileExists) {
+        menu.addAction(style()->standardIcon(QStyle::SP_FileDialogDetailedView), QStringLiteral("🔒 Verify Checksum / Integrity..."), this, &MainWindow::onVerifyChecksumClicked);
         menu.addSeparator();
     }
 
@@ -968,6 +1030,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
                 destUrl, fullPath, connections, speedLimit,
                 referer.toStdString(), cookies.toStdString(), userAgent.toStdString(), cacheDir
             );
+            m_vault.inject_into_task(*task);
             task->set_queue_name(qName);
             task->set_antivirus_scan_enabled(avEnabled);
             if (dlg.isSecurityOverride()) {
@@ -1010,6 +1073,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
             url.toStdString(), fullPath, connections, speedLimit,
             referer.toStdString(), cookies.toStdString(), userAgent.toStdString(), cacheDir
         );
+        m_vault.inject_into_task(*task);
         task->set_queue_name("Main Download Queue");
         task->set_antivirus_scan_enabled(avEnabled);
         auto mainQ = getQueue(QStringLiteral("Main Download Queue"));
@@ -1052,7 +1116,45 @@ void MainWindow::onRefreshTimerTick() {
         m_statusLeftLabel->setText(QStringLiteral(" Ready (%1 items)").arg(totalTasks));
     }
 
-    m_statusSpeedLabel->setText(QStringLiteral("Speed: %1/s  |  Threads: %2 ")
+    // Dynamic QoS and Limiter State
+    QString modeTag = QStringLiteral("[🚀 Uncapped]");
+    if (m_settings) {
+        auto sm = m_settings->get_settings().speed_mode;
+        if (sm == SpeedLimiterMode::ManualCap) {
+            modeTag = QStringLiteral("[🐢 Cap: %1 KB/s]").arg(m_settings->get_settings().manual_speed_limit_bps / 1024);
+        } else if (sm == SpeedLimiterMode::AutoQoS && m_networkMonitor) {
+            auto stats = m_networkMonitor->get_stats();
+            if (stats.gaming_active) {
+                modeTag = QStringLiteral("[🎮 Gaming Active (%1) - 90% Throttle]").arg(QString::fromStdString(stats.active_game_name));
+                uint64_t throttleCap = 100 * 1024;
+                for (const auto& task : allTasks) {
+                    if (task && task->get_status() == DownloadStatus::Downloading) {
+                        task->set_speed_limit(throttleCap);
+                    }
+                }
+            } else if (stats.qos_state == NetworkQoSState::Critical) {
+                modeTag = QStringLiteral("[⚠️ Auto-QoS High Latency (%1 ms)]").arg(stats.current_rtt_ms);
+                uint64_t dynamicCap = static_cast<uint64_t>(std::max(500.0 * 1024.0, totalSpeed * 0.4));
+                for (const auto& task : allTasks) {
+                    if (task && task->get_status() == DownloadStatus::Downloading) {
+                        task->set_speed_limit(dynamicCap);
+                    }
+                }
+            } else if (stats.qos_state == NetworkQoSState::Elevated) {
+                modeTag = QStringLiteral("[🟡 Auto-QoS Elevated (%1 ms)]").arg(stats.current_rtt_ms);
+            } else {
+                modeTag = QStringLiteral("[🧠 Auto-QoS Normal (%1 ms)]").arg(stats.current_rtt_ms);
+                for (const auto& task : allTasks) {
+                    if (task && task->get_status() == DownloadStatus::Downloading) {
+                        task->set_speed_limit(0);
+                    }
+                }
+            }
+        }
+    }
+
+    m_statusSpeedLabel->setText(QStringLiteral("%1  Speed: %2/s  |  Threads: %3 ")
+                                .arg(modeTag)
                                 .arg(formatBytes(static_cast<uint64_t>(totalSpeed)))
                                 .arg(totalThreads));
 
@@ -1097,4 +1199,364 @@ void MainWindow::changeEvent(QEvent* event) {
         }
     }
     QMainWindow::changeEvent(event);
+}
+
+void MainWindow::onSetSpeedMode(int mode) {
+    if (!m_settings) return;
+    auto s = m_settings->get_settings();
+    if (mode == 0) {
+        s.speed_mode = SpeedLimiterMode::Uncapped;
+        s.manual_speed_limit_bps = 0;
+        for (const auto& [name, q] : m_queues) {
+            if (q) {
+                for (auto& task : q->get_tasks()) {
+                    if (task) task->set_speed_limit(0);
+                }
+            }
+        }
+        m_settings->update_settings(s);
+        m_settings->save();
+        statusBar()->showMessage(QStringLiteral("Speed Limiter: Uncapped (Maximum Speed)"), 3000);
+    } else if (mode == 1) {
+        s.speed_mode = SpeedLimiterMode::AutoQoS;
+        m_settings->update_settings(s);
+        m_settings->save();
+        statusBar()->showMessage(QStringLiteral("Speed Limiter: Smart Auto-QoS (Dynamic Ping & Gaming Protection)"), 3000);
+    } else if (mode == 2) {
+        int currentKb = s.manual_speed_limit_bps > 0 ? static_cast<int>(s.manual_speed_limit_bps / 1024) : 500;
+        bool ok = false;
+        int newLimitKb = QInputDialog::getInt(this, QStringLiteral("Set Speed Limit"),
+                                             QStringLiteral("Maximum Download Speed (KB/s):"),
+                                             currentKb, 10, 1000000, 50, &ok);
+        if (!ok) return;
+        s.speed_mode = SpeedLimiterMode::ManualCap;
+        s.manual_speed_limit_bps = static_cast<uint64_t>(newLimitKb) * 1024;
+        for (const auto& [name, q] : m_queues) {
+            if (q) {
+                for (auto& task : q->get_tasks()) {
+                    if (task) task->set_speed_limit(s.manual_speed_limit_bps);
+                }
+            }
+        }
+        m_settings->update_settings(s);
+        m_settings->save();
+        statusBar()->showMessage(QStringLiteral("Speed Limiter: Manually Capped at %1 KB/s").arg(newLimitKb), 3000);
+    }
+}
+
+void MainWindow::onStreamPreviewClicked() {
+    auto current = m_tableView->currentIndex();
+    if (!current.isValid()) return;
+    int sourceRow = m_proxyModel->mapToSource(current).row();
+    auto task = m_tableModel->getTask(sourceRow);
+    if (!task) return;
+
+    std::string dest = task->get_destination_filepath();
+    uint64_t total = task->get_total_size();
+    auto chunks = task->get_chunks();
+
+    auto status = idm::StreamPreviewer::assess_preview_readiness(dest, total, chunks);
+    if (!status.is_ready && task->get_status() != DownloadStatus::Completed) {
+        QMessageBox::information(this, QStringLiteral("Stream Preview Buffering"),
+            QStringLiteral("The media stream is still buffering.\n\n"
+                           "Playable: %1 KB of %2 KB (%3%)\n"
+                           "Details: %4\n\n"
+                           "Please wait a few more seconds for the initial header chunks to finish.")
+            .arg(status.playable_bytes / 1024)
+            .arg(status.total_file_size / 1024)
+            .arg(QString::number(status.playable_percent, 'f', 1))
+            .arg(QString::fromStdString(status.details)));
+        return;
+    }
+
+    if (task->get_status() == DownloadStatus::Completed) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(dest)));
+        return;
+    }
+
+    QUrl previewUrl(QStringLiteral("http://127.0.0.1:8080/api/preview"));
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("path"), QString::fromStdString(dest));
+    previewUrl.setQuery(q);
+
+    QDesktopServices::openUrl(previewUrl);
+    statusBar()->showMessage(QStringLiteral("Streaming preview opened in default media player"), 4000);
+}
+
+void MainWindow::onRefreshUrlClicked() {
+    auto current = m_tableView->currentIndex();
+    if (!current.isValid()) return;
+    int sourceRow = m_proxyModel->mapToSource(current).row();
+    auto task = m_tableModel->getTask(sourceRow);
+    if (!task) return;
+
+    QString currentUrl = QString::fromStdString(task->get_url());
+    bool ok = false;
+    QString newUrl = QInputDialog::getText(this, QStringLiteral("Refresh Download Address"),
+        QStringLiteral("Enter the new / refreshed URL for this download:\n(Existing downloaded chunks will be preserved)"),
+        QLineEdit::Normal, currentUrl, &ok);
+
+    if (!ok || newUrl.trimmed().isEmpty() || newUrl.trimmed() == currentUrl) {
+        return;
+    }
+
+    if (task->get_status() == DownloadStatus::Downloading) {
+        task->pause();
+    }
+
+    bool updated = task->update_url(newUrl.trimmed().toStdString());
+    if (updated) {
+        QMessageBox::information(this, QStringLiteral("Address Refreshed"),
+            QStringLiteral("Download address was successfully updated!\n\nResuming download now..."));
+        task->resume();
+        auto q = findQueueForTask(task);
+        if (q) {
+            q->resume_task(task->get_destination_filepath());
+            q->start();
+        }
+        if (m_tableModel) m_tableModel->refreshTasks();
+    } else {
+        QMessageBox::critical(this, QStringLiteral("Failed to Refresh Address"),
+            QStringLiteral("Could not update download address:\n\n%1")
+            .arg(QString::fromStdString(task->get_last_error())));
+    }
+}
+
+void MainWindow::onVerifyChecksumClicked() {
+    auto current = m_tableView->currentIndex();
+    if (!current.isValid()) return;
+    int sourceRow = m_proxyModel->mapToSource(current).row();
+    auto task = m_tableModel->getTask(sourceRow);
+    if (!task) return;
+
+    std::string dest = task->get_destination_filepath();
+    std::error_code ec;
+    if (!std::filesystem::exists(dest, ec)) {
+        QMessageBox::warning(this, QStringLiteral("File Missing"), QStringLiteral("File does not exist on disk to compute checksum."));
+        return;
+    }
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(QStringLiteral("Checksum & Integrity Verifier"));
+    dlg.setMinimumWidth(580);
+
+    auto* layout = new QVBoxLayout(&dlg);
+    layout->setSpacing(10);
+
+    QLabel* header = new QLabel(QStringLiteral("<b>File:</b> %1").arg(QFileInfo(QString::fromStdString(dest)).fileName()), &dlg);
+    layout->addWidget(header);
+
+    QString md5 = QString::fromStdString(idm::ArchiveVerifier::calculate_file_md5(dest));
+    QString sha1 = QString::fromStdString(idm::ArchiveVerifier::calculate_file_sha1(dest));
+    QString sha256 = QString::fromStdString(idm::ArchiveVerifier::calculate_file_sha256(dest));
+
+    auto addHashRow = [&](const QString& label, const QString& hashVal) {
+        auto* row = new QHBoxLayout();
+        row->addWidget(new QLabel(QStringLiteral("<b>%1:</b>").arg(label), &dlg), 0);
+        auto* edit = new QLineEdit(hashVal, &dlg);
+        edit->setReadOnly(true);
+        row->addWidget(edit, 1);
+        auto* copyBtn = new QPushButton(QStringLiteral("Copy"), &dlg);
+        connect(copyBtn, &QPushButton::clicked, [hashVal]() {
+            QGuiApplication::clipboard()->setText(hashVal);
+        });
+        row->addWidget(copyBtn, 0);
+        layout->addLayout(row);
+    };
+
+    addHashRow("MD5", md5);
+    addHashRow("SHA-1", sha1);
+    addHashRow("SHA-256", sha256);
+
+    layout->addSpacing(10);
+
+    auto* compGroup = new QGroupBox(QStringLiteral("Verify Against Checksum / Clipboard"), &dlg);
+    auto* compLayout = new QVBoxLayout(compGroup);
+
+    auto* compareRow = new QHBoxLayout();
+    auto* compEdit = new QLineEdit(compGroup);
+    compEdit->setPlaceholderText(QStringLiteral("Paste expected MD5, SHA-1, or SHA-256 hash here..."));
+    auto* verifyBtn = new QPushButton(QStringLiteral("Verify"), compGroup);
+    compareRow->addWidget(compEdit, 1);
+    compareRow->addWidget(verifyBtn, 0);
+    compLayout->addLayout(compareRow);
+
+    auto* resultLabel = new QLabel(compGroup);
+    resultLabel->setWordWrap(true);
+    compLayout->addWidget(resultLabel);
+    layout->addWidget(compGroup);
+
+    auto doVerify = [md5, sha1, sha256, compEdit, resultLabel]() {
+        QString text = compEdit->text().trimmed();
+        if (text.isEmpty()) {
+            resultLabel->setText(QStringLiteral("<font color='gray'>Enter a checksum above to compare.</font>"));
+            return;
+        }
+        if (text.compare(md5, Qt::CaseInsensitive) == 0) {
+            resultLabel->setText(QStringLiteral("<font color='#22c55e'><b>✅ Verified!</b> Matches MD5 checksum perfectly.</font>"));
+        } else if (text.compare(sha1, Qt::CaseInsensitive) == 0) {
+            resultLabel->setText(QStringLiteral("<font color='#22c55e'><b>✅ Verified!</b> Matches SHA-1 checksum perfectly.</font>"));
+        } else if (text.compare(sha256, Qt::CaseInsensitive) == 0) {
+            resultLabel->setText(QStringLiteral("<font color='#22c55e'><b>✅ Verified!</b> Matches SHA-256 checksum perfectly.</font>"));
+        } else {
+            resultLabel->setText(QStringLiteral("<font color='#ef4444'><b>❌ Mismatch!</b> Checksum does NOT match this file.</font>"));
+        }
+    };
+
+    connect(verifyBtn, &QPushButton::clicked, doVerify);
+    connect(compEdit, &QLineEdit::textChanged, doVerify);
+
+    QString clip = QGuiApplication::clipboard()->text().trimmed();
+    if (!clip.isEmpty() && clip.length() >= 32) {
+        compEdit->setText(clip);
+        doVerify();
+    }
+
+    auto* closeBtn = new QPushButton(QStringLiteral("Close"), &dlg);
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    dlg.exec();
+}
+
+void MainWindow::onExtractArchiveClicked() {
+    auto current = m_tableView->currentIndex();
+    if (!current.isValid()) return;
+    int sourceRow = m_proxyModel->mapToSource(current).row();
+    auto task = m_tableModel->getTask(sourceRow);
+    if (!task) return;
+
+    std::string archivePath = task->get_destination_filepath();
+    if (!idm::ArchiveVerifier::is_supported_archive(archivePath)) {
+        QMessageBox::warning(this, QStringLiteral("Unsupported Archive"),
+            QStringLiteral("The selected file is not a supported archive format (.zip, .rar, .7z, .tar, .gz, .bz2)."));
+        return;
+    }
+
+    std::string defaultOut = idm::ArchiveVerifier::generate_destination_folder(archivePath);
+    QString outDir = QFileDialog::getExistingDirectory(this, QStringLiteral("Select Destination Folder for Extraction"),
+        QString::fromStdString(defaultOut));
+    if (outDir.isEmpty()) return;
+
+    idm::ExtractionOptions opts;
+    opts.create_subfolder = false;
+    opts.overwrite_existing = true;
+
+    std::string log;
+    bool ok = idm::ArchiveVerifier::extract_archive(archivePath, outDir.toStdString(), opts, nullptr, &log);
+    if (ok) {
+        auto ans = QMessageBox::information(this, QStringLiteral("Extraction Completed"),
+            QStringLiteral("Archive extracted successfully to:\n%1\n\nWould you like to open the folder?")
+            .arg(outDir), QMessageBox::Yes | QMessageBox::No);
+        if (ans == QMessageBox::Yes) {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(outDir));
+        }
+    } else {
+        QMessageBox::critical(this, QStringLiteral("Extraction Failed"),
+            QStringLiteral("Failed to extract archive.\n\nLog:\n%1").arg(QString::fromStdString(log)));
+    }
+}
+
+void MainWindow::onSiteLoginsClicked() {
+    QDialog dlg(this);
+    dlg.setWindowTitle(QStringLiteral("Site Logins & Cookie Vault"));
+    dlg.setMinimumSize(600, 380);
+
+    auto* layout = new QVBoxLayout(&dlg);
+    layout->setSpacing(10);
+
+    auto* infoLabel = new QLabel(QStringLiteral("IDM securely stores site credentials and session cookies using Windows DPAPI encryption (vault.dat).\n"
+                                                "Stored credentials will be automatically injected into downloads from matching domains."), &dlg);
+    infoLabel->setWordWrap(true);
+    layout->addWidget(infoLabel);
+
+    auto* table = new QTableWidget(&dlg);
+    table->setColumnCount(4);
+    table->setHorizontalHeaderLabels({QStringLiteral("Domain"), QStringLiteral("Username"), QStringLiteral("Cookies"), QStringLiteral("Notes")});
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(table, 1);
+
+    auto refreshTable = [&]() {
+        table->setRowCount(0);
+        auto domains = m_vault.list_domains();
+        int row = 0;
+        for (const auto& domain : domains) {
+            auto cred = m_vault.get_credential(domain);
+            if (!cred) continue;
+            table->insertRow(row);
+            table->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(cred->domain)));
+            table->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(cred->username)));
+            table->setItem(row, 2, new QTableWidgetItem(cred->cookies.empty() ? QStringLiteral("None") : QStringLiteral("Stored (%1 bytes)").arg(cred->cookies.length())));
+            table->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(cred->notes)));
+            row++;
+        }
+    };
+    refreshTable();
+
+    auto* btnRow = new QHBoxLayout();
+    auto* addBtn = new QPushButton(QStringLiteral("Add Site Login..."), &dlg);
+    auto* deleteBtn = new QPushButton(QStringLiteral("Delete Selected"), &dlg);
+    auto* closeBtn = new QPushButton(QStringLiteral("Close"), &dlg);
+    btnRow->addWidget(addBtn);
+    btnRow->addWidget(deleteBtn);
+    btnRow->addStretch();
+    btnRow->addWidget(closeBtn);
+    layout->addLayout(btnRow);
+
+    connect(addBtn, &QPushButton::clicked, [&]() {
+        QDialog addDlg(&dlg);
+        addDlg.setWindowTitle(QStringLiteral("Add Site Login"));
+        addDlg.setMinimumWidth(400);
+        auto* form = new QFormLayout(&addDlg);
+
+        auto* domainEdit = new QLineEdit(&addDlg);
+        domainEdit->setPlaceholderText(QStringLiteral("e.g. rapidgator.net or *.example.com"));
+        auto* userEdit = new QLineEdit(&addDlg);
+        auto* passEdit = new QLineEdit(&addDlg);
+        passEdit->setEchoMode(QLineEdit::Password);
+        auto* cookieEdit = new QLineEdit(&addDlg);
+        cookieEdit->setPlaceholderText(QStringLiteral("session_id=...; token=..."));
+        auto* notesEdit = new QLineEdit(&addDlg);
+
+        form->addRow(QStringLiteral("Domain / Host:"), domainEdit);
+        form->addRow(QStringLiteral("Username:"), userEdit);
+        form->addRow(QStringLiteral("Password:"), passEdit);
+        form->addRow(QStringLiteral("Cookies (optional):"), cookieEdit);
+        form->addRow(QStringLiteral("Notes:"), notesEdit);
+
+        auto* okCancel = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &addDlg);
+        form->addRow(okCancel);
+        connect(okCancel, &QDialogButtonBox::accepted, &addDlg, &QDialog::accept);
+        connect(okCancel, &QDialogButtonBox::rejected, &addDlg, &QDialog::reject);
+
+        if (addDlg.exec() == QDialog::Accepted) {
+            QString d = domainEdit->text().trimmed();
+            if (d.isEmpty()) return;
+            idm::SiteCredential c;
+            c.domain = d.toStdString();
+            c.username = userEdit->text().trimmed().toStdString();
+            c.password = passEdit->text().toStdString();
+            c.cookies = cookieEdit->text().trimmed().toStdString();
+            c.notes = notesEdit->text().trimmed().toStdString();
+            m_vault.save_credential(c);
+            m_vault.save_to_file("vault.dat");
+            refreshTable();
+        }
+    });
+
+    connect(deleteBtn, &QPushButton::clicked, [&]() {
+        int row = table->currentRow();
+        if (row < 0) return;
+        QString domain = table->item(row, 0)->text();
+        m_vault.remove_credential(domain.toStdString());
+        m_vault.save_to_file("vault.dat");
+        refreshTable();
+    });
+
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    dlg.exec();
 }

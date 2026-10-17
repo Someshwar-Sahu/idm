@@ -14,6 +14,7 @@
 #include "../queue/DownloadQueue.h"
 #include "../ipc/LocalServer.h"
 #include "../config/SettingsManager.h"
+#include "../media/StreamPreviewer.h"
 #include <curl/curl.h>
 
 int main(int argc, char* argv[]) {
@@ -87,6 +88,7 @@ int main(int argc, char* argv[]) {
                                   Q_ARG(quint64, static_cast<quint64>(req.total_size)));
     });
 
+    idm::StreamPreviewer::attach_to_server(*server, queue.get());
     server->start("127.0.0.1", 8080);
 
     mainWindow.show();

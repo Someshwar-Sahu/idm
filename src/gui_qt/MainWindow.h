@@ -15,6 +15,9 @@
 #include "DownloadTableModel.h"
 #include "ProgressBarDelegate.h"
 #include "../queue/DownloadQueue.h"
+#include "../net/NetworkMonitor.h"
+#include "../net/PowerMonitor.h"
+#include "../security/Vault.h"
 
 class SettingsManager;
 
@@ -63,6 +66,14 @@ private slots:
     void onCreateQueueTriggered();
     void onMoveTaskToQueue(const QString& targetQueue);
 
+    // Advanced Feature Slots
+    void onStreamPreviewClicked();
+    void onRefreshUrlClicked();
+    void onVerifyChecksumClicked();
+    void onExtractArchiveClicked();
+    void onSiteLoginsClicked();
+    void onSetSpeedMode(int mode);
+
     // Live UI Refresh
     void onRefreshTimerTick();
 
@@ -96,6 +107,11 @@ private:
     // Status bar labels
     QLabel* m_statusLeftLabel{nullptr};
     QLabel* m_statusSpeedLabel{nullptr};
+
+    // Intelligence Engines
+    std::unique_ptr<NetworkMonitor> m_networkMonitor;
+    std::unique_ptr<PowerMonitor> m_powerMonitor;
+    idm::Vault m_vault;
 
     // Active Category / Queue Filter
     QString m_selectedCategory{"All Downloads"};

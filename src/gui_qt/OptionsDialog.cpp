@@ -204,6 +204,7 @@ void OptionsDialog::setupUi() {
     m_speedModeCombo = new QComboBox(speedGroup);
     m_speedModeCombo->addItems({
         QStringLiteral("Uncapped (Maximum bandwidth)"),
+        QStringLiteral("Smart Auto-QoS (Dynamic Auto Cap)"),
         QStringLiteral("Manual Cap")
     });
     connect(m_speedModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &OptionsDialog::onSpeedModeChanged);
@@ -309,9 +310,12 @@ void OptionsDialog::loadSettings() {
     m_connectionsPerTaskCombo->setCurrentText(QString::number(s.default_connections_per_task > 0 ? s.default_connections_per_task : 8));
 
     if (s.speed_mode == SpeedLimiterMode::ManualCap) {
-        m_speedModeCombo->setCurrentIndex(1);
+        m_speedModeCombo->setCurrentIndex(2);
         m_manualSpeedLimitSpin->setEnabled(true);
         m_manualSpeedLimitSpin->setValue(static_cast<int>(s.manual_speed_limit_bps / 1024));
+    } else if (s.speed_mode == SpeedLimiterMode::AutoQoS) {
+        m_speedModeCombo->setCurrentIndex(1);
+        m_manualSpeedLimitSpin->setEnabled(false);
     } else {
         m_speedModeCombo->setCurrentIndex(0);
         m_manualSpeedLimitSpin->setEnabled(false);
@@ -353,9 +357,12 @@ void OptionsDialog::saveSettings() {
     s.max_concurrent_download = m_maxConcurrentSpin->value();
     s.default_connections_per_task = m_connectionsPerTaskCombo->currentText().toInt();
 
-    if (m_speedModeCombo->currentIndex() == 1) {
+    if (m_speedModeCombo->currentIndex() == 2) {
         s.speed_mode = SpeedLimiterMode::ManualCap;
         s.manual_speed_limit_bps = static_cast<uint64_t>(m_manualSpeedLimitSpin->value()) * 1024;
+    } else if (m_speedModeCombo->currentIndex() == 1) {
+        s.speed_mode = SpeedLimiterMode::AutoQoS;
+        s.manual_speed_limit_bps = 0;
     } else {
         s.speed_mode = SpeedLimiterMode::Uncapped;
         s.manual_speed_limit_bps = 0;
@@ -414,7 +421,7 @@ void OptionsDialog::saveSettings() {
 }
 
 void OptionsDialog::onSpeedModeChanged(int index) {
-    m_manualSpeedLimitSpin->setEnabled(index == 1);
+    m_manualSpeedLimitSpin->setEnabled(index == 2);
 }
 
 void OptionsDialog::onBrowseDefaultDir() {
