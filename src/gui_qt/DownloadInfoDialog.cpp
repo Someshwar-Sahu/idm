@@ -13,8 +13,8 @@
 
 #include <thread>
 
-DownloadInfoDialog::DownloadInfoDialog(const QString& initialUrl, const QStringList& queues, QWidget* parent)
-    : QDialog(parent), m_availableQueues(queues) {
+DownloadInfoDialog::DownloadInfoDialog(const QString& initialUrl, const QStringList& queues, SettingsManager* settings, QWidget* parent)
+    : QDialog(parent), m_settings(settings), m_availableQueues(queues) {
     setWindowTitle(QStringLiteral("Enter New Download Address"));
     setMinimumWidth(560);
     setModal(true);
@@ -151,7 +151,13 @@ void DownloadInfoDialog::autoDetectFileNameAndCategory(const QString& urlStr) {
     m_categoryCombo->setCurrentText(category);
     m_categoryCombo->blockSignals(false);
 
-    QString downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString downloadFolder;
+    if (m_settings) {
+        downloadFolder = QString::fromStdString(m_settings->get_settings().default_download_directory);
+    }
+    if (downloadFolder.isEmpty()) {
+        downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    }
     QString targetDir = downloadFolder + QStringLiteral("/") + category;
     QDir().mkpath(targetDir);
 
@@ -180,7 +186,13 @@ void DownloadInfoDialog::onCategoryChanged(const QString& category) {
     QString filename = fi.fileName();
     if (filename.isEmpty()) filename = QStringLiteral("download.bin");
 
-    QString downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString downloadFolder;
+    if (m_settings) {
+        downloadFolder = QString::fromStdString(m_settings->get_settings().default_download_directory);
+    }
+    if (downloadFolder.isEmpty()) {
+        downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    }
     QString targetDir = downloadFolder + QStringLiteral("/") + category;
     QDir().mkpath(targetDir);
     m_savePathEdit->setText(targetDir + QStringLiteral("/") + filename);
@@ -209,7 +221,13 @@ void DownloadInfoDialog::setCustomFilename(const QString& filename) {
     m_categoryCombo->setCurrentText(category);
     m_categoryCombo->blockSignals(false);
 
-    QString downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString downloadFolder;
+    if (m_settings) {
+        downloadFolder = QString::fromStdString(m_settings->get_settings().default_download_directory);
+    }
+    if (downloadFolder.isEmpty()) {
+        downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    }
     QString targetDir = downloadFolder + QStringLiteral("/") + category;
     QDir().mkpath(targetDir);
 
@@ -282,19 +300,22 @@ void DownloadInfoDialog::onStartClicked() {
         return;
     }
 
-    // Pre-flight security check before starting download
-    auto rep = AntivirusScanner::check_url_reputation(urlStr.toStdString(), m_savePathEdit->text().trimmed().toStdString());
-    if (!rep.is_safe || rep.prompt_recommended) {
-        SecurityWarningDialog warnDlg(SecurityWarningDialog::Mode::PreDownload,
-                                     urlStr,
-                                     QString::fromStdString(rep.details),
-                                     m_savePathEdit->text().trimmed(),
-                                     this);
-        if (warnDlg.exec() != QDialog::Accepted) {
-            // User cancelled download
-            return;
+    // Pre-flight security check before starting download (if enabled)
+    bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
+    if (avEnabled) {
+        auto rep = AntivirusScanner::check_url_reputation(urlStr.toStdString(), m_savePathEdit->text().trimmed().toStdString());
+        if (!rep.is_safe || rep.prompt_recommended) {
+            SecurityWarningDialog warnDlg(SecurityWarningDialog::Mode::PreDownload,
+                                         urlStr,
+                                         QString::fromStdString(rep.details),
+                                         m_savePathEdit->text().trimmed(),
+                                         this);
+            if (warnDlg.exec() != QDialog::Accepted) {
+                // User cancelled download
+                return;
+            }
+            m_securityOverride = true;
         }
-        m_securityOverride = true;
     }
 
     m_startImmediately = true;
@@ -308,17 +329,20 @@ void DownloadInfoDialog::onDownloadLaterClicked() {
         return;
     }
 
-    auto rep = AntivirusScanner::check_url_reputation(urlStr.toStdString(), m_savePathEdit->text().trimmed().toStdString());
-    if (!rep.is_safe || rep.prompt_recommended) {
-        SecurityWarningDialog warnDlg(SecurityWarningDialog::Mode::PreDownload,
-                                     urlStr,
-                                     QString::fromStdString(rep.details),
-                                     m_savePathEdit->text().trimmed(),
-                                     this);
-        if (warnDlg.exec() != QDialog::Accepted) {
-            return;
+    bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
+    if (avEnabled) {
+        auto rep = AntivirusScanner::check_url_reputation(urlStr.toStdString(), m_savePathEdit->text().trimmed().toStdString());
+        if (!rep.is_safe || rep.prompt_recommended) {
+            SecurityWarningDialog warnDlg(SecurityWarningDialog::Mode::PreDownload,
+                                         urlStr,
+                                         QString::fromStdString(rep.details),
+                                         m_savePathEdit->text().trimmed(),
+                                         this);
+            if (warnDlg.exec() != QDialog::Accepted) {
+                return;
+            }
+            m_securityOverride = true;
         }
-        m_securityOverride = true;
     }
 
     m_startImmediately = false;

@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QStringList>
 #include <string>
+#include "../config/SettingsManager.h"
 
 class DownloadInfoDialog : public QDialog {
     Q_OBJECT
@@ -15,6 +16,7 @@ class DownloadInfoDialog : public QDialog {
 public:
     explicit DownloadInfoDialog(const QString& initialUrl = QString(),
                                 const QStringList& queues = {},
+                                SettingsManager* settings = nullptr,
                                 QWidget* parent = nullptr);
 
     // Getters for chosen download parameters
@@ -57,6 +59,7 @@ private:
 
     bool m_startImmediately{true};
     bool m_securityOverride{false};
+    SettingsManager* m_settings{nullptr};
     QStringList m_availableQueues;
     QString m_cookies;
     QString m_referer;

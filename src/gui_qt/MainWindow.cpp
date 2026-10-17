@@ -528,15 +528,23 @@ void MainWindow::onAddUrlClicked() {
     QString defaultUrl = (clipText.startsWith(QStringLiteral("http://")) || clipText.startsWith(QStringLiteral("https://"))) ? clipText : QString();
     QStringList qNames;
     for (const auto& [qName, q] : m_queues) qNames << qName;
-    DownloadInfoDialog dlg(defaultUrl, qNames, this);
+    DownloadInfoDialog dlg(defaultUrl, qNames, m_settings, this);
     if (dlg.exec() == QDialog::Accepted) {
         std::string url = dlg.getUrl();
         std::string fullPath = dlg.getDestinationPath();
         bool startNow = dlg.shouldStartImmediately();
         std::string qName = dlg.getSelectedQueue();
         if (url.empty() || fullPath.empty()) return;
-        auto task = std::make_shared<DownloadTask>(url, fullPath);
+
+        int connections = m_settings ? m_settings->get_settings().default_connections_per_task : 8;
+        uint64_t speedLimit = (m_settings && m_settings->get_settings().speed_mode == SpeedLimiterMode::ManualCap)
+                              ? m_settings->get_settings().manual_speed_limit_bps : 0;
+        std::string cacheDir = m_settings ? m_settings->get_settings().cache_directory : "";
+        bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
+
+        auto task = std::make_shared<DownloadTask>(url, fullPath, connections, speedLimit, "", "", "", cacheDir);
         task->set_queue_name(qName);
+        task->set_antivirus_scan_enabled(avEnabled);
         if (dlg.isSecurityOverride()) {
             task->set_security_override(true);
         }
@@ -705,10 +713,30 @@ void MainWindow::onDeleteFileClicked() {
 void MainWindow::onOptionsClicked() {
     OptionsDialog dlg(m_settings, this);
     connect(&dlg, &OptionsDialog::settingsApplied, this, [this]() {
-        if (m_settings && m_queue) {
+        if (m_settings) {
             auto s = m_settings->get_settings();
-            m_queue->set_max_concurrent_tasks(s.max_concurrent_download);
+            uint64_t speedLimit = (s.speed_mode == SpeedLimiterMode::ManualCap) ? s.manual_speed_limit_bps : 0;
+            for (auto& [name, q] : m_queues) {
+                if (q) {
+                    q->set_max_concurrent_tasks(s.max_concurrent_download);
+                    for (auto& task : q->get_tasks()) {
+                        if (task) {
+                            task->set_speed_limit(speedLimit);
+                            task->set_thread_count(s.default_connections_per_task);
+                            task->set_antivirus_scan_enabled(s.antivirus_scan_enabled);
+                            if (!s.cache_directory.empty()) {
+                                task->set_cache_directory(s.cache_directory);
+                            }
+                        }
+                    }
+                }
+            }
+            if (m_queue) {
+                m_queue->set_max_concurrent_tasks(s.max_concurrent_download);
+            }
+            statusBar()->showMessage(QStringLiteral("Settings applied successfully"), 3000);
         }
+        if (m_tableModel) m_tableModel->refreshTasks();
     });
     dlg.exec();
 }
@@ -900,7 +928,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
     if (showDialog) {
         QStringList qNames;
         for (const auto& [qName, q] : m_queues) qNames << qName;
-        DownloadInfoDialog dlg(url, qNames, parentWnd);
+        DownloadInfoDialog dlg(url, qNames, m_settings, parentWnd);
         if (!filename.isEmpty()) {
             dlg.setCustomFilename(filename);
         }
@@ -926,11 +954,18 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
             std::string qName = dlg.getSelectedQueue();
             if (destUrl.empty() || fullPath.empty()) return;
 
+            int connections = m_settings ? m_settings->get_settings().default_connections_per_task : 8;
+            uint64_t speedLimit = (m_settings && m_settings->get_settings().speed_mode == SpeedLimiterMode::ManualCap)
+                                  ? m_settings->get_settings().manual_speed_limit_bps : 0;
+            std::string cacheDir = m_settings ? m_settings->get_settings().cache_directory : "";
+            bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
+
             auto task = std::make_shared<DownloadTask>(
-                destUrl, fullPath, 8, 0,
-                referer.toStdString(), cookies.toStdString(), userAgent.toStdString()
+                destUrl, fullPath, connections, speedLimit,
+                referer.toStdString(), cookies.toStdString(), userAgent.toStdString(), cacheDir
             );
             task->set_queue_name(qName);
+            task->set_antivirus_scan_enabled(avEnabled);
             if (dlg.isSecurityOverride()) {
                 task->set_security_override(true);
             }
@@ -961,11 +996,18 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
         std::string cat_dir = m_settings ? m_settings->get_category_path(cat) : "C:/Downloads";
         std::string fullPath = cat_dir + "/" + fname;
 
+        int connections = m_settings ? m_settings->get_settings().default_connections_per_task : 8;
+        uint64_t speedLimit = (m_settings && m_settings->get_settings().speed_mode == SpeedLimiterMode::ManualCap)
+                              ? m_settings->get_settings().manual_speed_limit_bps : 0;
+        std::string cacheDir = m_settings ? m_settings->get_settings().cache_directory : "";
+        bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
+
         auto task = std::make_shared<DownloadTask>(
-            url.toStdString(), fullPath, 8, 0,
-            referer.toStdString(), cookies.toStdString(), userAgent.toStdString()
+            url.toStdString(), fullPath, connections, speedLimit,
+            referer.toStdString(), cookies.toStdString(), userAgent.toStdString(), cacheDir
         );
         task->set_queue_name("Main Download Queue");
+        task->set_antivirus_scan_enabled(avEnabled);
         auto mainQ = getQueue(QStringLiteral("Main Download Queue"));
         if (mainQ) {
             mainQ->add_task(task);

@@ -8,6 +8,7 @@
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QDir>
+#include <QTimer>
 
 OptionsDialog::OptionsDialog(SettingsManager* settings, QWidget* parent)
     : QDialog(parent), m_settings(settings) {
@@ -378,7 +379,12 @@ void OptionsDialog::onBrowseAntivirus() {
 void OptionsDialog::onApplyClicked() {
     saveSettings();
     emit settingsApplied();
-    QMessageBox::information(this, QStringLiteral("Configuration"), QStringLiteral("Settings have been applied successfully."));
+    if (m_applyBtn) {
+        m_applyBtn->setText(QStringLiteral("Applied ✓"));
+        QTimer::singleShot(1500, this, [this]() {
+            if (m_applyBtn) m_applyBtn->setText(QStringLiteral("Apply"));
+        });
+    }
 }
 
 void OptionsDialog::onOkClicked() {
