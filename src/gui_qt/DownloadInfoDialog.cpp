@@ -121,22 +121,41 @@ void DownloadInfoDialog::autoDetectFileNameAndCategory(const QString& urlStr) {
 
     std::string url = urlStr.trimmed().toStdString();
     std::string filename = DownloadTask::extract_filename_from_url(url);
+    if (filename.empty() || filename == "download.bin") {
+        QUrl qurl(urlStr.trimmed());
+        QString path = qurl.path();
+        if (!path.isEmpty()) {
+            QString name = QFileInfo(path).fileName();
+            if (!name.isEmpty()) filename = name.toStdString();
+        }
+    }
     if (filename.empty()) filename = "download.bin";
 
     std::string ext = std::filesystem::path(filename).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
     QString category = QStringLiteral("General");
-    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz") category = QStringLiteral("Compressed");
-    else if (ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".xlsx") category = QStringLiteral("Documents");
-    else if (ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac") category = QStringLiteral("Music");
-    else if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".apk") category = QStringLiteral("Programs");
-    else if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm") category = QStringLiteral("Video");
+    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz" || ext == ".bz2" || ext == ".iso" || ext == ".xz") {
+        category = QStringLiteral("Compressed");
+    } else if (ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".xlsx" || ext == ".pptx" || ext == ".odt" || ext == ".csv" || ext == ".epub") {
+        category = QStringLiteral("Documents");
+    } else if (ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac" || ext == ".ogg" || ext == ".m4a" || ext == ".wma") {
+        category = QStringLiteral("Music");
+    } else if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".apk" || ext == ".dmg" || ext == ".pkg" || ext == ".deb") {
+        category = QStringLiteral("Programs");
+    } else if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm" || ext == ".flv" || ext == ".wmv" || ext == ".m4v") {
+        category = QStringLiteral("Video");
+    }
 
+    m_categoryCombo->blockSignals(true);
     m_categoryCombo->setCurrentText(category);
+    m_categoryCombo->blockSignals(false);
 
     QString downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
-    QString fullPath = downloadFolder + QStringLiteral("/") + QString::fromStdString(filename);
+    QString targetDir = downloadFolder + QStringLiteral("/") + category;
+    QDir().mkpath(targetDir);
+
+    QString fullPath = targetDir + QStringLiteral("/") + QString::fromStdString(filename);
     m_savePathEdit->setText(fullPath);
 }
 
@@ -162,21 +181,39 @@ void DownloadInfoDialog::onCategoryChanged(const QString& category) {
     if (filename.isEmpty()) filename = QStringLiteral("download.bin");
 
     QString downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
-    QString subfolder = (category == QStringLiteral("General")) ? QString() : (QStringLiteral("/") + category);
-    QString newDir = downloadFolder + subfolder;
-    QDir().mkpath(newDir);
-    m_savePathEdit->setText(newDir + QStringLiteral("/") + filename);
+    QString targetDir = downloadFolder + QStringLiteral("/") + category;
+    QDir().mkpath(targetDir);
+    m_savePathEdit->setText(targetDir + QStringLiteral("/") + filename);
 }
 
 void DownloadInfoDialog::setCustomFilename(const QString& filename) {
-    if (filename.isEmpty()) return;
-    QFileInfo fi(m_savePathEdit->text());
-    QString dir = fi.absolutePath();
-    if (dir.isEmpty() || dir == ".") {
-        dir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    if (filename.isEmpty() || filename == "download.bin") return;
+
+    std::string ext = std::filesystem::path(filename.toStdString()).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    QString category = QStringLiteral("General");
+    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz" || ext == ".bz2" || ext == ".iso" || ext == ".xz") {
+        category = QStringLiteral("Compressed");
+    } else if (ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".xlsx" || ext == ".pptx" || ext == ".odt" || ext == ".csv" || ext == ".epub") {
+        category = QStringLiteral("Documents");
+    } else if (ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac" || ext == ".ogg" || ext == ".m4a" || ext == ".wma") {
+        category = QStringLiteral("Music");
+    } else if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".apk" || ext == ".dmg" || ext == ".pkg" || ext == ".deb") {
+        category = QStringLiteral("Programs");
+    } else if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm" || ext == ".flv" || ext == ".wmv" || ext == ".m4v") {
+        category = QStringLiteral("Video");
     }
-    m_savePathEdit->setText(dir + QStringLiteral("/") + filename);
-    autoDetectFileNameAndCategory(filename);
+
+    m_categoryCombo->blockSignals(true);
+    m_categoryCombo->setCurrentText(category);
+    m_categoryCombo->blockSignals(false);
+
+    QString downloadFolder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QString targetDir = downloadFolder + QStringLiteral("/") + category;
+    QDir().mkpath(targetDir);
+
+    m_savePathEdit->setText(targetDir + QStringLiteral("/") + filename);
 }
 
 void DownloadInfoDialog::setFileSize(uint64_t bytes) {

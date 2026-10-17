@@ -31,8 +31,10 @@ struct AppSettings {
     std::string file_types{"ZIP RAR 7Z ISO TAR GZ EXE MSI MP4 MKV WEBM MP3 FLAC WAV PDF DMG DAT BIN APK CSV"};
 
     std::map<std::string, std::string> category_folders{
+        {"General", "General"},
         {"Documents", "Documents"},
-        {"Videos", "Videos"},
+        {"Videos", "Video"},
+        {"Video", "Video"},
         {"Music", "Music"},
         {"Compressed", "Compressed"},
         {"Programs", "Programs"}

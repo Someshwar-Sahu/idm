@@ -236,6 +236,9 @@ string DownloadTask::extract_filename_from_url(const string &url){
         string name = clean.substr(slash_pos + 1);
         if(!name.empty()) return sanitize_filename(name);
     }
+    if (!clean.empty() && clean.find('.') != string::npos) {
+        return sanitize_filename(clean);
+    }
     return "download.bin";
 }
 
