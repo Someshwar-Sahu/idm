@@ -4,6 +4,7 @@
 #include <chrono>
 #include <string>
 #include <cstdint>
+#include <mutex>
 
 class ProgressTracker {
 public:
@@ -18,6 +19,7 @@ public:
 
     static std::string render_bar(double percentage, int width =30);
 private: 
+    mutable std::mutex m_mutex;
     uint64_t m_total_size{0};
     uint64_t m_last_bytes{0};
     double m_current_speed_bps{0.0};

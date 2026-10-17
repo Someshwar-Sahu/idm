@@ -8,7 +8,7 @@ set(CMAKE_TLS_VERIFY OFF)
 
 if(WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
-    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32 crypt32)
+    set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32 crypt32 user32 comdlg32)
 endif()
 
 include(FetchContent)
@@ -53,21 +53,46 @@ set(CORE_SOURCES
     src/core/ResumeStore.cpp
     src/core/ThreadPool.cpp
     src/security/AntivirusScanner.cpp
+    src/config/SettingsManager.cpp
 )
 
 # ---------------------------------------------------------
 # IDM Desktop Application
 # ---------------------------------------------------------
+set(PLATFORM_SOURCES "")
+if(WIN32)
+    set(PLATFORM_SOURCES src/gui/resources.rc)
+endif()
+
 add_executable(idm_app
     src/main.cpp
     src/gui/MainWindow.cpp
     src/queue/DownloadQueue.cpp
-    src/config/SettingsManager.cpp
     src/ipc/LocalServer.cpp
     src/net/RemoteDashboard.cpp
+    src/net/ChannelBonding.cpp
+    src/net/NetworkMonitor.cpp
+    src/net/PowerMonitor.cpp
+    src/media/StreamPreviewer.cpp
+    src/media/MediaExtractor.cpp
+    src/security/Vault.cpp
+    src/security/AntivirusScanner.cpp
+    src/tools/ArchiveVerifier.cpp
     ${CORE_SOURCES}
+    ${PLATFORM_SOURCES}
 )
+set_target_properties(idm_app PROPERTIES OUTPUT_NAME "IDMan")
 target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_custom_command(TARGET idm_app POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/ui"
+        "$<TARGET_FILE_DIR:idm_app>/ui"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:idm_app>"
+        "$<TARGET_FILE_DIR:idm_app>/idm_app.exe"
+    COMMENT "Copying UI directory and idm_app.exe alias next to IDMan executable"
+)
 
 # ---------------------------------------------------------
 # Unit Tests

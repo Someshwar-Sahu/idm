@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download File Info</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 12px 14px;
+            background: var(--win-bg, #F0F0F0);
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 11px;
+            user-select: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 75px 1fr;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-row-3col {
+            display: grid;
+            grid-template-columns: 75px 1fr auto;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-button-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 10px;
+            border-top: 1px solid #DCDCDC;
+        }
+
+        .win-input-field {
+            height: 22px;
+            font-size: 11px;
+            padding: 2px 6px;
+            border: 1px solid #7F9DB9;
+            background: #FFFFFF;
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+    <!-- URL -->
+    <div class="form-row">
+        <span class="status-label">URL:</span>
+        <input type="text" class="win-input-field" id="info-url" placeholder="https://...">
+    </div>
+
+    <!-- Category -->
+    <div class="form-row">
+        <span class="status-label">Category:</span>
+        <select class="win-input-field" id="info-category" style="width: 170px;">
+            <option value="General">General</option>
+            <option value="Compressed">Compressed</option>
+            <option value="Documents">Documents</option>
+            <option value="Music">Music</option>
+            <option value="Programs">Programs</option>
+            <option value="Videos">Videos</option>
+        </select>
+    </div>
+
+    <!-- Save As -->
+    <div class="form-row-3col">
+        <span class="status-label">Save As:</span>
+        <input type="text" class="win-input-field" id="info-save-as" placeholder="C:\Downloads\filename.ext">
+        <button class="win-btn" id="btn-browse-save-as" style="min-width: 32px; padding: 2px 8px; font-weight: bold;">...</button>
+    </div>
+
+    <!-- Duplicate / Existing File Warning Banner -->
+    <div id="info-duplicate-banner" style="display: none; background: #FFF9C4; border: 1px solid #FBC02D; padding: 6px 10px; font-size: 11px; color: #795548; border-radius: 2px;">
+        <div style="font-weight: 600;">⚠️ File already exists in this folder!</div>
+        <div style="margin-top: 3px;" id="info-duplicate-text">A file with this name already exists.</div>
+        <label class="form-checkbox-row" style="margin-top: 4px;">
+            <input type="checkbox" id="chk-info-overwrite">
+            <span>Overwrite existing file</span>
+        </label>
+    </div>
+
+    <!-- File Size -->
+    <div class="form-row">
+        <span class="status-label">File size:</span>
+        <span id="info-file-size" style="font-weight: 600; color: #000000;">--</span>
+    </div>
+
+    <!-- Remember path checkbox -->
+    <div style="padding-left: 83px;">
+        <label class="form-checkbox-row">
+            <input type="checkbox" id="chk-info-remember-path" checked>
+            <span>Remember this path for "<span id="info-cat-name">General</span>" category</span>
+        </label>
+    </div>
+
+    <!-- Description -->
+    <div class="form-row">
+        <span class="status-label">Description:</span>
+        <input type="text" class="win-input-field" id="info-description" placeholder="">
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-button-row">
+        <button class="win-btn primary-focus" id="btn-start-download" style="min-width: 105px; font-weight: 600;">Start Download</button>
+        <button class="win-btn" id="btn-download-later" style="min-width: 100px;">Download Later</button>
+        <button class="win-btn" id="btn-cancel" style="min-width: 75px;">Cancel</button>
+    </div>
+
+    <script>
+        // Enforce compact authentic IDM dialog size and center on screen
+        try {
+            window.resizeTo(520, 290);
+            const left = Math.max(10, Math.round((screen.availWidth - 520) / 2));
+            const top = Math.max(10, Math.round((screen.availHeight - 290) / 2));
+            window.moveTo(left, top);
+        } catch (e) {}
+
+        const API_BASE = window.location.origin.includes('8080') ? window.location.origin : 'http://127.0.0.1:8080';
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        let initialUrl = urlParams.get('url') || '';
+        let initialFilename = urlParams.get('filename') || '';
+        let initialCat = urlParams.get('category') || 'General';
+        let interceptId = urlParams.get('intercept_id') || '';
+
+        const urlInput = document.getElementById('info-url');
+        const saveAsInput = document.getElementById('info-save-as');
+        const catSelect = document.getElementById('info-category');
+        const catNameSpan = document.getElementById('info-cat-name');
+        const sizeSpan = document.getElementById('info-file-size');
+        const descInput = document.getElementById('info-description');
+        const dupBanner = document.getElementById('info-duplicate-banner');
+        const dupText = document.getElementById('info-duplicate-text');
+        const chkOverwrite = document.getElementById('chk-info-overwrite');
+
+        urlInput.value = initialUrl;
+        catSelect.value = initialCat;
+        catNameSpan.textContent = initialCat;
+
+        let saveName = initialFilename;
+        if (!saveName && initialUrl) {
+            try {
+                const u = new URL(initialUrl);
+                saveName = u.pathname.split('/').filter(Boolean).pop() || 'download.bin';
+            } catch (e) {
+                saveName = 'download.bin';
+            }
+        }
+        if (!saveName) saveName = 'download.bin';
+
+        const baseDir = (initialCat && initialCat !== 'General') ? `C:\\Downloads\\${initialCat}` : 'C:\\Downloads';
+        saveAsInput.value = `${baseDir}\\${saveName}`;
+
+        catSelect.addEventListener('change', () => {
+            const cat = catSelect.value;
+            catNameSpan.textContent = cat;
+            const currentSave = saveAsInput.value;
+            const currentFile = currentSave.split('\\').pop() || saveName;
+            const newBase = (cat && cat !== 'General') ? `C:\\Downloads\\${cat}` : 'C:\\Downloads';
+            saveAsInput.value = `${newBase}\\${currentFile}`;
+        });
+
+        document.getElementById('btn-cancel').addEventListener('click', () => window.close());
+
+        async function probeUrl() {
+            if (!initialUrl || !initialUrl.startsWith('http')) return;
+            sizeSpan.textContent = 'Probing server...';
+            try {
+                const res = await fetch(`${API_BASE}/api/probe_url`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: initialUrl })
+                });
+                const data = await res.json();
+                if (data.status === 'SUCCESS') {
+                    if (data.file_size_formatted) sizeSpan.textContent = data.file_size_formatted;
+                    if (data.category) {
+                        catSelect.value = data.category;
+                        catNameSpan.textContent = data.category;
+                    }
+                    if (data.file_exists) {
+                        dupBanner.style.display = 'block';
+                        dupText.textContent = `File already exists on disk. Suggested path: ${data.suggested_path}`;
+                        saveAsInput.value = data.suggested_path || saveAsInput.value;
+                    }
+                } else {
+                    sizeSpan.textContent = 'Unknown (direct stream)';
+                }
+            } catch (e) {
+                sizeSpan.textContent = 'Unknown';
+            }
+        }
+
+        probeUrl();
+
+        async function submitDownload(startNow) {
+            const url = urlInput.value.trim();
+            const savePath = saveAsInput.value.trim();
+            const category = catSelect.value;
+            const description = descInput.value.trim();
+            const overwrite = chkOverwrite?.checked || false;
+
+            if (!url) {
+                alert('Please enter a valid URL');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/add_download`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url: url,
+                        save_path: savePath,
+                        category: category,
+                        description: description,
+                        threads: 8,
+                        overwrite: overwrite,
+                        start_now: startNow,
+                        confirmed: true
+                    })
+                });
+                const data = await res.json();
+                
+                if (interceptId) {
+                    await fetch(`${API_BASE}/api/clear_intercept`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: interceptId })
+                    }).catch(() => {});
+                }
+
+                if (startNow) {
+                    const taskId = data.id || savePath;
+                    const w = 530;
+                    const h = 370;
+                    const left = Math.max(10, Math.round((screen.availWidth - w) / 2));
+                    const top = Math.max(10, Math.round((screen.availHeight - h) / 2));
+                    window.open(
+                        `download_status.html?id=${encodeURIComponent(taskId)}`,
+                        `IDM_Status_${String(taskId).replace(/[^a-zA-Z0-9]/g, '_')}`,
+                        `width=${w},height=${h},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes`
+                    );
+                }
+                window.close();
+            } catch (err) {
+                alert('Failed to start download: ' + err.message);
+            }
+        }
+
+        document.getElementById('btn-start-download').addEventListener('click', () => submitDownload(true));
+        document.getElementById('btn-download-later').addEventListener('click', () => submitDownload(false));
+    </script>
+</body>
+</html>

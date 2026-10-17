@@ -19,26 +19,40 @@
 using namespace std;
 
 DownloadQueue::DownloadQueue(const string &queue_name, int max_concurrent_tasks): m_queue_name(queue_name), m_max_concurrent_tasks(max_concurrent_tasks){
+    start_scheduler();
 }
 
 DownloadQueue::~DownloadQueue() {
+    stop_scheduler();
     stop();
 }
 
 void DownloadQueue::add_task(shared_ptr<DownloadTask> task){
     if(!task) return;
-    lock_guard<mutex> lock(m_mutex);
-    m_tasks.push_back(task);
+    bool need_restart = false;
+    {
+        lock_guard<mutex> lock(m_mutex);
+        m_tasks.push_back(task);
+        if (m_state != QueueState::Running && !m_stop_thread) {
+            m_state = QueueState::Running;
+            need_restart = true;
+        }
+    }
+    if (need_restart) {
+        if (m_queue_thread.joinable()) {
+            m_queue_thread.join();
+        }
+        m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
+    }
 }
 
 bool DownloadQueue::remove_task(const string &destination_filepath){
     lock_guard<mutex> lock(m_mutex);
-    auto it = remove_if(m_tasks.begin(), m_tasks.end(), [&](const shared_ptr<DownloadTask> &t) {
-        return t != nullptr;
-    });
-
     for(auto iter = m_tasks.begin(); iter != m_tasks.end(); ++iter){
-        if(*iter && (*iter)->get_status() != DownloadStatus::Downloading){
+        if(*iter && ((*iter)->get_destination_filepath() == destination_filepath || (*iter)->get_url() == destination_filepath)){
+            if((*iter)->get_status() == DownloadStatus::Downloading){
+                (*iter)->pause();
+            }
             m_tasks.erase(iter);
             return true;
         }
@@ -46,10 +60,34 @@ bool DownloadQueue::remove_task(const string &destination_filepath){
     return false;
 }
 
+bool DownloadQueue::move_task_up(const string &destination_filepath){
+    lock_guard<mutex> lock(m_mutex);
+    for(size_t i = 1; i < m_tasks.size(); ++i){
+        if(m_tasks[i] && (m_tasks[i]->get_destination_filepath() == destination_filepath || m_tasks[i]->get_url() == destination_filepath)){
+            std::swap(m_tasks[i], m_tasks[i - 1]);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DownloadQueue::move_task_down(const string &destination_filepath){
+    lock_guard<mutex> lock(m_mutex);
+    for(size_t i = 0; i + 1 < m_tasks.size(); ++i){
+        if(m_tasks[i] && (m_tasks[i]->get_destination_filepath() == destination_filepath || m_tasks[i]->get_url() == destination_filepath)){
+            std::swap(m_tasks[i], m_tasks[i + 1]);
+            return true;
+        }
+    }
+    return false;
+}
+
 void DownloadQueue::start(QueueCompletionCallback completion_callback){
+    if (completion_callback) {
+        m_completion_callback = completion_callback;
+    }
     if(m_state == QueueState::Running) return;
 
-    m_completion_callback = completion_callback;
     m_stop_thread = false;
     m_state = QueueState::Running;
 
@@ -74,16 +112,57 @@ void DownloadQueue::stop() {
     m_stop_thread = true;
     m_state = QueueState::Stopped;
 
-    lock_guard<mutex> lock(m_mutex);
-    for(auto &t: m_tasks){
-        if(t&& (t->get_status() == DownloadStatus::Downloading || t->get_status() == DownloadStatus::Probing)){
-            t->pause();
+    {
+        lock_guard<mutex> lock(m_mutex);
+        for(auto &t: m_tasks){
+            if(t&& (t->get_status() == DownloadStatus::Downloading || t->get_status() == DownloadStatus::Probing)){
+                t->pause();
+            }
         }
     }
 
     if(m_queue_thread.joinable()){
         m_queue_thread.join();
     }
+}
+
+bool DownloadQueue::resume_task(const string &destination_filepath) {
+    bool found = false;
+    bool need_restart = false;
+    {
+        lock_guard<mutex> lock(m_mutex);
+        for (auto &t : m_tasks) {
+            if (t && (t->get_destination_filepath() == destination_filepath || t->get_url() == destination_filepath)) {
+                t->resume();
+                m_dispatched_tasks.erase(t.get());
+                if (m_state != QueueState::Running) {
+                    m_state = QueueState::Running;
+                    m_stop_thread = false;
+                    need_restart = true;
+                }
+                found = true;
+                break;
+            }
+        }
+    }
+    if (need_restart) {
+        if (m_queue_thread.joinable()) {
+            m_queue_thread.join();
+        }
+        m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
+    }
+    return found;
+}
+
+bool DownloadQueue::pause_task(const string &destination_filepath) {
+    lock_guard<mutex> lock(m_mutex);
+    for (auto &t : m_tasks) {
+        if (t && (t->get_destination_filepath() == destination_filepath || t->get_url() == destination_filepath)) {
+            t->pause();
+            return true;
+        }
+    }
+    return false;
 }
 
 void DownloadQueue::set_max_concurrent_tasks(int max_concurrent){
@@ -138,6 +217,8 @@ void DownloadQueue::process_queue_loop() {
             if (m_tasks.empty()) continue;
 
             int active_downloads = 0;
+            int runnable_count = 0;
+            int completed_count = 0;
             bool all_finished = true;
 
             for (auto &t : m_tasks) {
@@ -146,7 +227,12 @@ void DownloadQueue::process_queue_loop() {
                 if (status == DownloadStatus::Downloading || status == DownloadStatus::Probing || m_dispatched_tasks.count(t.get()) > 0) {
                     active_downloads++;
                     all_finished = false;
-                } else if (status == DownloadStatus::NotStarted || status == DownloadStatus::Paused) {
+                } else if (status == DownloadStatus::NotStarted) {
+                    runnable_count++;
+                    all_finished = false;
+                } else if (status == DownloadStatus::Completed) {
+                    completed_count++;
+                } else {
                     all_finished = false;
                 }
             }
@@ -156,10 +242,16 @@ void DownloadQueue::process_queue_loop() {
                     if (!t) continue;
                     auto status = t->get_status();
                     
-                    if ((status == DownloadStatus::NotStarted || status == DownloadStatus::Paused) &&
+                    if (status == DownloadStatus::NotStarted &&
                         m_dispatched_tasks.find(t.get()) == m_dispatched_tasks.end()) {
                         
                         m_dispatched_tasks.insert(t.get());
+
+                        // Bug 19 Fix: Dynamically allocate worker threads within global queue thread ceiling
+                        if (m_max_total_threads > 0 && m_max_concurrent_tasks > 0) {
+                            int allocated_threads = std::max(1, m_max_total_threads / m_max_concurrent_tasks);
+                            t->set_thread_count(allocated_threads);
+                        }
 
                         thread([this, t]() {
                             t->start(nullptr);
@@ -174,12 +266,19 @@ void DownloadQueue::process_queue_loop() {
                 }
             }
 
-            if (all_finished && !m_tasks.empty()) {
-                cout << "[DownloadQueue] All tasks in '" << m_queue_name << "' have completed!" << endl;
-                m_state = QueueState::Stopped;
-                action_to_run = m_post_action;
-                cb_to_run = m_completion_callback;
-                finished = true;
+            // Post-queue completion: executes when all tasks completed or all runnable tasks completed
+            if ((all_finished || (active_downloads == 0 && runnable_count == 0 && completed_count > 0)) && !m_tasks.empty()) {
+                if (m_completion_callback) {
+                    cb_to_run = m_completion_callback;
+                    m_completion_callback = nullptr;
+                    finished = true;
+                }
+                if (m_post_action != PostQueueAction::None) {
+                    cout << "[DownloadQueue] All active tasks in '" << m_queue_name << "' have completed!" << endl;
+                    m_state = QueueState::Stopped;
+                    action_to_run = m_post_action;
+                    finished = true;
+                }
             }
         }
 
@@ -188,7 +287,9 @@ void DownloadQueue::process_queue_loop() {
             if (cb_to_run) {
                 cb_to_run(action_to_run);
             }
-            break;
+            if (m_state == QueueState::Stopped) {
+                break;
+            }
         }
     }
 }
@@ -277,3 +378,82 @@ bool DownloadQueue::execute_native_post_action(PostQueueAction action, bool dry_
 #endif
     return false;
 }
+
+void DownloadQueue::set_schedule(const QueueSchedule &sched) {
+    lock_guard<mutex> lock(m_mutex);
+    m_schedule = sched;
+}
+
+DownloadQueue::QueueSchedule DownloadQueue::get_schedule() const {
+    lock_guard<mutex> lock(m_mutex);
+    return m_schedule;
+}
+
+void DownloadQueue::start_scheduler() {
+    if (m_scheduler_thread.joinable()) return;
+    m_stop_scheduler = false;
+    m_scheduler_thread = thread(&DownloadQueue::schedule_evaluator_loop, this);
+}
+
+void DownloadQueue::stop_scheduler() {
+    m_stop_scheduler = true;
+    if (m_scheduler_thread.joinable()) {
+        m_scheduler_thread.join();
+    }
+}
+
+void DownloadQueue::schedule_evaluator_loop() {
+    string last_started_min = "";
+    string last_stopped_min = "";
+
+    while (!m_stop_scheduler) {
+        this_thread::sleep_for(chrono::seconds(1));
+        if (m_stop_scheduler) break;
+
+        QueueSchedule sched;
+        {
+            lock_guard<mutex> lock(m_mutex);
+            sched = m_schedule;
+        }
+
+        if (!sched.start_scheduled && !sched.stop_scheduled) {
+            continue;
+        }
+
+        auto now = chrono::system_clock::now();
+        time_t now_time = chrono::system_clock::to_time_t(now);
+        tm local_tm{};
+#ifdef _WIN32
+        localtime_s(&local_tm, &now_time);
+#else
+        localtime_r(&now_time, &local_tm);
+#endif
+
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%02d:%02d", local_tm.tm_hour, local_tm.tm_min);
+        string cur_min(buf);
+
+        if (sched.start_scheduled && !sched.start_time.empty()) {
+            string target = sched.start_time.substr(0, 5);
+            if (cur_min == target && last_started_min != cur_min) {
+                last_started_min = cur_min;
+                if (get_state() != QueueState::Running) {
+                    cout << "[DownloadQueue] Scheduled start triggered at " << cur_min << endl;
+                    start();
+                }
+            }
+        }
+
+        if (sched.stop_scheduled && !sched.stop_time.empty()) {
+            string target = sched.stop_time.substr(0, 5);
+            if (cur_min == target && last_stopped_min != cur_min) {
+                last_stopped_min = cur_min;
+                if (get_state() == QueueState::Running) {
+                    cout << "[DownloadQueue] Scheduled stop triggered at " << cur_min << endl;
+                    stop();
+                }
+            }
+        }
+    }
+}
+

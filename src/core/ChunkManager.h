@@ -13,16 +13,19 @@ public:
     ChunkManager(uint64_t total_file_size, int num_chunks);
 
     void init(uint64_t total_file_size, int num_chunks);
+    void restore_chunks(uint64_t total_file_size, const std::vector<Chunk>& chunks);
+    void ensure_chunk_count(int target_count);
 
     std::optional<Chunk> get_next_pending_chunk();
 
-    std::optional<Chunk> steal_slowest_chunk(uint64_t min_steal_threshold = 1024 * 1024);
+    std::optional<Chunk> steal_slowest_chunk(uint64_t min_steal_threshold = 1024 * 1024, size_t max_chunks = 32);
 
     void update_chunk_progress(int chunk_id, uint64_t bytes_downloaded);
     void mark_chunk_done(int chunk_id);
-    void mark_chunk_failed(int chunk_id, int max_retries = 3);
+    void mark_chunk_failed(int chunk_id, int max_retries = 5);
     
     bool is_complete() const;
+    bool has_failed() const;
     uint64_t get_total_downloaded_bytes() const;
     uint64_t get_total_file_size() const;
     std::vector<Chunk> get_all_chunks() const;

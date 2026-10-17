@@ -3,6 +3,12 @@
     "name": "IDM Integration Module",
     "version": "1.0.0",
     "description": "High-performance download interceptor and Native Messaging bridge for IDM.",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr0WQYjDHC5WaJCoaY8EPj4arcLbJp0rkWlZvANHtr4/lXCL1wAWh9m3IofhEyF6A3FuS6+kRQdR75uZhfH8ce6gX4Qx8hOgu25QSSLJ+rFXUKXuoRs2th7TTPPAYLCs1b3KYjB+kSpCU97yto3ZQ0NW1YwiKAcm3qq2V67pMFKWy1OmusvsQ21DiDZiAIcfpNZ/K7yu+jk4DMwi97MKQm9OpgDkw/cv5mQe7sgxRy5BuSbCQqZd9B2SoomdWsqSQib6MUkDSzcsgdfii9Sz5F30+hTwVtZ1YEOD5b1Xkm6g8oKETXlCIOR1HJQBiS5OqeS3/GhhL95yU7ZKfHZwL0wIDAQAB",
+    "icons": {
+        "16": "icon16.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+    },
     "permissions": [
         "downloads",
         "cookies",
@@ -25,6 +31,11 @@
     ],
     "action": {
         "default_popup": "popup.html",
-        "default_title": "IDM Download Interceptor"
+        "default_title": "IDM Download Interceptor",
+        "default_icon": {
+            "16": "icon16.png",
+            "48": "icon48.png",
+            "128": "icon128.png"
+        }
     }
 }

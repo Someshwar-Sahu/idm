@@ -1,5 +1,6 @@
 #include "FileWriter.h"
 #include <filesystem>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -35,8 +36,25 @@ string FileWriter::generate_unique_filepath(const string &filepath){
 
     fs::path original_path(filepath);
     fs::path parent_dir = original_path.parent_path();
+    string filename = original_path.filename().string();
     string stem = original_path.stem().string();
     string extension = original_path.extension().string();
+
+    // Bug 8 Fix: Preserve compound archive extensions (.tar.gz, .tar.bz2, etc.)
+    const std::vector<std::string> compound_extensions = {
+        ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst", ".tar.lz", ".tar.lzma"
+    };
+    string lower_filename = filename;
+    for (char &c : lower_filename) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+    for (const auto &comp : compound_extensions) {
+        if (lower_filename.size() > comp.size() && 
+            lower_filename.compare(lower_filename.size() - comp.size(), comp.size(), comp) == 0) {
+            extension = filename.substr(filename.size() - comp.size());
+            stem = filename.substr(0, filename.size() - comp.size());
+            break;
+        }
+    }
 
     int counter = 1;
     while(true){
@@ -57,7 +75,7 @@ bool FileWriter::preallocate_file(const string &path, uint64_t total_size){
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         NULL,
-        CREATE_ALWAYS,
+        OPEN_ALWAYS,
         FILE_ATTRIBUTE_NORMAL,
         NULL
     );
@@ -66,8 +84,23 @@ bool FileWriter::preallocate_file(const string &path, uint64_t total_size){
         return false;
     }
 
+    LARGE_INTEGER cur_size;
+    if (GetFileSizeEx(hFile, &cur_size)) {
+        if (static_cast<uint64_t>(cur_size.QuadPart) >= total_size && total_size > 0) {
+            CloseHandle(hFile);
+            return true;
+        }
+    }
+
+    // Bug 7 Fix: Preallocate physical disk space on NTFS via FileAllocationInfo
+    if (total_size > 0) {
+        FILE_ALLOCATION_INFO alloc_info;
+        alloc_info.AllocationSize.QuadPart = static_cast<LONGLONG>(total_size);
+        SetFileInformationByHandle(hFile, FileAllocationInfo, &alloc_info, sizeof(alloc_info));
+    }
+
     LARGE_INTEGER li;
-    li.QuadPart = static_cast<LONGLONG> (total_size);
+    li.QuadPart = static_cast<LONGLONG>(total_size);
 
     if(!SetFilePointerEx(hFile, li, NULL, FILE_BEGIN)) {
         CloseHandle(hFile);
@@ -82,9 +115,15 @@ bool FileWriter::preallocate_file(const string &path, uint64_t total_size){
     CloseHandle(hFile);
     return true;
 #else
-    int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
+    int fd = ::open(path.c_str(), O_RDWR | O_CREAT, 0644);
     if(fd < 0){
         return false;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) == 0 && static_cast<uint64_t>(st.st_size) >= total_size && total_size > 0) {
+        ::close(fd);
+        return true;
     }
 
     if(ftruncate(fd, static_cast<off_t>(total_size)) != 0) {
@@ -146,6 +185,9 @@ void FileWriter::close() {
 
 bool FileWriter::write_at_offset(uint64_t offset, const void* data, size_t length){
     if(!is_open() || data == nullptr || length == 0) return false;
+
+    // Bug 6 Fix: Guard concurrent writes across threads to avoid handle offset collisions
+    std::lock_guard<std::mutex> lock(m_write_mutex);
 
 #ifdef _WIN32
     HANDLE hFile = static_cast<HANDLE>(m_file_handle);

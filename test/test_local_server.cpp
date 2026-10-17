@@ -1,5 +1,6 @@
 #include "LocalServer.h"
 #include "DownloadQueue.h"
+#include "SettingsManager.h"
 #include <iostream>
 #include <cassert>
 #include <thread>
@@ -274,7 +275,33 @@ int main() {
         resume_valid.json_body = {{"id", task_id}};
         assert(server.dispatch_request(resume_valid).status_code == 200);
 
-        // 4.6 POST /api/av_override (Neg: missing id param, Neg: unknown id, Pos: valid id)
+        // 4.6 POST /api/cancel (Neg: missing id param, Neg: unknown id, Pos: valid id marks Cancelled & retains)
+        HttpRequest cancel_noid;
+        cancel_noid.method = "POST";
+        cancel_noid.path = "/api/cancel";
+        cancel_noid.json_body = json::object();
+        assert(server.dispatch_request(cancel_noid).status_code == 400);
+
+        HttpRequest cancel_unknown;
+        cancel_unknown.method = "POST";
+        cancel_unknown.path = "/api/cancel";
+        cancel_unknown.json_body = {{"id", "non_existent_id_xyz"}};
+        assert(server.dispatch_request(cancel_unknown).status_code == 404);
+
+        HttpRequest cancel_valid;
+        cancel_valid.method = "POST";
+        cancel_valid.path = "/api/cancel";
+        cancel_valid.json_body = {{"id", task_id}};
+        HttpResponse res_cancel = server.dispatch_request(cancel_valid);
+        assert(res_cancel.status_code == 200);
+
+        // Verify task is retained with status Cancelled
+        HttpResponse res_tasks_cancelled = server.dispatch_request(get_tasks);
+        json tasks_cancelled_j = json::parse(res_tasks_cancelled.body);
+        assert(tasks_cancelled_j["count"] == 1);
+        assert(tasks_cancelled_j["tasks"][0]["status"] == "Cancelled");
+
+        // 4.7 POST /api/av_override (Neg: missing id param, Neg: unknown id, Pos: valid id)
         HttpRequest av_noid;
         av_noid.method = "POST";
         av_noid.path = "/api/av_override";
@@ -296,7 +323,7 @@ int main() {
         json av_j = json::parse(res_av.body);
         assert(av_j["av_override"] == true);
 
-        // 4.7 POST /api/delete (Neg: missing id param, Neg: unknown id, Pos: valid id)
+        // 4.8 POST /api/delete (Neg: missing id param, Neg: unknown id, Pos: valid id with delete_file: true)
         HttpRequest del_noid;
         del_noid.method = "POST";
         del_noid.path = "/api/delete";
@@ -312,8 +339,12 @@ int main() {
         HttpRequest del_valid;
         del_valid.method = "POST";
         del_valid.path = "/api/delete";
-        del_valid.json_body = {{"id", task_id}};
-        assert(server.dispatch_request(del_valid).status_code == 200);
+        del_valid.json_body = {{"id", task_id}, {"delete_file", true}};
+        HttpResponse res_del = server.dispatch_request(del_valid);
+        assert(res_del.status_code == 200);
+        json del_j = json::parse(res_del.body);
+        assert(del_j["status"] == "SUCCESS");
+        assert(del_j["file_deleted"] == true);
 
         // Verify count is 0 after deletion
         HttpResponse res_tasks_empty = server.dispatch_request(get_tasks);
@@ -490,8 +521,126 @@ int main() {
         cout << "  -> Attached DownloadQueue live REST control & error guards: PASSED" << endl;
     }
 
+    // =========================================================================
+    // 9. PHASE A: EVENT LONG-POLLING & DOWNLOAD CONFIRMATION GATE
+    // =========================================================================
+    cout << "\n[9/9] Testing Phase A: Real-Time Event Long-Polling & Confirmation Gate..." << endl;
+    {
+        LocalServer server;
+        DownloadQueue queue("Phase A Queue", 4);
+        server.attach_queue(&queue);
+
+        SettingsManager settings;
+        AppSettings s = settings.get_settings();
+        s.show_start_download_dialog = true;
+        settings.update_settings(s);
+        server.attach_settings(&settings);
+
+        // 9.1 Long-polling event unblocking test
+        std::atomic<bool> event_received{false};
+        std::atomic<uint64_t> received_counter{0};
+        std::thread poll_thread([&server, &event_received, &received_counter]() {
+            HttpRequest req;
+            req.method = "GET";
+            req.path = "/api/events";
+            req.query_params["since"] = "0";
+            HttpResponse res = server.dispatch_request(req);
+            assert(res.status_code == 200);
+            json j = json::parse(res.body);
+            assert(j["status"] == "SUCCESS");
+            received_counter.store(j.value("event_counter", static_cast<uint64_t>(0)));
+            event_received.store(true);
+        });
+
+        // Give the polling thread a moment to enter wait
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        assert(!event_received.load()); // Should still be waiting
+
+        // Trigger intercept event
+        HttpRequest intercept_req;
+        intercept_req.method = "POST";
+        intercept_req.path = "/api/intercept";
+        intercept_req.json_body = {
+            {"url", "https://example.com/movie.mp4"},
+            {"filename", "movie.mp4"},
+            {"cookies", "auth=token123"},
+            {"referer", "https://example.com"},
+            {"user_agent", "IDM Test"}
+        };
+        HttpResponse int_res = server.dispatch_request(intercept_req);
+        assert(int_res.status_code == 200);
+        json int_j = json::parse(int_res.body);
+        assert(int_j["status"] == "SUCCESS");
+
+        poll_thread.join();
+        assert(event_received.load());
+        assert(received_counter.load() > 0);
+
+        // 9.2 Verify pending intercepts list
+        HttpRequest get_intercepts;
+        get_intercepts.method = "GET";
+        get_intercepts.path = "/api/pending_intercepts";
+        HttpResponse get_int_res = server.dispatch_request(get_intercepts);
+        assert(get_int_res.status_code == 200);
+        json list_j = json::parse(get_int_res.body);
+        assert(list_j["count"] == 1);
+        assert(list_j["intercepts"][0]["url"] == "https://example.com/movie.mp4");
+
+        // Clear intercept
+        HttpRequest clear_req;
+        clear_req.method = "POST";
+        clear_req.path = "/api/clear_intercept";
+        clear_req.json_body = {{"id", list_j["intercepts"][0]["id"]}};
+        assert(server.dispatch_request(clear_req).status_code == 200);
+
+        HttpResponse cleared_res = server.dispatch_request(get_intercepts);
+        json cleared_j = json::parse(cleared_res.body);
+        assert(cleared_j["count"] == 0);
+
+        // 9.3 Confirmation Dialog Gate: Unconfirmed POST /api/add_download is diverted to pending intercepts
+        HttpRequest unconfirmed_add;
+        unconfirmed_add.method = "POST";
+        unconfirmed_add.path = "/api/add_download";
+        unconfirmed_add.json_body = {
+            {"url", "https://example.com/installer.exe"},
+            {"save_path", "installer.exe"}
+        };
+        HttpResponse unconf_res = server.dispatch_request(unconfirmed_add);
+        assert(unconf_res.status_code == 200);
+        json unconf_j = json::parse(unconf_res.body);
+        assert(unconf_j["status"] == "PENDING_CONFIRMATION");
+        assert(queue.get_task_count() == 0); // NOT in queue yet!
+
+        // Verify intercept exists for unconfirmed add
+        HttpResponse pend_res = server.dispatch_request(get_intercepts);
+        json pend_j = json::parse(pend_res.body);
+        assert(pend_j["count"] == 1);
+        assert(pend_j["intercepts"][0]["url"] == "https://example.com/installer.exe");
+
+        // Clear it
+        clear_req.json_body = {{"id", pend_j["intercepts"][0]["id"]}};
+        server.dispatch_request(clear_req);
+
+        // 9.4 User Confirmed Download: POST /api/add_download with confirmed: true proceeds directly to queue
+        HttpRequest confirmed_add;
+        confirmed_add.method = "POST";
+        confirmed_add.path = "/api/add_download";
+        confirmed_add.json_body = {
+            {"url", "https://example.com/installer.exe"},
+            {"save_path", "installer.exe"},
+            {"confirmed", true}
+        };
+        HttpResponse conf_res = server.dispatch_request(confirmed_add);
+        assert(conf_res.status_code == 200);
+        json conf_j = json::parse(conf_res.body);
+        assert(conf_j["status"] == "SUCCESS");
+        assert(queue.get_task_count() == 1); // Confirmed and in queue!
+
+        cout << "  -> Long-polling event stream, pending intercepts, and confirmation gate: PASSED" << endl;
+    }
+
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF LOCALSERVER (TASK 20) VERIFIED!        " << endl;
+    cout << "  [PASSED] 100% OF LOCALSERVER & PHASE A VERIFIED!        " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

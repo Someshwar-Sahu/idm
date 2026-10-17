@@ -1,99 +1,113 @@
 /* ==========================================================================
-   IDM Core CSS Stylesheet - Dark & Light Daylight Modes
+   Internet Download Manager (IDM 6.38) - Authentic Windows Desktop Design System
+   Exact pixel-faithful reproduction of Windows 10/11 classic desktop software
    ========================================================================== */
 
 :root {
-    /* --- Dark Mode Palette (Default) --- */
-    --bg-main: #0B0E14;
-    --bg-card: rgba(18, 24, 38, 0.85);
-    --bg-card-hover: rgba(28, 36, 56, 0.9);
-    --bg-modal: #121826;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --text-primary: #F1F5F9;
-    --text-muted: #94A3B8;
-    --accent-blue: #3B82F6;
-    --accent-blue-hover: #2563EB;
-    --accent-green: #10B981;
-    --accent-yellow: #F59E0B;
-    --accent-red: #EF4444;
-    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    --input-bg: #0F172A;
-}
+    /* --- Authentic Windows Desktop System Palette --- */
+    --win-bg: #F0F0F0;
+    --win-surface: #FFFFFF;
+    --win-panel: #F4F4F4;
+    --win-border-light: #E0E0E0;
+    --win-border: #D4D0C8;
+    --win-border-dark: #707070;
+    --win-border-inset: #7F9DB9;
+    --win-text: #000000;
+    --win-text-secondary: #444444;
+    --win-text-muted: #666666;
+    
+    /* Windows Selection & Highlight */
+    --win-select-blue: #0078D7;
+    --win-select-blue-alt: #3399FF;
+    --win-hover-blue: #E5F1FB;
+    --win-hover-border: #70C0E7;
+    --win-active-blue: #CCE4F7;
+    --win-active-border: #005499;
 
-/* --- Daylight Light Theme Palette --- */
-body.light-theme {
-    --bg-main: #F8FAFC;
-    --bg-card: #FFFFFF;
-    --bg-card-hover: #F1F5F9;
-    --bg-modal: #FFFFFF;
-    --border-color: #E2E8F0;
-    --text-primary: #0F172A;
-    --text-muted: #64748B;
-    --accent-blue: #2563EB;
-    --accent-blue-hover: #1D4ED8;
-    --accent-green: #059669;
-    --accent-yellow: #D97706;
-    --accent-red: #DC2626;
-    --glass-shadow: 0 8px 24px 0 rgba(149, 157, 165, 0.15);
-    --input-bg: #F1F5F9;
+    /* Authentic IDM Accents */
+    --idm-blue-status: #0000FF;
+    --idm-green-progress: #00C853;
+    --idm-green-progress-dark: #009624;
+    --idm-stream-blue: #1976D2;
+    --idm-red-marker: #D32F2F;
+
+    /* Gradients */
+    --win-btn-grad: linear-gradient(180deg, #F5F5F5 0%, #E1E1E1 100%);
+    --win-btn-hover-grad: linear-gradient(180deg, #FBFDFF 0%, #E3EFFF 100%);
+    --win-btn-active-grad: linear-gradient(180deg, #D4E6FA 0%, #C0DCFA 100%);
+    --win-header-grad: linear-gradient(180deg, #FFFFFF 0%, #EBECEE 100%);
+    --idm-progress-grad: linear-gradient(180deg, #6EF58F 0%, #00C853 45%, #009624 55%, #00751A 100%);
+    --idm-stream-grad: linear-gradient(180deg, #64B5F6 0%, #1E88E5 48%, #1565C0 100%);
+
+    /* Typography */
+    --font-stack: "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-stack);
+    font-size: 11.5px;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-font-smoothing: antialiased;
 }
 
 body {
-    background-color: var(--bg-main);
-    color: var(--text-primary);
+    background-color: var(--win-bg);
+    color: var(--win-text);
     height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* --- Header / Menu Bar --- */
-.top-menu-bar {
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-color);
+/* ==========================================================================
+   1. Windows Menu Bar (Tasks, File, Downloads, View, Help, Registration)
+   ========================================================================== */
+.win-menu-bar {
+    background: #FFFFFF;
+    border-bottom: 1px solid #DCDCDC;
     display: flex;
     align-items: center;
-    padding: 0 12px;
-    height: 38px;
-    gap: 4px;
+    padding: 1px 4px;
+    height: 22px;
+    user-select: none;
+    font-size: 11px;
+    flex-shrink: 0;
 }
 
 .menu-item {
     position: relative;
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-primary);
-    border-radius: 4px;
-    cursor: pointer;
+    padding: 2px 7px;
+    color: #000000;
+    cursor: default;
+    border-radius: 2px;
+    font-size: 11px;
+}
+
+.menu-item u {
+    text-decoration: underline;
+    font-size: 11px;
 }
 
 .menu-item:hover {
-    background: var(--bg-card-hover);
+    background: var(--win-hover-blue);
+    outline: 1px solid var(--win-hover-border);
 }
 
-/* Dropdown Submenus */
 .dropdown-menu {
     display: none;
     position: absolute;
     top: 100%;
     left: 0;
-    background: var(--bg-modal);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--glass-shadow);
-    border-radius: 6px;
-    min-width: 180px;
-    z-index: 1000;
-    padding: 6px 0;
+    background: #FFFFFF;
+    border: 1px solid var(--win-border-dark);
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+    min-width: 210px;
+    z-index: 2000;
+    padding: 2px 0;
 }
 
 .menu-item:hover .dropdown-menu {
@@ -101,325 +115,1303 @@ body {
 }
 
 .dropdown-item {
-    padding: 8px 16px;
-    font-size: 12px;
-    color: var(--text-primary);
+    padding: 4px 24px 4px 28px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    color: #000000;
+    cursor: default;
 }
 
 .dropdown-item:hover {
-    background: var(--accent-blue);
+    background: var(--win-select-blue);
     color: #FFFFFF;
 }
 
 .dropdown-divider {
     height: 1px;
-    background: var(--border-color);
-    margin: 4px 0;
+    background: var(--win-border-light);
+    margin: 3px 2px;
 }
 
-/* --- Action Toolbar --- */
-.toolbar {
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-color);
-    padding: 8px 16px;
+/* ==========================================================================
+   2. Authentic IDM 6.38 Desktop Action Toolbar
+   ========================================================================== */
+.win-toolbar {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 50%, #ECECEE 100%);
+    border-bottom: 1px solid #C8C8CC;
     display: flex;
     align-items: center;
-    gap: 10px;
+    padding: 3px 6px;
+    gap: 2px;
+    height: 58px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.btn {
-    background: var(--bg-card-hover);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s ease;
-}
-
-.btn:hover {
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-}
-
-.btn-primary {
-    background: var(--accent-blue);
-    color: #FFFFFF;
-    border: none;
-}
-
-.btn-primary:hover {
-    background: var(--accent-blue-hover);
-    color: #FFFFFF;
-}
-
-/* Badge Switches */
-.badge-toggle {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 4px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: auto;
-}
-
-/* --- Main Dashboard Split View --- */
-.main-dashboard {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-}
-
-/* Sidebar */
-.sidebar {
-    width: 220px;
-    background: var(--bg-card);
-    border-right: 1px solid var(--border-color);
-    padding: 16px 8px;
+.tool-btn {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-}
-
-.sidebar-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    padding: 8px 12px;
-    letter-spacing: 0.5px;
-}
-
-.nav-item {
-    display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    font-size: 13px;
-    color: var(--text-muted);
-    border-radius: 6px;
+    justify-content: center;
+    min-width: 54px;
+    height: 52px;
+    padding: 2px 5px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    color: #111111;
+    font-size: 10.5px;
+    font-family: var(--font-stack);
+    text-align: center;
+    line-height: 1.15;
+    transition: all 0.1s ease;
 }
 
-.nav-item:hover, .nav-item.active {
-    background: var(--bg-card-hover);
-    color: var(--text-primary);
+.tool-btn:hover {
+    background: linear-gradient(180deg, #FAFCFF 0%, #E3EFFF 50%, #D4E6FA 100%);
+    border: 1px solid #70C0E7;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.nav-item.active {
-    font-weight: 600;
-    border-left: 3px solid var(--accent-blue);
+.tool-btn:active {
+    background: linear-gradient(180deg, #CCE4F7 0%, #B8DCFA 50%, #A2D0F8 100%);
+    border: 1px solid #005499;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+    transform: translateY(1px);
 }
 
-/* Data Table Container */
-.content-area {
+.tool-btn.disabled {
+    opacity: 0.42;
+    filter: grayscale(85%) contrast(80%);
+    cursor: default;
+    pointer-events: none;
+}
+
+.tool-icon {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 2px;
+    display: block;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
+}
+
+.tool-label {
+    font-size: 10.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #222222;
+    letter-spacing: -0.1px;
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 40px;
+    background: #D4D4D8;
+    margin: 0 4px;
+}
+
+/* ==========================================================================
+   3. Main Workspace: Split TreeView & High-Density ListView Grid
+   ========================================================================== */
+.main-workspace {
+    display: flex;
     flex: 1;
-    background: var(--bg-main);
+    overflow: hidden;
+    background: #FFFFFF;
+    position: relative;
+}
+
+/* Left Sidebar - Classic Windows TreeView */
+.sidebar-tree {
+    width: 190px;
+    background: #FFFFFF;
+    border-right: 1px solid #D4D0C8;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    flex-shrink: 0;
 }
 
-.table-wrapper {
+.sidebar-header {
+    background: var(--win-header-grad);
+    border-bottom: 1px solid #D4D0C8;
+    padding: 4px 8px;
+    font-weight: 600;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #222222;
+}
+
+.tree-container {
     flex: 1;
     overflow-y: auto;
+    padding: 6px 4px;
 }
 
-table {
+.tree-node {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 4px;
+    cursor: default;
+    border-radius: 2px;
+    white-space: nowrap;
+    font-size: 11px;
+    color: #111111;
+    position: relative;
+}
+
+.tree-node:hover {
+    background: #F0F4F9;
+}
+
+.tree-node.active {
+    background: var(--win-select-blue);
+    color: #FFFFFF !important;
+}
+
+.tree-node.active span {
+    color: #FFFFFF !important;
+}
+
+.tree-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-count {
+    font-size: 10px;
+    color: #666666;
+    margin-left: 2px;
+    font-weight: 500;
+}
+
+.tree-node.active .tree-count {
+    color: #E0F2FE !important;
+}
+
+#categories-subbranch.collapsed {
+    display: none;
+}
+
+.tree-toggle-box {
+    width: 9px;
+    height: 9px;
+    border: 1px solid #808080;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    line-height: 1;
+    font-weight: bold;
+    color: #000000;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+
+.tree-node.sub-item {
+    padding-left: 26px;
+    position: relative;
+}
+
+/* Dotted Tree Hierarchy Guides */
+.tree-node.sub-item::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    border-bottom: 1px dotted #999999;
+}
+
+.tree-node.sub-item::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    border-left: 1px dotted #999999;
+}
+
+.tree-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* Right Content Area: Classic High-Density ListView */
+.table-viewport {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #FFFFFF;
+}
+
+.grid-wrapper {
+    flex: 1;
+    overflow: auto;
+}
+
+table.idm-table {
     width: 100%;
     border-collapse: collapse;
-    text-align: left;
-    font-size: 13px;
+    table-layout: fixed;
+    font-size: 11px;
 }
 
-th {
-    background: var(--bg-card);
-    color: var(--text-muted);
+table.idm-table th {
+    background: linear-gradient(180deg, #FFFFFF 0%, #EDE9DF 50%, #D4D0C8 100%);
+    border-top: 1px solid #FFFFFF;
+    border-left: 1px solid #FFFFFF;
+    border-right: 1px solid #707070;
+    border-bottom: 1px solid #707070;
+    box-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #A0A0A0;
+    padding: 3px 6px;
     font-weight: 600;
     font-size: 11px;
-    text-transform: uppercase;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
+    color: #000000;
+    text-align: left;
+    white-space: nowrap;
     position: sticky;
     top: 0;
     z-index: 10;
-}
-
-td {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-muted);
-    white-space: nowrap;
-}
-
-tr:hover {
-    background: var(--bg-card-hover);
+    height: 25px;
     cursor: pointer;
+    user-select: none;
 }
 
-tr.selected {
-    background: rgba(59, 130, 246, 0.15);
+table.idm-table th:hover {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E8F2FB 50%, #CDE3F7 100%);
 }
 
-/* Grid Progress Bar */
-.grid-progress-bar {
-    width: 100px;
-    height: 6px;
-    background: var(--input-bg);
-    border-radius: 3px;
+table.idm-table th:active {
+    box-shadow: inset 1px 1px 0 #707070, inset -1px -1px 0 #FFFFFF;
+    background: linear-gradient(180deg, #D4D0C8 0%, #EDE9DF 100%);
+}
+
+table.idm-table td {
+    padding: 2px 6px;
+    border-right: 1px solid #F0F0F0;
+    border-bottom: 1px solid #F0F0F0;
+    white-space: nowrap;
     overflow: hidden;
-}
-
-.grid-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
-    width: 0%;
-    transition: width 0.3s ease;
-}
-
-/* Status Badges */
-.badge {
-    padding: 3px 8px;
-    border-radius: 4px;
+    text-overflow: ellipsis;
     font-size: 11px;
-    font-weight: 600;
+    height: 22px;
+    vertical-align: middle;
 }
 
-.badge.downloading { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
-.badge.completed { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
-.badge.paused { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
-.badge.failed { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); }
+table.idm-table tr:hover {
+    background: #F4F8FD;
+}
 
-/* --- Modals --- */
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 2000;
+table.idm-table tr.selected {
+    background: var(--win-select-blue) !important;
+    color: #FFFFFF !important;
+}
+
+table.idm-table tr.selected td {
+    color: #FFFFFF !important;
+}
+
+/* In-Table Graphical Progress Bar (Authentic IDM Dual-Tone Green) */
+.tbl-progress-box {
+    position: relative;
+    width: 100%;
+    height: 14px;
+    background: #ECE9D8;
+    border: 1px solid #00751A;
+    border-radius: 1px;
+    overflow: hidden;
+    display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.modal-overlay.open {
-    display: flex;
+.tbl-progress-box.paused {
+    border-color: #1565C0;
+    background: #E3F2FD;
 }
 
-.modal-box {
-    background: var(--bg-modal);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--glass-shadow);
-    border-radius: 10px;
-    width: 520px;
-    max-width: 90%;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+.tbl-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, #81F59B 0%, #00C853 45%, #009624 55%, #00751A 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: width 0.15s ease-out;
 }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 12px;
+.tbl-progress-bar.paused {
+    background: linear-gradient(180deg, #90CAF9 0%, #42A5F5 45%, #1976D2 55%, #0D47A1 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
-.modal-title {
-    font-size: 16px;
+.tbl-progress-text {
+    position: relative;
+    z-index: 2;
+    font-size: 9.5px;
     font-weight: 700;
+    font-family: var(--font-stack);
+    color: #000000;
+    text-shadow: 0 0 2px #FFFFFF, 0 0 4px #FFFFFF;
+    line-height: 14px;
 }
 
-.modal-close {
-    cursor: pointer;
-    font-size: 18px;
-    color: var(--text-muted);
+.tbl-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
 }
 
-.modal-close:hover {
-    color: var(--text-primary);
+.tbl-status-badge.complete {
+    color: #007E33;
 }
 
-.form-group {
+.tbl-status-badge.complete .badge-icon {
+    font-size: 11px;
+    font-weight: bold;
+    color: #00C853;
+}
+
+.tbl-status-badge.error {
+    color: #D32F2F;
+}
+
+.tbl-queue-icon {
+    font-size: 12px;
+    display: inline-block;
+}
+
+.cell-icon-name {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 6px;
 }
 
-.form-label {
-    font-size: 12px;
+.file-type-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   4. Windows Status Bar
+   ========================================================================== */
+.win-status-bar {
+    background: var(--win-bg);
+    border-top: 1px solid #D4D0C8;
+    display: flex;
+    align-items: center;
+    padding: 2px 8px;
+    height: 22px;
+    font-size: 11px;
+    color: var(--win-text-secondary);
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.status-segment {
+    border-right: 1px solid #D4D0C8;
+    padding-right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ==========================================================================
+   5. Floating Authentic "Download Status" Dialog (Image 1 & 2)
+   ========================================================================== */
+.win-dialog-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    pointer-events: none;
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+}
+
+.win-dialog-overlay.open {
+    display: flex;
+}
+
+.win-dialog-box {
+    pointer-events: auto;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.win-dialog-box {
+    background: var(--win-bg);
+    border: 1px solid var(--win-border-dark);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+    border-radius: 2px;
+    width: 530px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Windows Dialog Title Bar */
+.dialog-title-bar {
+    background: #FFFFFF;
+    color: #000000;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 0 8px;
+    font-weight: 500;
+    font-size: 11.5px;
+    border-bottom: 1px solid #E0E0E0;
+    cursor: move;
+}
+
+.title-icon-text {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.title-globe-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.title-arrow-anim {
+    width: 14px;
+    height: 14px;
+    animation: move-arrow 1.2s infinite ease-in-out;
+}
+
+@keyframes move-arrow {
+    0% { transform: translateX(0); opacity: 0.6; }
+    50% { transform: translateX(3px); opacity: 1; }
+    100% { transform: translateX(0); opacity: 0.6; }
+}
+
+.title-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.title-win-btn {
+    width: 22px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #333333;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.title-win-btn:hover {
+    background: #E5E5E5;
+}
+
+.title-win-btn.close:hover {
+    background: #E81123;
+    color: #FFFFFF;
+}
+
+/* Windows Native Tab Control */
+.win-tabs {
+    display: flex;
+    padding: 6px 8px 0 8px;
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-border-inset);
+    gap: 2px;
+}
+
+.win-tab-item {
+    padding: 3px 10px;
+    font-size: 11px;
+    background: #ECE9D8;
+    background: #E1E1E1;
+    border: 1px solid #999999;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    cursor: pointer;
+    position: relative;
+    top: 1px;
+    color: #222222;
+}
+
+.win-tab-item.active {
+    background: #FFFFFF;
+    border-color: var(--win-border-inset);
+    border-bottom: 1px solid #FFFFFF;
     font-weight: 600;
-    color: var(--text-muted);
+    top: 1px;
+    z-index: 2;
+    color: #000000;
 }
 
-.form-input, .form-select {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
+.win-tab-body {
+    background: #FFFFFF;
+    border: 1px solid var(--win-border-inset);
+    border-top: none;
+    margin: 0 8px 8px 8px;
     padding: 10px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
 }
 
-.form-input:focus, .form-select:focus {
-    border-color: var(--accent-blue);
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-color);
-}
-
-/* Tabs inside Options Modal */
-.modal-tabs {
-    display: flex;
-    gap: 8px;
-    border-bottom: 1px solid var(--border-color);
+/* Download Status Metadata Grid */
+.status-grid {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    row-gap: 4px;
+    column-gap: 8px;
+    font-size: 11.5px;
     margin-bottom: 12px;
 }
 
-.tab-item {
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
+.status-label {
+    color: #000000;
+    font-weight: 500;
+}
+
+.status-value {
+    color: #000000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#dlg-url {
+    max-width: 385px;
+    display: inline-block;
+    vertical-align: middle;
+    font-family: monospace;
+    font-size: 11px;
+    cursor: default;
+}
+
+.status-value.receiving {
+    color: var(--idm-blue-status);
+    font-weight: bold;
+}
+
+/* Iconic Vibrant Green Progress Bar with Inset Sunken Border */
+.win-progress-track {
+    height: 18px;
+    background: #EBEBEB;
+    border: 1px solid var(--win-border-inset);
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.2);
+    border-radius: 1px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.win-progress-fill {
+    height: 100%;
+    background: var(--idm-progress-grad);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    width: 0%;
+    transition: width 0.2s linear;
+}
+
+/* Dialog Action Buttons */
+.dialog-btn-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.btn-group-right {
+    display: flex;
+    gap: 8px;
+}
+
+.win-btn {
+    padding: 3px 14px;
+    background: var(--win-btn-grad);
+    border: 1px solid var(--win-border-dark);
+    border-radius: 2px;
+    font-size: 11.5px;
+    color: #000000;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
+    min-width: 82px;
+    height: 24px;
+    text-align: center;
+    outline: none;
 }
 
-.tab-item.active {
-    color: var(--accent-blue);
-    border-bottom-color: var(--accent-blue);
+.win-btn:hover {
+    background: var(--win-btn-hover-grad);
+    border-color: #3C7FB1;
 }
 
-.tab-content {
+.win-btn:active {
+    background: var(--win-btn-active-grad);
+    border-color: #005499;
+}
+
+.win-btn.primary-focus {
+    border: 1px solid #005499;
+    box-shadow: 0 0 2px #0078D7;
+}
+
+/* ==========================================================================
+   6. Expanded Connection Details & Segmented Visualizer (Image 2)
+   ========================================================================== */
+.connection-details-panel {
     display: none;
+    border-top: 1px solid #D0D0D0;
+    padding-top: 10px;
+    margin-top: 10px;
 }
 
-.tab-content.active {
+.connection-details-panel.open {
+    display: block;
+}
+
+.connection-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #111111;
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+/* Segmented Multi-Connection Track with Red Dividers & Blue Stream Fills */
+.segmented-track {
+    height: 16px;
+    background: #FFFFFF;
+    border: 1px solid var(--win-border-inset);
+    border-radius: 1px;
+    position: relative;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.segment-item {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: transparent;
+    border-left: 2px solid var(--idm-red-marker);
+}
+
+.segment-progress {
+    height: 100%;
+    background: var(--idm-stream-grad);
+    width: 0%;
+}
+
+/* Connection Threads Table */
+.thread-table-container {
+    height: 125px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid var(--win-border-inset);
+    background: #FFFFFF;
+    position: relative;
+}
+
+table.thread-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 11px;
+}
+
+table.thread-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+table.thread-table th {
+    background: #EDF0F3 !important;
+    background-color: #EDF0F3 !important;
+    border-right: 1px solid #CBD5E1;
+    border-bottom: 1px solid #94A3B8;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: 22px;
+    color: #1E293B;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+}
+
+table.thread-table td {
+    padding: 3px 6px;
+    border-bottom: 1px solid #F1F5F9;
+    border-right: 1px solid #F1F5F9;
+    font-size: 11px;
+    height: 20px;
+    color: #0F172A;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   7. "Download Complete" Dialog (Image 4)
+   ========================================================================== */
+.complete-dialog-body {
+    padding: 14px 18px;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
+
+.complete-header-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.complete-folder-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+
+.complete-title-text {
+    font-size: 12.5px;
+    font-weight: bold;
+    color: #000000;
+}
+
+.complete-summary-text {
+    font-size: 11.5px;
+    color: #222222;
+    margin-top: 2px;
+}
+
+.win-input-field {
+    width: 100%;
+    padding: 3px 6px;
+    background: #FFFFFF;
+    border: 1px solid var(--win-border-inset);
+    font-size: 11.5px;
+    outline: none;
+    color: #000000;
+}
+
+.win-input-field:focus {
+    border-color: var(--win-select-blue);
+}
+
+.complete-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   8. Multi-Queue Scheduler Dialog (Image 5)
+   ========================================================================== */
+.scheduler-grid-layout {
+    display: grid;
+    grid-template-columns: 165px 1fr;
+    gap: 10px;
+    padding: 10px 12px;
+}
+
+.scheduler-queue-list {
+    border: 1px solid var(--win-border-inset);
+    background: #FFFFFF;
+    height: 250px;
+    overflow-y: auto;
+}
+
+.scheduler-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    cursor: default;
+    font-size: 11px;
+    color: #000000;
+}
+
+.scheduler-queue-item.active {
+    background: var(--win-select-blue);
+    color: #FFFFFF;
+}
+
+.scheduler-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 11.5px;
+}
+
+.form-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #000000;
+}
+
+.form-checkbox-row input[type="checkbox"],
+.form-checkbox-row input[type="radio"] {
+    margin-right: 2px;
+}
+
+.days-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 8px;
+    padding-left: 18px;
+    margin-top: 2px;
+}
+
+/* ==========================================================================
+   9. Context Menu
+   ========================================================================== */
+.win-context-menu {
+    display: none;
+    position: fixed;
+    background: #FFFFFF;
+    border: 1px solid var(--win-border-dark);
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+    z-index: 5000;
+    min-width: 170px;
+    padding: 2px 0;
+}
+
+.win-context-menu.open {
+    display: block;
+}
+
+.ctx-item {
+    padding: 4px 20px 4px 24px;
+    font-size: 11px;
+    color: #000000;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ctx-item:hover {
+    background: var(--win-select-blue);
+    color: #FFFFFF;
+}
+
+.ctx-divider {
+    height: 1px;
+    background: var(--win-border-light);
+    margin: 3px 2px;
+}
+
+/* ==========================================================================
+   10. Comprehensive Authentic Dark Mode Theme
+   ========================================================================== */
+body.dark-mode {
+    --win-bg: #202020;
+    --win-surface: #181818;
+    --win-text: #E2E8F0;
+    --win-title: #FFFFFF;
+    --win-border-dark: #3F3F46;
+    --win-border-light: #52525B;
+    --win-border-inset: #333338;
+    --win-table-header: #27272A;
+    --win-table-grid: #2D2D30;
+    --win-header-grad: linear-gradient(180deg, #2D2D32 0%, #202024 100%);
+    --win-toolbar-grad: linear-gradient(180deg, #2B2B30 0%, #1E1E22 100%);
+    --win-select-blue: #0A558C;
+    background: #181818;
+    color: #E2E8F0;
+}
+
+body.dark-mode .win-menu-bar {
+    background: #252528;
+    border-bottom: 1px solid #38383E;
+    color: #E2E8F0;
+}
+
+body.dark-mode .menu-item:hover,
+body.dark-mode .menu-item.active {
+    background: #383842;
+    border-color: #52525E;
+    color: #FFFFFF;
+}
+
+body.dark-mode .dropdown-menu {
+    background: #252528;
+    border-color: #3F3F46;
+    box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .dropdown-item {
+    color: #E2E8F0;
+}
+
+body.dark-mode .dropdown-item:hover {
+    background: #0A558C;
+    color: #FFFFFF;
+}
+
+body.dark-mode .dropdown-divider {
+    background: #38383E;
+}
+
+body.dark-mode .win-toolbar {
+    background: var(--win-toolbar-grad);
+    border-bottom: 1px solid #333338;
+}
+
+body.dark-mode .tool-btn {
+    border-color: transparent;
+}
+
+body.dark-mode .tool-btn:hover:not(.disabled) {
+    background: #33333C;
+    border-color: #52525E;
+}
+
+body.dark-mode .tool-btn:active:not(.disabled) {
+    background: #1A1A1E;
+    border-color: #3F3F46;
+}
+
+body.dark-mode .tool-label {
+    color: #E2E8F0;
+}
+
+body.dark-mode .tool-btn.disabled .tool-label {
+    color: #71717A;
+}
+
+body.dark-mode .toolbar-separator {
+    background: #38383E;
+    border-right-color: #202024;
+}
+
+body.dark-mode .main-workspace {
+    background: #181818;
+}
+
+body.dark-mode .sidebar-tree {
+    background: #1F1F23;
+    border-right: 1px solid #333338;
+}
+
+body.dark-mode .sidebar-header {
+    background: #27272C;
+    border-bottom: 1px solid #38383E;
+    color: #F1F5F9;
+}
+
+body.dark-mode .tree-node {
+    color: #CBD5E1;
+}
+
+body.dark-mode .tree-node:hover {
+    background: #2D2D35;
+    color: #FFFFFF;
+}
+
+body.dark-mode .tree-node.active {
+    background: #0A558C;
+    color: #FFFFFF;
+}
+
+body.dark-mode .table-viewport {
+    background: #181818;
+}
+
+body.dark-mode table.idm-table {
+    background: #181818;
+    color: #E2E8F0;
+}
+
+body.dark-mode table.idm-table th {
+    background: linear-gradient(180deg, #2E2E34 0%, #222226 100%);
+    border-right-color: #3F3F46;
+    border-bottom-color: #4B4B52;
+    color: #CBD5E1;
+}
+
+body.dark-mode table.idm-table td {
+    border-right-color: #27272A;
+    border-bottom-color: #27272A;
+    color: #E2E8F0;
+}
+
+body.dark-mode table.idm-table tr:hover {
+    background: #272730;
+}
+
+body.dark-mode table.idm-table tr.selected {
+    background: #0A558C !important;
+    color: #FFFFFF !important;
+}
+
+body.dark-mode table.idm-table tr.selected td {
+    color: #FFFFFF !important;
+}
+
+body.dark-mode .win-status-bar {
+    background: #202024;
+    border-top: 1px solid #333338;
+}
+
+body.dark-mode .status-segment {
+    background: #181818;
+    border-color: #38383E #52525E #52525E #38383E;
+    color: #CBD5E1;
+}
+
+/* Dark Mode Dialogs */
+body.dark-mode .win-dialog-box {
+    background: #222226;
+    border-color: #52525E;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 0 1px #38383E;
+    color: #E2E8F0;
+}
+
+body.dark-mode .dialog-title-bar {
+    background: linear-gradient(90deg, #0A558C 0%, #152A4A 100%);
+}
+
+body.dark-mode .win-tabs {
+    background: #1C1C20;
+    border-bottom-color: #38383E;
+}
+
+body.dark-mode .win-tab-item {
+    background: #27272C;
+    border-color: #38383E;
+    color: #A1A1AA;
+}
+
+body.dark-mode .win-tab-item:hover {
+    color: #FFFFFF;
+}
+
+body.dark-mode .win-tab-item.active {
+    background: #222226;
+    border-top-color: #38BDF8;
+    border-bottom-color: #222226;
+    color: #FFFFFF;
+}
+
+body.dark-mode .win-tab-body {
+    background: #222226;
+}
+
+body.dark-mode .status-label {
+    color: #CBD5E1;
+}
+
+body.dark-mode .status-value {
+    color: #E2E8F0 !important;
+}
+
+body.dark-mode .win-input-field {
+    background: #18181A;
+    border-color: #3F3F46;
+    color: #FFFFFF;
+}
+
+body.dark-mode .win-input-field:focus {
+    border-color: #38BDF8;
+}
+
+body.dark-mode .win-btn {
+    background: linear-gradient(180deg, #33333A 0%, #26262B 100%);
+    border-color: #4B4B54;
+    color: #FFFFFF;
+}
+
+body.dark-mode .win-btn:hover {
+    background: linear-gradient(180deg, #3F3F48 0%, #303036 100%);
+    border-color: #64748B;
+}
+
+body.dark-mode .win-btn:active {
+    background: #1C1C20;
+    border-color: #0A558C;
+}
+
+body.dark-mode .win-btn.primary-focus {
+    border-color: #38BDF8;
+    box-shadow: 0 0 4px rgba(56, 189, 248, 0.4);
+}
+
+body.dark-mode .win-progress-track {
+    background: #18181A;
+    border-color: #38383E #52525E #52525E #38383E;
+}
+
+body.dark-mode .thread-table-container {
+    background: #18181A;
+    border-color: #38383E;
+}
+
+body.dark-mode table.thread-table th {
+    background: #252830 !important;
+    background-color: #252830 !important;
+    border-right-color: #38383E;
+    border-bottom-color: #4B4B52;
+    color: #CBD5E1;
+}
+
+body.dark-mode table.thread-table td {
+    border-bottom-color: #26262B;
+    border-right-color: #26262B;
+    color: #E2E8F0;
+}
+
+body.dark-mode .win-context-menu {
+    background: #252528;
+    border-color: #3F3F46;
+    box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode .ctx-item {
+    color: #E2E8F0;
+}
+
+body.dark-mode .ctx-item:hover {
+    background: #0A558C;
+    color: #FFFFFF;
+}
+
+body.dark-mode .ctx-divider {
+    background: #38383E;
+}
+
+body.dark-mode ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+    background: #181818;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background: #3F3F46;
+    border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+    background: #52525B;
+}
+
+/* ==========================================================================
+   14. Floating Drag-and-Drop Target Widget (Drop Target)
+   ========================================================================== */
+.floating-drop-target {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    width: 90px;
+    height: 84px;
+    background: linear-gradient(135deg, rgba(248, 250, 252, 0.94), rgba(226, 232, 240, 0.94));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    z-index: 99999;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.floating-drop-target:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28), 0 4px 8px rgba(0, 0, 0, 0.16);
+    border-color: #0078D7;
+}
+
+.floating-drop-target:active {
+    cursor: grabbing;
+}
+
+.floating-drop-target.drag-over {
+    transform: scale(1.08);
+    background: linear-gradient(135deg, rgba(220, 252, 231, 0.96), rgba(187, 247, 208, 0.96));
+    border-color: #00C853;
+    box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.35), 0 14px 32px rgba(0, 0, 0, 0.3);
+}
+
+.floating-drop-target.hidden {
+    display: none !important;
+}
+
+.floating-drop-target .drop-target-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+    pointer-events: none;
+}
+
+.floating-drop-target .drop-target-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #1E293B;
+    letter-spacing: 0.2px;
+    pointer-events: none;
+}
+
+.floating-drop-target .drop-target-subtext {
+    font-size: 8.5px;
+    color: #64748B;
+    pointer-events: none;
+}
+
+body.dark-mode .floating-drop-target {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.92));
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .floating-drop-target:hover {
+    border-color: #38BDF8;
+}
+
+body.dark-mode .floating-drop-target.drag-over {
+    background: linear-gradient(135deg, rgba(6, 78, 59, 0.95), rgba(4, 120, 87, 0.95));
+    border-color: #34D399;
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.35), 0 14px 32px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .floating-drop-target .drop-target-label {
+    color: #F1F5F9;
+}
+
+body.dark-mode .floating-drop-target .drop-target-subtext {
+    color: #94A3B8;
+}
+

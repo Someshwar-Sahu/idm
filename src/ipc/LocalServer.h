@@ -8,10 +8,12 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <nlohmann/json.hpp>
 
 // Forward declaration in global namespace
 class DownloadQueue;
+class SettingsManager;
 
 namespace idm {
 
@@ -58,6 +60,15 @@ public:
 
     // Core Integration
     void attach_queue(DownloadQueue* queue);
+    void attach_settings(SettingsManager* settings) { m_settings = settings; }
+
+    using TrayNotifier = std::function<void(const std::string& title, const std::string& message)>;
+    using AppTerminator = std::function<void()>;
+    using WindowRestorer = std::function<void()>;
+    void set_tray_notifier(TrayNotifier notifier) { m_tray_notifier = notifier; }
+    void set_app_terminator(AppTerminator terminator) { m_app_terminator = terminator; }
+    void set_window_restorer(WindowRestorer restorer) { m_window_restorer = restorer; }
+    void notify_events();
 
     // Request Dispatch & Static Protocol Helpers
     HttpResponse dispatch_request(const HttpRequest& req);
@@ -67,10 +78,17 @@ public:
     // URL decode helper
     static std::string url_decode(const std::string& in);
 
+    // Direct Intercept & Clipboard Monitoring (Phase E)
+    void queue_intercept(const std::string& url, const std::string& filename = "", const std::string& cookies = "");
+    void start_clipboard_monitor();
+    void stop_clipboard_monitor();
+    bool is_clipboard_monitor_running() const;
+
 private:
     void init_default_routes();
     void server_loop();
     void handle_client(uintptr_t client_socket);
+    void clipboard_monitor_loop();
 
     std::string m_host{"127.0.0.1"};
     int m_port{9090};
@@ -82,6 +100,29 @@ private:
     std::unordered_map<std::string, HttpHandler> m_routes;
 
     DownloadQueue* m_queue{nullptr};
+    SettingsManager* m_settings{nullptr};
+    TrayNotifier m_tray_notifier{nullptr};
+    AppTerminator m_app_terminator{nullptr};
+    WindowRestorer m_window_restorer{nullptr};
+
+    std::atomic<bool> m_clipboard_monitor_running{false};
+    std::thread m_clipboard_thread;
+    std::string m_last_clipboard_url;
+
+    struct InterceptRequest {
+        std::string id;
+        std::string url;
+        std::string filename;
+        std::string cookies;
+        std::string referer;
+        std::string user_agent;
+    };
+    std::mutex m_intercept_mutex;
+    std::vector<InterceptRequest> m_pending_intercepts;
+
+    std::mutex m_event_mutex;
+    std::condition_variable m_event_cv;
+    std::atomic<uint64_t> m_event_counter{0};
 
     // Internal standalone task registry for testing without active DownloadQueue
     struct StandaloneTaskInfo {

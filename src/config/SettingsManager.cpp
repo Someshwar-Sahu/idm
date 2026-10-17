@@ -84,6 +84,8 @@ bool SettingsManager::load(const string &config_filepath) {
 
         m_settings.enable_small_file_bypass = j.value("enable_small_file_bypass", true);
         m_settings.min_capture_size_bytes = j.value("min_capture_size_bytes", static_cast<uint64_t>(10 * 1024 * 1024));
+        m_settings.show_start_download_dialog = j.value("show_start_download_dialog", false);
+        m_settings.file_types = j.value("file_types", "ZIP RAR 7Z ISO TAR GZ EXE MSI MP4 MKV WEBM MP3 FLAC WAV PDF DMG DAT BIN APK CSV");
 
         if (j.contains("category_folders") && j["category_folders"].is_object()) {
             m_settings.category_folders.clear();
@@ -128,6 +130,8 @@ bool SettingsManager::save(const string &config_filepath) const {
 
         j["enable_small_file_bypass"] = m_settings.enable_small_file_bypass;
         j["min_capture_size_bytes"] = m_settings.min_capture_size_bytes;
+        j["show_start_download_dialog"] = m_settings.show_start_download_dialog;
+        j["file_types"] = m_settings.file_types;
 
         json cat_json = json::object();
         for (const auto &[cat, subfolder] : m_settings.category_folders) {
@@ -170,6 +174,8 @@ void SettingsManager::reset_to_defaults() {
     m_settings = AppSettings();
     m_settings.default_download_directory = get_default_user_downloads_dir();
     m_settings.cache_directory = m_settings.default_download_directory + "/Cache";
+    m_settings.show_start_download_dialog = true;
+    m_settings.file_types = "ZIP RAR 7Z ISO TAR GZ EXE MSI MP4 MKV WEBM MP3 FLAC WAV PDF DMG DAT BIN APK CSV";
 }
 
 string SettingsManager::get_category_path(const string &category) const {

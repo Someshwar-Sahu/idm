@@ -5,7 +5,16 @@
 using namespace std;
 using namespace idm;
 
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     if (argc > 1) {
         string flag = argv[1];
         if (flag == "--install" && argc > 2) {

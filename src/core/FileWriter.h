@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <cstddef>
+#include <mutex>
 
 class FileWriter {
 public:
@@ -27,6 +28,7 @@ public:
 
 private:
     std::string m_path;
+    mutable std::mutex m_write_mutex;
 
 #ifdef _WIN32
     void *m_file_handle{nullptr};

@@ -14,13 +14,22 @@ ProgressTracker::ProgressTracker(uint64_t total_size)
 }
 
 void ProgressTracker::update(uint64_t current_downloaded_bytes){
+    std::lock_guard<std::mutex> lock(m_mutex);
     auto now = chrono::steady_clock::now();
     chrono::duration<double> elapsed = now - m_last_time;
 
     if(elapsed.count() >= 0.2){
+        // Bug 10 Fix: Prevent extreme speed spikes when resuming from sleep or after thread stalls
+        if (elapsed.count() > 5.0) {
+            m_last_bytes = current_downloaded_bytes;
+            m_last_time = now;
+            return;
+        }
+
+        double effective_elapsed = std::min(elapsed.count(), 2.0);
         uint64_t bytes_delta = (current_downloaded_bytes >= m_last_bytes) ? (current_downloaded_bytes - m_last_bytes) : 0;
 
-        double instant_speed = static_cast<double> (bytes_delta) / elapsed.count();
+        double instant_speed = static_cast<double>(bytes_delta) / effective_elapsed;
 
         if(m_current_speed_bps == 0.0) m_current_speed_bps = instant_speed;
         else m_current_speed_bps = 0.7 * m_current_speed_bps + 0.3 * instant_speed;
@@ -31,15 +40,18 @@ void ProgressTracker::update(uint64_t current_downloaded_bytes){
 }
 
 double ProgressTracker::get_progress_percentage() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
     if(m_total_size == 0) return 0.0;
     return (static_cast<double> (m_last_bytes) / static_cast<double>(m_total_size)) * 100.0;
 }
 
 double ProgressTracker::get_speed_bytes_per_sec() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
     return m_current_speed_bps;
 }
 
 string ProgressTracker::get_formatted_speed() const{
+    std::lock_guard<std::mutex> lock(m_mutex);
     ostringstream ss;
     ss<<fixed<<setprecision(2);
 
@@ -56,6 +68,7 @@ string ProgressTracker::get_formatted_speed() const{
 }
 
 string ProgressTracker::get_formatted_eta() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
     if(m_current_speed_bps <=0.0 || m_last_bytes>=m_total_size) {
         return "--:--";
     }

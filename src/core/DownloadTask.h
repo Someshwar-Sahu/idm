@@ -19,7 +19,8 @@ enum class DownloadStatus {
     Downloading,
     Paused,
     Completed,
-    Failed
+    Failed,
+    Cancelled
 };
 
 class DownloadTask {
@@ -40,10 +41,13 @@ public:
     bool start(ProgressCallback callback = nullptr);
 
     void pause();
+    void resume();
     void cancel();
 
     void set_speed_limit(uint64_t max_bytes_per_sec);
     uint64_t get_speed_limit() const;
+    void set_thread_count(int count) { if (count > 0) m_num_threads = count; }
+    int get_thread_count() const { return m_num_threads; }
 
     static uint64_t get_available_disk_space(const std::string &filepath);
     bool has_sufficient_disk_space(uint64_t required_bytes) const;
@@ -63,14 +67,27 @@ public:
 
     static std::string extract_filename_from_url(const std::string &url);
     static std::string extract_filename_from_content_disposition(const std::string &header_value);
+    static std::string sanitize_filename(const std::string &filename);
+    static std::string mime_to_extension(const std::string &mime);
 
     DownloadStatus get_status() const;
+    void set_status(DownloadStatus status) { m_status = status; }
     std::string get_last_error() const;
+    void clear_last_error() { m_last_error.clear(); }
+    void set_last_error(const std::string &err) { m_last_error = err; }
     bool is_antivirus_scan_enabled() const;
     void set_antivirus_scan_enabled(bool enabled);
 
-private:
+    uint64_t get_total_size() const;
+    uint64_t get_downloaded_size() const;
+    double get_progress_pct() const;
+    double get_speed_bps() const;
+    std::string get_eta() const;
+    std::vector<Chunk> get_chunks() const;
     bool probe_url();
+    bool supports_ranges() const { return m_supports_ranges; }
+
+private:
 
     std::string m_url;
     std::string m_destination_filepath;
@@ -85,7 +102,7 @@ private:
 
     uint64_t m_total_size{0};
     std::string m_etag;
-    bool m_supports_ranges{false};
+    bool m_supports_ranges{true};
 
     std::atomic<DownloadStatus> m_status{DownloadStatus::NotStarted};
     std::string m_last_error;

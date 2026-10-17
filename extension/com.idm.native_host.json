@@ -4,7 +4,7 @@
   "path": "E:\\Projects\\idm\\build\\idm_native_host.exe",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://nnnaaifgjldomqlghfdjifocajfkigkld/",
-    "chrome-extension://*/*"
+    "chrome-extension://bjgkbgeokfiebnpmenpcojhlehlapjih/",
+    "chrome-extension://nnnaaifgjldomglhfdjfoeajfkigkld/"
   ]
 }

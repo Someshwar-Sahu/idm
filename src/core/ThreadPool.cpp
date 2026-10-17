@@ -1,5 +1,7 @@
 #include "ThreadPool.h"
 
+using namespace std;
+
 ThreadPool::ThreadPool(size_t num_threads) {
     if (num_threads == 0) {
         num_threads = 1;

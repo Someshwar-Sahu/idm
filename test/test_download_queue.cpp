@@ -209,8 +209,58 @@ int main() {
     // Test live sound playback (harmless chime notification)
     bool sound_played = DownloadQueue::execute_native_post_action(PostQueueAction::PlaySound, /*dry_run=*/false);
     assert(sound_played == true);
-    cout << "  -> Native Win32 PlaySoundA & dry-run power API validation: PASSED" << endl;
+    // =========================================================================
+    // 8. SCHEDULER SETTINGS & POST-QUEUE COMPLETION WITH PAUSED TASKS (Phase C)
+    // =========================================================================
+    cout << "\n[8/8] Testing Scheduler Settings & Post-Queue Paused Task Completion (Phase C)..." << endl;
+    DownloadQueue sched_queue("Sched Queue", 2);
 
+    DownloadQueue::QueueSchedule sched;
+    sched.start_scheduled = true;
+    sched.start_time = "02:30";
+    sched.stop_scheduled = true;
+    sched.stop_time = "06:00";
+    sched.max_retries = 5;
+
+    sched_queue.set_schedule(sched);
+    auto retrieved_sched = sched_queue.get_schedule();
+    assert(retrieved_sched.start_scheduled == true);
+    assert(retrieved_sched.start_time == "02:30");
+    assert(retrieved_sched.stop_scheduled == true);
+    assert(retrieved_sched.stop_time == "06:00");
+    assert(retrieved_sched.max_retries == 5);
+    cout << "  -> QueueSchedule persistence and retrieval: PASSED" << endl;
+
+    // Test queue completion when active runnable task completes while paused task remains
+    const string DEST3 = "test_queue_file3.bin";
+    remove(DEST3.c_str());
+    ResumeStore::remove(ResumeStore::get_sidecar_filepath(DEST3));
+
+    auto runnable_task = make_shared<DownloadTask>("https://httpbin.org/bytes/1024", DEST3, 2);
+    auto paused_task = make_shared<DownloadTask>("https://httpbin.org/bytes/5000", "paused_dummy.bin", 1);
+    paused_task->pause(); // Explicitly user-paused / "Download Later"
+
+    sched_queue.set_post_queue_action(PostQueueAction::PlaySound);
+    sched_queue.add_task(runnable_task);
+    sched_queue.add_task(paused_task);
+
+    bool partial_completion_called = false;
+    sched_queue.start([&](PostQueueAction) {
+        partial_completion_called = true;
+    });
+
+    int wait_cycles = 0;
+    while (sched_queue.get_state() == QueueState::Running && wait_cycles < 50) {
+        this_thread::sleep_for(chrono::milliseconds(200));
+        wait_cycles++;
+    }
+    sched_queue.stop();
+
+    assert(partial_completion_called == true);
+    assert(runnable_task->get_status() == DownloadStatus::Completed);
+    assert(paused_task->get_status() == DownloadStatus::Paused);
+    remove(DEST3.c_str());
+    cout << "  -> Post-queue completion with paused tasks in queue: PASSED" << endl;
 
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF DOWNLOADQUEUE FUNCTIONS VERIFIED!      " << endl;

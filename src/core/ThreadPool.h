@@ -11,31 +11,29 @@
 #include <future>
 #include <type_traits> 
 
-using namespace std;
-
 class ThreadPool {
 public:
-    explicit ThreadPool(size_t num_threads = thread::hardware_concurrency());
+    explicit ThreadPool(size_t num_threads = std::thread::hardware_concurrency());
     ~ThreadPool();
     
     ThreadPool(const ThreadPool&) = delete;
     ThreadPool& operator=(const ThreadPool&) = delete;
 
-    void enqueue(function<void()> task);
+    void enqueue(std::function<void()> task);
 
     template<class F, class... Args>
-    auto enqueue_future(F&& f, Args&&... args) -> future<typename invoke_result<F, Args...>::type> {
-        using return_type = typename invoke_result<F, Args...>::type;
+    auto enqueue_future(F&& f, Args&&... args) -> std::future<typename std::invoke_result<F, Args...>::type> {
+        using return_type = typename std::invoke_result<F, Args...>::type;
 
-        auto task = make_shared<packaged_task<return_type()>>(
-            bind(forward<F>(f), forward<Args>(args)...)
+        auto task = std::make_shared<std::packaged_task<return_type()>>(
+            std::bind(std::forward<F>(f), std::forward<Args>(args)...)
         ); 
 
-        future<return_type> res = task->get_future();
+        std::future<return_type> res = task->get_future();
         {
-            unique_lock<mutex> lock(m_queue_mutex);
+            std::unique_lock<std::mutex> lock(m_queue_mutex);
             if(m_stop){
-                throw runtime_error("enqueue on stopped ThreadPool");
+                throw std::runtime_error("enqueue on stopped ThreadPool");
             }
             m_tasks.emplace([task]() { (*task)(); }); 
         }
@@ -49,12 +47,12 @@ public:
 private:
     void worker_loop();
 
-    vector<thread> m_workers;
-    queue<function<void()>> m_tasks;
+    std::vector<std::thread> m_workers;
+    std::queue<std::function<void()>> m_tasks;
 
-    mutable mutex m_queue_mutex;
-    condition_variable m_cv;
-    atomic<bool> m_stop{false};
+    mutable std::mutex m_queue_mutex;
+    std::condition_variable m_cv;
+    std::atomic<bool> m_stop{false};
 };
 
 #endif

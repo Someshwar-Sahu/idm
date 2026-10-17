@@ -145,8 +145,11 @@ int main() {
 
     task_lifecycle.cancel();
     assert(task_lifecycle.m_pause_requested == true);
-    assert(ResumeStore::exists(sidecar) == false);
-    cout << "  -> pause flag and cancel sidecar cleanup: PASSED" << endl;
+    assert(task_lifecycle.get_status() == DownloadStatus::Cancelled);
+    // Sidecar is preserved so cancelled tasks can be resumed from partial progress
+    assert(ResumeStore::exists(sidecar) == true);
+    ResumeStore::remove(sidecar);
+    cout << "  -> pause flag and cancel status retention: PASSED" << endl;
 
     // =========================================================================
     // 8. TASK 6: EXPIRED LINK REFRESH & SESSION CONTEXT (Pos + Neg)
@@ -194,6 +197,7 @@ int main() {
     const string TEST_CACHE_DIR = "test_idm_cache";
     const string CACHE_DEST_FILE = "cached_download.bin";
     remove(CACHE_DEST_FILE.c_str());
+    filesystem::remove_all(TEST_CACHE_DIR);
 
     // 9.1 Test sidecar path resolution into centralized cache folder
     DownloadTask task_cache("https://httpbin.org/bytes/2048", CACHE_DEST_FILE, 4, 0, "", "", "", TEST_CACHE_DIR);

@@ -148,11 +148,13 @@ void test_payload_forwarding_to_live_local_server() {
     assert(port > 0);
 
     bool route_hit = false;
-    server.register_route("POST", "/api/add_download", [&route_hit](const HttpRequest& req) -> HttpResponse {
+    auto handler = [&route_hit](const HttpRequest& req) -> HttpResponse {
         route_hit = true;
         assert(req.json_body.value("url", "") == "https://test.com/payload.bin");
         return HttpResponse::json_response(201, {{"status", "created"}, {"id", "task_99"}});
-    });
+    };
+    server.register_route("POST", "/api/add_download", handler);
+    server.register_route("POST", "/api/intercept", handler);
 
     InterceptedDownloadPayload payload;
     payload.url = "https://test.com/payload.bin";

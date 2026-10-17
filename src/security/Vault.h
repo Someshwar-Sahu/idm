@@ -8,8 +8,6 @@
 #include <mutex>
 #include <cstdint>
 
-using namespace std;
-
 class DownloadTask;
 
 namespace idm {
@@ -63,7 +61,7 @@ public:
     static std::string decrypt_string(const std::string& ciphertext_hex, const std::string& key = "");
 
 private:
-    mutable mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::unordered_map<std::string, SiteCredential> m_credentials; // domain -> credential
     std::string m_master_password_hash;
     bool m_is_locked{false};
