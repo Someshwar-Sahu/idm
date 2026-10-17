@@ -86,6 +86,7 @@ add_executable(idm_app
     src/gui_qt/resources.rc
     src/gui_qt/resources.qrc
     ${CORE_SOURCES}
+    src/native_host/NativeHost.cpp
     src/queue/DownloadQueue.cpp
     src/ipc/LocalServer.cpp
     src/net/RemoteDashboard.cpp

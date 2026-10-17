@@ -454,6 +454,21 @@ void LocalServer::init_default_routes() {
             return HttpResponse::error_response(400, "Missing 'url' parameter");
         }
 
+        std::string user_agent = req.json_body.value("user_agent", "");
+        if (user_agent.empty()) {
+            auto it_ua = req.headers.find("user-agent");
+            if (it_ua != req.headers.end()) user_agent = it_ua->second;
+        }
+        std::string browser = req.json_body.value("browser", "");
+
+        if (m_settings != nullptr && !m_settings->is_interception_allowed(url, user_agent, browser)) {
+            json res;
+            res["status"] = "IGNORED";
+            res["success"] = false;
+            res["message"] = "Browser integration disabled for this browser or site in IDM settings";
+            return HttpResponse::json_response(200, res);
+        }
+
         InterceptRequest item;
         item.id = "intercept_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         item.url = url;
@@ -610,6 +625,21 @@ void LocalServer::init_default_routes() {
         }
 
         bool confirmed = req.json_body.value("confirmed", false);
+        std::string user_agent = req.json_body.value("user_agent", "");
+        if (user_agent.empty()) {
+            auto it_ua = req.headers.find("user-agent");
+            if (it_ua != req.headers.end()) user_agent = it_ua->second;
+        }
+        std::string browser = req.json_body.value("browser", "");
+
+        if (!confirmed && m_settings != nullptr && !m_settings->is_interception_allowed(url, user_agent, browser)) {
+            json res;
+            res["status"] = "IGNORED";
+            res["success"] = false;
+            res["message"] = "Browser integration disabled for this browser or site in IDM settings";
+            return HttpResponse::json_response(200, res);
+        }
+
         if (!confirmed && m_intercept_notifier) {
             InterceptRequest item;
             item.id = "intercept_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -684,7 +714,9 @@ void LocalServer::init_default_routes() {
         uint64_t speed_limit = req.json_body.value("speed_limit_bps", static_cast<uint64_t>(0));
         std::string referer = req.json_body.value("referer", "");
         std::string cookies = req.json_body.value("cookies", "");
-        std::string user_agent = req.json_body.value("user_agent", "");
+        if (user_agent.empty()) {
+            user_agent = req.json_body.value("user_agent", "");
+        }
         bool start_now = req.json_body.value("start_now", true);
 
         if (m_queue != nullptr) {

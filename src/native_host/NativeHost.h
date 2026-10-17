@@ -18,6 +18,7 @@ struct InterceptedDownloadPayload {
     std::string filename;
     std::string cookies;
     std::string user_agent;
+    std::string browser;
     std::string referer;
     std::string page_title;
     uint64_t total_size{0};

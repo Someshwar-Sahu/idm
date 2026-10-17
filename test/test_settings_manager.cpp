@@ -207,6 +207,61 @@ int main() {
 
     cout << "  -> Small file threshold (10 MB), browser bypass & user force override: PASSED" << endl;
 
+    // =========================================================================
+    // 8. BROWSER INTEGRATION & EXCEPTION SITES ENFORCEMENT
+    // =========================================================================
+    cout << "\n[8/8] Testing Per-Browser Integration & Exception Sites..." << endl;
+    manager.reset_to_defaults();
+
+    string edge_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0";
+    string chrome_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    string firefox_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0";
+    string test_dl_url = "https://cdn.truefilesize.com/pdf/sample-100mb.pdf";
+
+    // Defaults: all enabled
+    assert(manager.is_browser_supported(edge_ua) == true);
+    assert(manager.is_browser_supported(edge_ua, "edge") == true);
+    assert(manager.is_browser_supported(chrome_ua) == true);
+    assert(manager.is_browser_supported(chrome_ua, "chrome") == true);
+    assert(manager.is_browser_supported(firefox_ua) == true);
+    assert(manager.is_browser_supported(firefox_ua, "firefox") == true);
+    assert(manager.is_interception_allowed(test_dl_url, edge_ua, "edge") == true);
+
+    // Disable Edge integration
+    AppSettings no_edge = defaults;
+    no_edge.integrate_edge = false;
+    manager.update_settings(no_edge);
+
+    // Edge must be rejected
+    assert(manager.is_browser_supported(edge_ua) == false);
+    assert(manager.is_browser_supported(edge_ua, "edge") == false);
+    assert(manager.is_interception_allowed(test_dl_url, edge_ua, "edge") == false);
+
+    // Chrome and Firefox must still be accepted
+    assert(manager.is_browser_supported(chrome_ua) == true);
+    assert(manager.is_browser_supported(firefox_ua) == true);
+    assert(manager.is_interception_allowed(test_dl_url, chrome_ua, "chrome") == true);
+
+    // Global toggle disabled
+    AppSettings global_off = defaults;
+    global_off.enable_browser_interception = false;
+    manager.update_settings(global_off);
+    assert(manager.is_browser_supported(chrome_ua) == false);
+    assert(manager.is_browser_supported(edge_ua) == false);
+    assert(manager.is_interception_allowed(test_dl_url, chrome_ua) == false);
+
+    // Exception sites test
+    AppSettings ex_settings = defaults;
+    ex_settings.exception_sites = "example.com/stream/*, internal.corp";
+    manager.update_settings(ex_settings);
+    assert(manager.is_url_excepted("https://example.com/stream/file.mp4") == true);
+    assert(manager.is_url_excepted("http://internal.corp/data.zip") == true);
+    assert(manager.is_url_excepted("https://other.com/file.pdf") == false);
+    assert(manager.is_interception_allowed("https://example.com/stream/file.mp4", chrome_ua) == false);
+    assert(manager.is_interception_allowed("https://other.com/file.pdf", chrome_ua) == true);
+
+    cout << "  -> Per-browser integration & exception sites filtering: PASSED" << endl;
+
     // Clean up temporary test files
     remove(TEST_CONFIG.c_str());
     remove(TEST_CORRUPT_CONFIG.c_str());

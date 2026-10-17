@@ -34,6 +34,7 @@ bool NativeHost::json_to_payload(const string &json_str, InterceptedDownloadPayl
         out_payload.filename = j.value("filename", "");
         out_payload.cookies = j.value("cookies", "");
         out_payload.user_agent = j.value("user_agent", "");
+        out_payload.browser = j.value("browser", "");
         out_payload.referer = j.value("referer", "");
         out_payload.page_title = j.value("page_title", "");
         out_payload.total_size = j.value("total_size", static_cast<uint64_t>(0));
@@ -51,6 +52,7 @@ string NativeHost::payload_to_json(const InterceptedDownloadPayload &payload) {
     j["filename"] = payload.filename;
     j["cookies"] = payload.cookies;
     j["user_agent"] = payload.user_agent;
+    j["browser"] = payload.browser;
     j["referer"] = payload.referer;
     j["page_title"] = payload.page_title;
     j["total_size"] = payload.total_size;

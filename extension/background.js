@@ -37,6 +37,16 @@ chrome.runtime.onStartup.addListener(() => {
   ensureSettings();
 });
 
+// Helper: Identify current browser
+function getBrowserTag() {
+  const ua = navigator.userAgent;
+  if (ua.includes("Edg/") || ua.includes("Edge/")) return "edge";
+  if (navigator.brave && typeof navigator.brave.isBrave === "function") return "brave";
+  if (ua.includes("Firefox/")) return "firefox";
+  if (ua.includes("Chrome/")) return "chrome";
+  return "unknown";
+}
+
 // In-page link click listener from content.js
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.action === "INTERCEPT_URL" && msg.url) {
@@ -47,6 +57,7 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       filename: "",
       cookies: cookies,
       user_agent: navigator.userAgent,
+      browser: getBrowserTag(),
       referer: msg.referer || sender?.tab?.url || "",
       page_title: msg.page_title || sender?.tab?.title || "Page Download",
       total_size: 0,
@@ -69,6 +80,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             filename: "",
             cookies: cookies,
             user_agent: navigator.userAgent,
+            browser: getBrowserTag(),
             referer: tab.url || "",
             page_title: resp.page_title || "Batch Download",
             total_size: 0,
@@ -89,6 +101,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     filename: "",
     cookies: cookies,
     user_agent: navigator.userAgent,
+    browser: getBrowserTag(),
     referer: tab?.url || "",
     page_title: tab?.title || "Context Menu Download",
     total_size: 0,
@@ -176,10 +189,11 @@ async function handleDeterminingFilename(downloadItem, suggest) {
       filename: downloadItem.filename || "",
       cookies: cookies,
       user_agent: navigator.userAgent,
+      browser: getBrowserTag(),
       referer: downloadItem.referrer || "",
       page_title: downloadItem.filename || "Browser Download",
       total_size: fileSize > 0 ? fileSize : 0,
-      user_force_override: true
+      user_force_override: false
     };
 
     sendToNativeHost(payload, () => {
@@ -210,6 +224,10 @@ function sendToNativeHost(payload, onSuccess) {
   try {
     chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, payload, (response) => {
       if (chrome.runtime.lastError || !response || !response.success) {
+        if (response && (response.message === "IGNORED" || (response.message && response.message.includes("IGNORED")))) {
+          console.log("[IDM Extension] Interception ignored by IDM per browser settings. Letting browser download natively.");
+          return;
+        }
         console.warn("[IDM] Native messaging fallback to HTTP REST API...", chrome.runtime.lastError);
         sendViaHttpFallback(payload, onSuccess);
       } else {
@@ -231,6 +249,11 @@ async function sendViaHttpFallback(payload, onSuccess) {
       body: JSON.stringify(payload)
     });
     if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && (data.status === "IGNORED" || data.success === false)) {
+        console.log("[IDM Extension] Interception ignored by IDM per settings:", data.message);
+        return;
+      }
       console.log("[IDM] Dispatched via local HTTP fallback API");
       if (onSuccess) onSuccess();
     } else {

@@ -6,6 +6,8 @@
 #endif
 
 #include "OptionsDialog.h"
+#include "../native_host/NativeHost.h"
+#include <filesystem>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -378,6 +380,35 @@ void OptionsDialog::saveSettings() {
             RegDeleteValueA(hKey, "IDMan");
         }
         RegCloseKey(hKey);
+    }
+
+    std::filesystem::path manifestPath;
+    char curExePath[MAX_PATH];
+    if (GetModuleFileNameA(NULL, curExePath, MAX_PATH) > 0) {
+        std::filesystem::path exeDir = std::filesystem::path(curExePath).parent_path();
+        if (std::filesystem::exists(exeDir / "com.idm.native_host.json")) {
+            manifestPath = exeDir / "com.idm.native_host.json";
+        } else if (std::filesystem::exists(exeDir.parent_path() / "extension" / "com.idm.native_host.json")) {
+            manifestPath = exeDir.parent_path() / "extension" / "com.idm.native_host.json";
+        }
+    }
+
+    if (s.integrate_edge && !manifestPath.empty()) {
+        idm::NativeHost::install_native_host_registry(idm::BrowserType::Edge, manifestPath.string());
+    } else {
+        idm::NativeHost::uninstall_native_host_registry(idm::BrowserType::Edge);
+    }
+
+    if (s.integrate_chrome && !manifestPath.empty()) {
+        idm::NativeHost::install_native_host_registry(idm::BrowserType::Chrome, manifestPath.string());
+    } else {
+        idm::NativeHost::uninstall_native_host_registry(idm::BrowserType::Chrome);
+    }
+
+    if (s.integrate_firefox && !manifestPath.empty()) {
+        idm::NativeHost::install_native_host_registry(idm::BrowserType::Firefox, manifestPath.string());
+    } else {
+        idm::NativeHost::uninstall_native_host_registry(idm::BrowserType::Firefox);
     }
 #endif
 }

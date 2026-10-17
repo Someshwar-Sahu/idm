@@ -920,6 +920,10 @@ void MainWindow::restore_or_launch_window() {
 }
 
 void MainWindow::onDownloadIntercepted(const QString& url, const QString& filename, const QString& cookies, const QString& referer, const QString& userAgent, quint64 totalSize) {
+    if (m_settings && !m_settings->is_interception_allowed(url.toStdString(), userAgent.toStdString())) {
+        return;
+    }
+
     // Only use 'this' as parent if main window is already visible.
     // If IDM is in the tray, leave the main window in the tray and show dialogs independently.
     QWidget* parentWnd = isVisible() ? this : nullptr;

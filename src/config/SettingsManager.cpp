@@ -4,6 +4,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cctype>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 using json = nlohmann::json;
@@ -267,3 +269,80 @@ bool SettingsManager::should_intercept_download(uint64_t file_size_bytes, bool u
 
     return file_size_bytes >= m_settings.min_capture_size_bytes;
 }
+
+bool SettingsManager::is_browser_supported(const std::string& user_agent, const std::string& browser_hint) const {
+    lock_guard<mutex> lock(m_mutex);
+
+    if (!m_settings.enable_browser_interception) {
+        return false;
+    }
+
+    std::string ua = user_agent;
+    for (char &c : ua) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+    std::string hint = browser_hint;
+    for (char &c : hint) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+    // 1. Edge: User-Agent has "edg/" or "edge/" or hint is "edge"
+    if (hint == "edge" || ua.find("edg/") != std::string::npos || ua.find("edge/") != std::string::npos) {
+        return m_settings.integrate_edge;
+    }
+
+    // 2. Brave: Hint is "brave" or UA has "brave"
+    if (hint == "brave" || ua.find("brave") != std::string::npos) {
+        return m_settings.integrate_brave;
+    }
+
+    // 3. Firefox: Hint is "firefox" or UA has "firefox/" or "fxios/"
+    if (hint == "firefox" || ua.find("firefox/") != std::string::npos || ua.find("fxios/") != std::string::npos) {
+        return m_settings.integrate_firefox;
+    }
+
+    // 4. Chrome: Hint is "chrome" or UA has "chrome/" or "crios/"
+    if (hint == "chrome" || ua.find("chrome/") != std::string::npos || ua.find("crios/") != std::string::npos) {
+        return m_settings.integrate_chrome;
+    }
+
+    // Default for unidentified browser
+    return m_settings.enable_browser_interception;
+}
+
+bool SettingsManager::is_url_excepted(const std::string& url) const {
+    lock_guard<mutex> lock(m_mutex);
+    if (m_settings.exception_sites.empty() || url.empty()) {
+        return false;
+    }
+
+    std::string lower_url = url;
+    for (char &c : lower_url) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+    std::istringstream iss(m_settings.exception_sites);
+    std::string site;
+    while (iss >> site) {
+        while (!site.empty() && (site.back() == ',' || site.back() == ';')) site.pop_back();
+        while (!site.empty() && (site.front() == ',' || site.front() == ';')) site.erase(0, 1);
+        if (site.empty()) continue;
+
+        for (char &c : site) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+        std::string pattern = site;
+        while (!pattern.empty() && pattern.back() == '*') pattern.pop_back();
+        if (pattern.empty()) continue;
+
+        if (lower_url.find(pattern) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SettingsManager::is_interception_allowed(const std::string& url, const std::string& user_agent, const std::string& browser_hint) const {
+    if (!is_browser_supported(user_agent, browser_hint)) {
+        return false;
+    }
+    if (is_url_excepted(url)) {
+        return false;
+    }
+    return true;
+}
+

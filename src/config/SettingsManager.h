@@ -41,8 +41,8 @@ struct AppSettings {
     std::map<std::string, std::string> category_folders{
         {"General", "General"},
         {"Documents", "Documents"},
-        {"Videos", "Video"},
-        {"Video", "Video"},
+        {"Videos", "Videos"},
+        {"Video", "Videos"},
         {"Music", "Music"},
         {"Compressed", "Compressed"},
         {"Programs", "Programs"}
@@ -93,6 +93,9 @@ public:
     std::string get_target_filepath_for_filename(const std::string &filename) const;
 
     bool should_intercept_download(uint64_t file_size_bytes, bool user_force_override = false) const;
+    bool is_browser_supported(const std::string& user_agent, const std::string& browser_hint = "") const;
+    bool is_url_excepted(const std::string& url) const;
+    bool is_interception_allowed(const std::string& url, const std::string& user_agent, const std::string& browser_hint = "") const;
 
 private:
     std::string m_config_filepath{"settings.json"};

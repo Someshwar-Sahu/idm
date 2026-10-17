@@ -38,7 +38,12 @@ int main(int argc, char* argv[]) {
         string resp;
         bool ok = NativeHost::forward_payload_to_server(payload, "127.0.0.1", 8080, &resp);
         if (ok) {
-            NativeHost::write_response_to_stdout(true, "Download task added to IDM");
+            if (resp.find("\"status\":\"IGNORED\"") != string::npos ||
+                resp.find("\"status\": \"IGNORED\"") != string::npos) {
+                NativeHost::write_response_to_stdout(false, "IGNORED");
+            } else {
+                NativeHost::write_response_to_stdout(true, "Download task added to IDM");
+            }
         } else {
             NativeHost::write_response_to_stdout(false, "IDM engine offline (task queued)");
         }
