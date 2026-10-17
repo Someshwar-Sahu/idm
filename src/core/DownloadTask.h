@@ -77,6 +77,12 @@ public:
     void set_last_error(const std::string &err) { m_last_error = err; }
     bool is_antivirus_scan_enabled() const;
     void set_antivirus_scan_enabled(bool enabled);
+    bool is_security_override() const { return m_security_override; }
+    void set_security_override(bool override) { m_security_override = override; }
+    void override_security_and_complete();
+
+    std::string get_queue_name() const { return m_queue_name; }
+    void set_queue_name(const std::string &name) { m_queue_name = name; }
 
     uint64_t get_total_size() const;
     uint64_t get_downloaded_size() const;
@@ -93,6 +99,7 @@ private:
     std::string m_destination_filepath;
     std::string m_cache_directory;
     std::string m_sidecar_filepath;
+    std::string m_queue_name{"Main Download Queue"};
     int m_num_threads{8};
     std::atomic<uint64_t> m_max_bytes_per_sec{0};
 
@@ -115,6 +122,7 @@ private:
     std::atomic<bool> m_pause_requested{false};
 
     bool m_antivirus_scan_enabled{true};
+    bool m_security_override{false};
 };
 
 #endif

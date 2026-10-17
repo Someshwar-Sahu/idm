@@ -142,12 +142,13 @@ std::vector<std::string> NetworkMonitor::get_running_process_names() {
 #ifdef _WIN32
     HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnapshot != INVALID_HANDLE_VALUE) {
-        PROCESSENTRY32 pe;
-        pe.dwSize = sizeof(PROCESSENTRY32);
-        if (Process32First(hSnapshot, &pe)) {
+        PROCESSENTRY32W pe;
+        pe.dwSize = sizeof(PROCESSENTRY32W);
+        if (Process32FirstW(hSnapshot, &pe)) {
             do {
-                names.push_back(pe.szExeFile);
-            } while (Process32Next(hSnapshot, &pe));
+                std::wstring ws(pe.szExeFile);
+                names.push_back(std::string(ws.begin(), ws.end()));
+            } while (Process32NextW(hSnapshot, &pe));
         }
         CloseHandle(hSnapshot);
     }

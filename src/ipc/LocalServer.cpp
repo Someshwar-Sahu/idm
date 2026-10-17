@@ -461,13 +461,25 @@ void LocalServer::init_default_routes() {
         item.cookies = req.json_body.value("cookies", "");
         item.referer = req.json_body.value("referer", "");
         item.user_agent = req.json_body.value("user_agent", "");
+        item.total_size = req.json_body.value("total_size", static_cast<uint64_t>(0));
+
+        if (m_intercept_notifier) {
+            m_intercept_notifier(item);
+            notify_events();
+
+            json res;
+            res["status"] = "SUCCESS";
+            res["id"] = item.id;
+            res["message"] = "Intercept dispatched to GUI";
+            return HttpResponse::json_response(200, res);
+        }
 
         bool show_dialog = (m_settings != nullptr) ? m_settings->get_settings().show_start_download_dialog : false;
         if (!show_dialog && m_queue != nullptr) {
-            std::string save_dir = m_settings->get_settings().default_download_directory;
+            std::string save_dir = (m_settings != nullptr) ? m_settings->get_settings().default_download_directory : "C:/Downloads";
             std::string fname = item.filename.empty() ? DownloadTask::extract_filename_from_url(url) : item.filename;
-            std::string cat = m_settings->determine_category_for_filename(fname);
-            std::string cat_dir = m_settings->get_category_path(cat);
+            std::string cat = (m_settings != nullptr) ? m_settings->determine_category_for_filename(fname) : "General";
+            std::string cat_dir = (m_settings != nullptr) ? m_settings->get_category_path(cat) : save_dir;
             std::string full_path = cat_dir + "/" + fname;
             auto task = std::make_shared<DownloadTask>(url, full_path, 8, 0, item.referer, item.cookies, item.user_agent);
             m_queue->add_task(task);
@@ -478,17 +490,13 @@ void LocalServer::init_default_routes() {
             json res;
             res["status"] = "SUCCESS";
             res["id"] = task->get_destination_filepath();
-            res["message"] = "Download started directly (dialog disabled in options)";
+            res["message"] = "Download started directly";
             return HttpResponse::json_response(200, res);
         }
 
         {
             std::lock_guard<std::mutex> lk(m_intercept_mutex);
             m_pending_intercepts.push_back(item);
-        }
-
-        if (m_window_restorer) {
-            m_window_restorer();
         }
 
         notify_events();
@@ -499,6 +507,19 @@ void LocalServer::init_default_routes() {
         res["message"] = "Intercept queued for download confirmation dialog";
         return HttpResponse::json_response(200, res);
     });
+
+    // POST /api/show & GET /api/show (Restore IDM GUI from tray/background)
+    auto show_handler = [this](const HttpRequest&) -> HttpResponse {
+        if (m_window_restorer) {
+            m_window_restorer();
+        }
+        json res;
+        res["status"] = "SUCCESS";
+        res["message"] = "Window restore signal sent";
+        return HttpResponse::json_response(200, res);
+    };
+    register_route("POST", "/api/show", show_handler);
+    register_route("GET", "/api/show", show_handler);
 
     // GET /api/events (Long-polling endpoint for 0ms reactivity)
     register_route("GET", "/api/events", [this](const HttpRequest& req) -> HttpResponse {
@@ -589,6 +610,27 @@ void LocalServer::init_default_routes() {
         }
 
         bool confirmed = req.json_body.value("confirmed", false);
+        if (!confirmed && m_intercept_notifier) {
+            InterceptRequest item;
+            item.id = "intercept_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+            item.url = url;
+            item.filename = req.json_body.value("filename", "");
+            item.cookies = req.json_body.value("cookies", "");
+            item.referer = req.json_body.value("referer", "");
+            item.user_agent = req.json_body.value("user_agent", "");
+            item.total_size = req.json_body.value("total_size", static_cast<uint64_t>(0));
+
+            m_intercept_notifier(item);
+            notify_events();
+
+            json res;
+            res["status"] = "PENDING_CONFIRMATION";
+            res["id"] = item.id;
+            res["url"] = url;
+            res["message"] = "Download dispatched to GUI confirmation dialog";
+            return HttpResponse::json_response(200, res);
+        }
+
         bool show_dialog = (m_settings != nullptr) ? m_settings->get_settings().show_start_download_dialog : false;
         if (show_dialog && !confirmed) {
             InterceptRequest item;
@@ -598,14 +640,11 @@ void LocalServer::init_default_routes() {
             item.cookies = req.json_body.value("cookies", "");
             item.referer = req.json_body.value("referer", "");
             item.user_agent = req.json_body.value("user_agent", "");
+            item.total_size = req.json_body.value("total_size", static_cast<uint64_t>(0));
 
             {
                 std::lock_guard<std::mutex> lk(m_intercept_mutex);
                 m_pending_intercepts.push_back(item);
-            }
-
-            if (m_window_restorer) {
-                m_window_restorer();
             }
 
             notify_events();
@@ -627,7 +666,7 @@ void LocalServer::init_default_routes() {
         try {
             std::filesystem::path sp(save_path);
             if (!sp.has_parent_path() || sp.is_relative()) {
-                std::string base_dir = "C:/Downloads";
+                std::string base_dir = (m_settings != nullptr) ? m_settings->get_settings().default_download_directory : "C:/Downloads";
                 std::string cat = req.json_body.value("category", "");
                 if (!cat.empty() && cat != "General") {
                     base_dir += "/" + cat;
@@ -1744,8 +1783,8 @@ void LocalServer::queue_intercept(const std::string& url, const std::string& fil
         m_pending_intercepts.push_back(item);
     }
     notify_events();
-    if (m_window_restorer) {
-        m_window_restorer();
+    if (m_intercept_notifier) {
+        m_intercept_notifier(item);
     }
 }
 

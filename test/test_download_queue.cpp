@@ -262,6 +262,45 @@ int main() {
     remove(DEST3.c_str());
     cout << "  -> Post-queue completion with paused tasks in queue: PASSED" << endl;
 
+    // =========================================================================
+    // 9. LIVE SCHEDULER MINUTE TRIGGER VALIDATION
+    // =========================================================================
+    cout << "\n[9/9] Testing Live Scheduler Minute-Triggered Queue Start..." << endl;
+    DownloadQueue live_sched_queue("Live Sched Queue", 2);
+    auto pending_task = make_shared<DownloadTask>("https://httpbin.org/bytes/1024", "test_pending.bin", 2);
+    pending_task->pause();
+    live_sched_queue.add_task(pending_task);
+    assert(live_sched_queue.get_state() != QueueState::Running);
+
+    auto now = chrono::system_clock::now();
+    time_t now_time = chrono::system_clock::to_time_t(now);
+    tm local_tm{};
+#ifdef _WIN32
+    localtime_s(&local_tm, &now_time);
+#else
+    localtime_r(&now_time, &local_tm);
+#endif
+    char time_buf[16];
+    snprintf(time_buf, sizeof(time_buf), "%02d:%02d", local_tm.tm_hour, local_tm.tm_min);
+
+    DownloadQueue::QueueSchedule live_sched;
+    live_sched.start_scheduled = true;
+    live_sched.start_time = time_buf;
+    live_sched_queue.set_schedule(live_sched);
+
+    // Wait up to 3 seconds for the scheduler loop to evaluate the current minute
+    int sched_wait = 0;
+    while (live_sched_queue.get_state() != QueueState::Running && sched_wait < 30) {
+        this_thread::sleep_for(chrono::milliseconds(100));
+        sched_wait++;
+    }
+    assert(live_sched_queue.get_state() == QueueState::Running);
+    assert(pending_task->get_status() != DownloadStatus::Paused);
+    live_sched_queue.stop();
+    remove("test_pending.bin");
+    ResumeStore::remove(ResumeStore::get_sidecar_filepath("test_pending.bin"));
+    cout << "  -> Live scheduler minute-triggered queue auto-start: PASSED" << endl;
+
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF DOWNLOADQUEUE FUNCTIONS VERIFIED!      " << endl;
     cout << "==========================================================" << endl;

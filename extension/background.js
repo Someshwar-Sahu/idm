@@ -170,11 +170,6 @@ async function handleDeterminingFilename(downloadItem, suggest) {
     // 4. Intercept: File is >= 10 MB or whitelisted extension
     console.log(`[IDM Extension] Intercepting file (${fileSize} bytes, ext: ${ext}):`, url);
 
-    chrome.downloads.cancel(downloadItem.id, () => {
-      chrome.downloads.erase({ id: downloadItem.id });
-    });
-    suggest(); // Release suggest callback cleanly
-
     const cookies = await getCookiesForUrl(url);
     const payload = {
       url: url,
@@ -187,7 +182,12 @@ async function handleDeterminingFilename(downloadItem, suggest) {
       user_force_override: true
     };
 
-    sendToNativeHost(payload);
+    sendToNativeHost(payload, () => {
+      chrome.downloads.cancel(downloadItem.id, () => {
+        chrome.downloads.erase({ id: downloadItem.id });
+      });
+    });
+    suggest(); // Release suggest callback cleanly
   } catch (err) {
     console.error("[IDM Extension] Error handling determining filename:", err);
     suggest();
@@ -206,30 +206,36 @@ async function getCookiesForUrl(url) {
 }
 
 // Helper: Send payload to Native Messaging Host, with HTTP fallback
-function sendToNativeHost(payload) {
+function sendToNativeHost(payload, onSuccess) {
   try {
     chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, payload, (response) => {
       if (chrome.runtime.lastError || !response || !response.success) {
         console.warn("[IDM] Native messaging fallback to HTTP REST API...", chrome.runtime.lastError);
-        sendViaHttpFallback(payload);
+        sendViaHttpFallback(payload, onSuccess);
       } else {
         console.log("[IDM] Successfully dispatched to IDM native host:", response);
+        if (onSuccess) onSuccess();
       }
     });
   } catch (e) {
-    sendViaHttpFallback(payload);
+    sendViaHttpFallback(payload, onSuccess);
   }
 }
 
 // Fallback: Direct LocalServer REST API call
-async function sendViaHttpFallback(payload) {
+async function sendViaHttpFallback(payload, onSuccess) {
   try {
-    await fetch(LOCAL_API_URL, {
+    const res = await fetch(LOCAL_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    console.log("[IDM] Dispatched via local HTTP fallback API");
+    if (res.ok) {
+      console.log("[IDM] Dispatched via local HTTP fallback API");
+      if (onSuccess) onSuccess();
+    } else {
+      console.error("[IDM] IDM engine returned non-OK status:", res.status);
+    }
   } catch (err) {
     console.error("[IDM] Failed to connect to IDM engine:", err);
   }

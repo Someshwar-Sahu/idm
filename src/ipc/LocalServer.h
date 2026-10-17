@@ -62,12 +62,25 @@ public:
     void attach_queue(DownloadQueue* queue);
     void attach_settings(SettingsManager* settings) { m_settings = settings; }
 
+    struct InterceptRequest {
+        std::string id;
+        std::string url;
+        std::string filename;
+        std::string cookies;
+        std::string referer;
+        std::string user_agent;
+        uint64_t total_size{0};
+    };
+
     using TrayNotifier = std::function<void(const std::string& title, const std::string& message)>;
     using AppTerminator = std::function<void()>;
     using WindowRestorer = std::function<void()>;
+    using InterceptNotifier = std::function<void(const InterceptRequest&)>;
+
     void set_tray_notifier(TrayNotifier notifier) { m_tray_notifier = notifier; }
     void set_app_terminator(AppTerminator terminator) { m_app_terminator = terminator; }
     void set_window_restorer(WindowRestorer restorer) { m_window_restorer = restorer; }
+    void set_intercept_notifier(InterceptNotifier notifier) { m_intercept_notifier = notifier; }
     void notify_events();
 
     // Request Dispatch & Static Protocol Helpers
@@ -104,19 +117,11 @@ private:
     TrayNotifier m_tray_notifier{nullptr};
     AppTerminator m_app_terminator{nullptr};
     WindowRestorer m_window_restorer{nullptr};
+    InterceptNotifier m_intercept_notifier{nullptr};
 
     std::atomic<bool> m_clipboard_monitor_running{false};
     std::thread m_clipboard_thread;
     std::string m_last_clipboard_url;
-
-    struct InterceptRequest {
-        std::string id;
-        std::string url;
-        std::string filename;
-        std::string cookies;
-        std::string referer;
-        std::string user_agent;
-    };
     std::mutex m_intercept_mutex;
     std::vector<InterceptRequest> m_pending_intercepts;
 

@@ -29,21 +29,8 @@ DownloadQueue::~DownloadQueue() {
 
 void DownloadQueue::add_task(shared_ptr<DownloadTask> task){
     if(!task) return;
-    bool need_restart = false;
-    {
-        lock_guard<mutex> lock(m_mutex);
-        m_tasks.push_back(task);
-        if (m_state != QueueState::Running && !m_stop_thread) {
-            m_state = QueueState::Running;
-            need_restart = true;
-        }
-    }
-    if (need_restart) {
-        if (m_queue_thread.joinable()) {
-            m_queue_thread.join();
-        }
-        m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
-    }
+    lock_guard<mutex> lock(m_mutex);
+    m_tasks.push_back(task);
 }
 
 bool DownloadQueue::remove_task(const string &destination_filepath){
@@ -86,23 +73,24 @@ void DownloadQueue::start(QueueCompletionCallback completion_callback){
     if (completion_callback) {
         m_completion_callback = completion_callback;
     }
-    if(m_state == QueueState::Running) return;
 
+    bool was_running = (m_state == QueueState::Running);
     m_stop_thread = false;
     m_state = QueueState::Running;
 
-    if(m_queue_thread.joinable()){
-        m_queue_thread.join();
+    if (!was_running || !m_queue_thread.joinable()) {
+        if (m_queue_thread.joinable()) {
+            m_queue_thread.join();
+        }
+        m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
     }
-
-    m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
 }
 
 void DownloadQueue::pause() {
     m_state = QueueState::Paused;
     lock_guard<mutex> lock(m_mutex);
     for(auto &t: m_tasks){
-        if(t && t->get_status() == DownloadStatus::Downloading){
+        if(t && (t->get_status() == DownloadStatus::Downloading || t->get_status() == DownloadStatus::Probing)){
             t->pause();
         }
     }
@@ -382,6 +370,8 @@ bool DownloadQueue::execute_native_post_action(PostQueueAction action, bool dry_
 void DownloadQueue::set_schedule(const QueueSchedule &sched) {
     lock_guard<mutex> lock(m_mutex);
     m_schedule = sched;
+    m_last_started_min.clear();
+    m_last_stopped_min.clear();
 }
 
 DownloadQueue::QueueSchedule DownloadQueue::get_schedule() const {
@@ -403,9 +393,6 @@ void DownloadQueue::stop_scheduler() {
 }
 
 void DownloadQueue::schedule_evaluator_loop() {
-    string last_started_min = "";
-    string last_stopped_min = "";
-
     while (!m_stop_scheduler) {
         this_thread::sleep_for(chrono::seconds(1));
         if (m_stop_scheduler) break;
@@ -433,25 +420,33 @@ void DownloadQueue::schedule_evaluator_loop() {
         snprintf(buf, sizeof(buf), "%02d:%02d", local_tm.tm_hour, local_tm.tm_min);
         string cur_min(buf);
 
-        if (sched.start_scheduled && !sched.start_time.empty()) {
-            string target = sched.start_time.substr(0, 5);
-            if (cur_min == target && last_started_min != cur_min) {
-                last_started_min = cur_min;
-                if (get_state() != QueueState::Running) {
-                    cout << "[DownloadQueue] Scheduled start triggered at " << cur_min << endl;
-                    start();
+        int sched_h = -1, sched_m = -1;
+        if (sched.start_scheduled && !sched.start_time.empty() &&
+            sscanf(sched.start_time.c_str(), "%d:%d", &sched_h, &sched_m) == 2) {
+            if (local_tm.tm_hour == sched_h && local_tm.tm_min == sched_m && m_last_started_min != cur_min) {
+                m_last_started_min = cur_min;
+                cout << "[DownloadQueue] Scheduled start triggered for queue '" << m_queue_name << "' at " << cur_min << endl;
+                {
+                    lock_guard<mutex> lk(m_mutex);
+                    for (auto &t : m_tasks) {
+                        if (t && (t->get_status() == DownloadStatus::Paused || t->get_status() == DownloadStatus::NotStarted)) {
+                            t->resume();
+                            t->set_status(DownloadStatus::NotStarted);
+                        }
+                    }
+                    m_dispatched_tasks.clear();
                 }
+                start();
             }
         }
 
-        if (sched.stop_scheduled && !sched.stop_time.empty()) {
-            string target = sched.stop_time.substr(0, 5);
-            if (cur_min == target && last_stopped_min != cur_min) {
-                last_stopped_min = cur_min;
-                if (get_state() == QueueState::Running) {
-                    cout << "[DownloadQueue] Scheduled stop triggered at " << cur_min << endl;
-                    stop();
-                }
+        int stop_h = -1, stop_m = -1;
+        if (sched.stop_scheduled && !sched.stop_time.empty() &&
+            sscanf(sched.stop_time.c_str(), "%d:%d", &stop_h, &stop_m) == 2) {
+            if (local_tm.tm_hour == stop_h && local_tm.tm_min == stop_m && m_last_stopped_min != cur_min) {
+                m_last_stopped_min = cur_min;
+                cout << "[DownloadQueue] Scheduled stop triggered for queue '" << m_queue_name << "' at " << cur_min << endl;
+                pause();
             }
         }
     }

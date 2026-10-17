@@ -26,3 +26,4 @@ lib/
 
 # Ignore local snapshot archives
 *.zip
+aqtinstall.log

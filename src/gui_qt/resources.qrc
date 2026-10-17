@@ -1,0 +1,33 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file>idm.ico</file>
+    <file>icons/add_url.png</file>
+    <file>icons/add_url_hot.png</file>
+    <file>icons/resume.png</file>
+    <file>icons/resume_hot.png</file>
+    <file>icons/stop.png</file>
+    <file>icons/stop_hot.png</file>
+    <file>icons/stop_all.png</file>
+    <file>icons/stop_all_hot.png</file>
+    <file>icons/delete.png</file>
+    <file>icons/delete_hot.png</file>
+    <file>icons/options.png</file>
+    <file>icons/options_hot.png</file>
+    <file>icons/scheduler.png</file>
+    <file>icons/scheduler_hot.png</file>
+    <file>icons/cat_all.png</file>
+    <file>icons/cat_all_hot.png</file>
+    <file>icons/cat_compressed.png</file>
+    <file>icons/cat_compressed_hot.png</file>
+    <file>icons/cat_documents.png</file>
+    <file>icons/cat_documents_hot.png</file>
+    <file>icons/cat_music.png</file>
+    <file>icons/cat_music_hot.png</file>
+    <file>icons/cat_programs.png</file>
+    <file>icons/cat_programs_hot.png</file>
+    <file>icons/cat_video.png</file>
+    <file>icons/cat_video_hot.png</file>
+    <file>icons/cat_queue.png</file>
+    <file>icons/cat_queue_hot.png</file>
+</qresource>
+</RCC>

@@ -34,6 +34,12 @@ int main() {
     assert(empty_res.status == SecurityScanStatus::Blocked);
     cout << "  -> Empty URL blocked immediately: PASSED" << endl;
 
+    // 1.3 Negative: EICAR malware test URL flagged
+    auto eicar_res = AntivirusScanner::check_url_reputation("https://secure.eicar.org/eicar.com.txt", "eicar.com.txt");
+    assert(eicar_res.is_safe == false);
+    assert(eicar_res.status == SecurityScanStatus::Blocked);
+    cout << "  -> EICAR test URL flagged before download: PASSED" << endl;
+
     // =========================================================================
     // 2. MARK-OF-THE-WEB (MOTW) ATTACHMENT & VERIFICATION (Positive)
     // =========================================================================

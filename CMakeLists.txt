@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
 project(idm_engine VERSION 1.0.0 LANGUAGES CXX)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.7.2/mingw_64")
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_TLS_VERIFY OFF)
 
 if(WIN32)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
     set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32 crypt32 user32 comdlg32)
 endif()
 
@@ -41,7 +48,7 @@ if(NOT CURL_FOUND)
     set(CURL_LIBRARIES libcurl)
 endif()
 
-include_directories(src src/core src/config src/queue src/native_host src/gui src/security src/net src/ipc src/media src/tools)
+include_directories(src src/core src/config src/queue src/native_host src/gui_qt src/security src/net src/ipc src/media src/tools)
 
 # Shared Core Engine Sources
 set(CORE_SOURCES
@@ -65,8 +72,20 @@ if(WIN32)
 endif()
 
 add_executable(idm_app
-    src/main.cpp
-    src/gui/MainWindow.cpp
+    src/gui_qt/main_qt.cpp
+    src/gui_qt/MainWindow.cpp
+    src/gui_qt/DownloadTableModel.cpp
+    src/gui_qt/ProgressBarDelegate.cpp
+    src/gui_qt/DownloadInfoDialog.cpp
+    src/gui_qt/DownloadStatusDialog.cpp
+    src/gui_qt/SegmentedProgressWidget.cpp
+    src/gui_qt/DownloadCompleteDialog.cpp
+    src/gui_qt/SchedulerDialog.cpp
+    src/gui_qt/SecurityWarningDialog.cpp
+    src/gui_qt/OptionsDialog.cpp
+    src/gui_qt/resources.rc
+    src/gui_qt/resources.qrc
+    ${CORE_SOURCES}
     src/queue/DownloadQueue.cpp
     src/ipc/LocalServer.cpp
     src/net/RemoteDashboard.cpp
@@ -78,21 +97,19 @@ add_executable(idm_app
     src/security/Vault.cpp
     src/security/AntivirusScanner.cpp
     src/tools/ArchiveVerifier.cpp
-    ${CORE_SOURCES}
-    ${PLATFORM_SOURCES}
 )
-set_target_properties(idm_app PROPERTIES OUTPUT_NAME "IDMan")
-target_link_libraries(idm_app PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
-add_custom_command(TARGET idm_app POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/ui"
-        "$<TARGET_FILE_DIR:idm_app>/ui"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:idm_app>"
-        "$<TARGET_FILE_DIR:idm_app>/idm_app.exe"
-    COMMENT "Copying UI directory and idm_app.exe alias next to IDMan executable"
+target_link_libraries(idm_app PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+    ${CURL_LIBRARIES}
+    nlohmann_json::nlohmann_json
+    ${PLATFORM_LIBS}
 )
+
+set_target_properties(idm_app PROPERTIES OUTPUT_NAME "IDMan")
 
 # ---------------------------------------------------------
 # Unit Tests
@@ -125,9 +142,6 @@ target_link_libraries(test_native_host PRIVATE ${CURL_LIBRARIES} nlohmann_json::
 
 add_executable(idm_native_host src/native_host/main_native_host.cpp src/native_host/NativeHost.cpp)
 target_link_libraries(idm_native_host PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
-
-add_executable(test_main_window test/test_main_window.cpp src/gui/MainWindow.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
-target_link_libraries(test_main_window PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
 add_executable(test_antivirus_scanner test/test_antivirus_scanner.cpp src/security/AntivirusScanner.cpp)
 target_link_libraries(test_antivirus_scanner PRIVATE nlohmann_json::nlohmann_json ${PLATFORM_LIBS})

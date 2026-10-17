@@ -588,10 +588,10 @@ bool DownloadTask::probe_url() {
 }
 
 bool DownloadTask::start(ProgressCallback callback) {
-    if(m_antivirus_scan_enabled){
+    if(m_antivirus_scan_enabled && !m_security_override){
         auto rep = AntivirusScanner::check_url_reputation(m_url, m_destination_filepath);
         if(!rep.is_safe){
-            m_last_error = "Pre-flight security check failed: " + rep.details;
+            m_last_error = "Security Warning: Threat detected (" + rep.details + ")";
             m_status = DownloadStatus::Failed;
             return false;
         }
@@ -776,7 +776,7 @@ bool DownloadTask::start(ProgressCallback callback) {
         m_file_writer->close();
         ResumeStore::remove(m_sidecar_filepath);
 
-        if(m_antivirus_scan_enabled){
+        if(m_antivirus_scan_enabled && !m_security_override){
             AntivirusScanner::apply_mark_of_the_web(m_destination_filepath, m_url);
 
             FileScanResult scan_res = AntivirusScanner::scan_file(m_destination_filepath);
@@ -899,4 +899,18 @@ std::vector<Chunk> DownloadTask::get_chunks() const {
         return m_chunk_manager->get_all_chunks();
     }
     return {};
+}
+
+void DownloadTask::override_security_and_complete() {
+    m_security_override = true;
+    std::string fhash = AntivirusScanner::calculate_file_sha256(m_destination_filepath);
+    if (!fhash.empty()) {
+        AntivirusScanner::add_hash_to_whitelist(fhash, "User override");
+    }
+    std::string domain = AntivirusScanner::extract_domain_from_url(m_url);
+    if (!domain.empty()) {
+        AntivirusScanner::add_domain_to_whitelist(domain, "User override");
+    }
+    m_status = DownloadStatus::Completed;
+    m_last_error.clear();
 }

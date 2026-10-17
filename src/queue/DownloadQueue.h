@@ -87,6 +87,8 @@ private:
     std::atomic<bool> m_stop_scheduler{false};
     void schedule_evaluator_loop();
     QueueSchedule m_schedule;
+    std::string m_last_started_min{""};
+    std::string m_last_stopped_min{""};
 
     std::string m_queue_name;
     int m_max_concurrent_tasks{3};
