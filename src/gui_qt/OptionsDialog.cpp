@@ -1,3 +1,10 @@
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include "OptionsDialog.h"
 
 #include <QVBoxLayout>
@@ -280,15 +287,16 @@ void OptionsDialog::loadSettings() {
     auto s = m_settings->get_settings();
 
     // General
-    m_launchOnStartupCheck->setChecked(true);
-    m_integrateChromeCheck->setChecked(s.enable_browser_interception);
-    m_integrateEdgeCheck->setChecked(s.enable_browser_interception);
-    m_integrateFirefoxCheck->setChecked(s.enable_browser_interception);
-    m_integrateBraveCheck->setChecked(s.enable_browser_interception);
-    m_clipboardMonitorCheck->setChecked(true);
+    m_launchOnStartupCheck->setChecked(s.launch_on_startup);
+    m_integrateChromeCheck->setChecked(s.integrate_chrome);
+    m_integrateEdgeCheck->setChecked(s.integrate_edge);
+    m_integrateFirefoxCheck->setChecked(s.integrate_firefox);
+    m_integrateBraveCheck->setChecked(s.integrate_brave);
+    m_clipboardMonitorCheck->setChecked(s.monitor_clipboard);
 
     // File Types
     m_fileTypesEdit->setText(QString::fromStdString(s.file_types));
+    m_exceptionSitesEdit->setText(QString::fromStdString(s.exception_sites));
 
     // Save To
     m_defaultDirEdit->setText(QString::fromStdString(s.default_download_directory));
@@ -317,8 +325,16 @@ void OptionsDialog::saveSettings() {
     if (!m_settings) return;
     auto s = m_settings->get_settings();
 
-    s.enable_browser_interception = m_integrateChromeCheck->isChecked() || m_integrateEdgeCheck->isChecked();
+    s.launch_on_startup = m_launchOnStartupCheck->isChecked();
+    s.integrate_chrome = m_integrateChromeCheck->isChecked();
+    s.integrate_edge = m_integrateEdgeCheck->isChecked();
+    s.integrate_firefox = m_integrateFirefoxCheck->isChecked();
+    s.integrate_brave = m_integrateBraveCheck->isChecked();
+    s.enable_browser_interception = s.integrate_chrome || s.integrate_edge || s.integrate_firefox || s.integrate_brave;
+    s.monitor_clipboard = m_clipboardMonitorCheck->isChecked();
+
     s.file_types = m_fileTypesEdit->text().trimmed().toStdString();
+    s.exception_sites = m_exceptionSitesEdit->text().trimmed().toStdString();
 
     QString defaultDir = m_defaultDirEdit->text().trimmed();
     if (!defaultDir.isEmpty()) {
@@ -348,7 +364,22 @@ void OptionsDialog::saveSettings() {
     s.antivirus_executable_path = m_antivirusPathEdit->text().trimmed().toStdString();
 
     m_settings->update_settings(s);
-    m_settings->save("settings.json");
+    m_settings->save();
+
+#ifdef _WIN32
+    HKEY hKey;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey) == ERROR_SUCCESS) {
+        if (s.launch_on_startup) {
+            char exePath[MAX_PATH];
+            if (GetModuleFileNameA(NULL, exePath, MAX_PATH) > 0) {
+                RegSetValueExA(hKey, "IDMan", 0, REG_SZ, reinterpret_cast<const BYTE*>(exePath), static_cast<DWORD>(strlen(exePath) + 1));
+            }
+        } else {
+            RegDeleteValueA(hKey, "IDMan");
+        }
+        RegCloseKey(hKey);
+    }
+#endif
 }
 
 void OptionsDialog::onSpeedModeChanged(int index) {

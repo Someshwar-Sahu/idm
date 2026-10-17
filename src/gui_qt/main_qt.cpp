@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
     if (appIcon.isNull()) appIcon = QIcon("src/gui_qt/idm.ico");
     app.setWindowIcon(appIcon);
 
-    auto settings = std::make_unique<SettingsManager>();
-    settings->load("settings.json");
+    auto settings = std::make_unique<SettingsManager>("settings.json");
+    settings->load();
 
     int maxConcurrent = settings->get_settings().max_concurrent_download;
     if (maxConcurrent <= 0) maxConcurrent = 3;

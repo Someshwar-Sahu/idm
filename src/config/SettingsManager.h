@@ -22,6 +22,14 @@ struct AppSettings {
     uint64_t manual_speed_limit_bps{0};
 
     bool enable_browser_interception{true};
+    bool launch_on_startup{true};
+    bool integrate_chrome{true};
+    bool integrate_edge{true};
+    bool integrate_firefox{true};
+    bool integrate_brave{true};
+    bool monitor_clipboard{true};
+    std::string exception_sites{""};
+
     bool antivirus_scan_enabled{true};
     std::string antivirus_executable_path{""};
 

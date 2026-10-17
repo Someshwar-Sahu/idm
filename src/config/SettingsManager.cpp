@@ -79,6 +79,13 @@ bool SettingsManager::load(const string &config_filepath) {
         m_settings.manual_speed_limit_bps = j.value("manual_speed_limit_bps", static_cast<uint64_t>(0));
 
         m_settings.enable_browser_interception = j.value("enable_browser_interception", true);
+        m_settings.launch_on_startup = j.value("launch_on_startup", true);
+        m_settings.integrate_chrome = j.value("integrate_chrome", true);
+        m_settings.integrate_edge = j.value("integrate_edge", true);
+        m_settings.integrate_firefox = j.value("integrate_firefox", true);
+        m_settings.integrate_brave = j.value("integrate_brave", true);
+        m_settings.monitor_clipboard = j.value("monitor_clipboard", true);
+        m_settings.exception_sites = j.value("exception_sites", "");
         m_settings.antivirus_scan_enabled = j.value("antivirus_scan_enabled", true);
         m_settings.antivirus_executable_path = j.value("antivirus_executable_path", "");
 
@@ -125,6 +132,13 @@ bool SettingsManager::save(const string &config_filepath) const {
         j["manual_speed_limit_bps"] = m_settings.manual_speed_limit_bps;
 
         j["enable_browser_interception"] = m_settings.enable_browser_interception;
+        j["launch_on_startup"] = m_settings.launch_on_startup;
+        j["integrate_chrome"] = m_settings.integrate_chrome;
+        j["integrate_edge"] = m_settings.integrate_edge;
+        j["integrate_firefox"] = m_settings.integrate_firefox;
+        j["integrate_brave"] = m_settings.integrate_brave;
+        j["monitor_clipboard"] = m_settings.monitor_clipboard;
+        j["exception_sites"] = m_settings.exception_sites;
         j["antivirus_scan_enabled"] = m_settings.antivirus_scan_enabled;
         j["antivirus_executable_path"] = m_settings.antivirus_executable_path;
 
