@@ -12,7 +12,7 @@
 **A high-performance, multithreaded download accelerator developed in modern C++ with a pure native Qt 6 desktop interface.**  
 *Engineered by the Student Engineering Team as an Academic Computer Science & Systems Programming Capstone Project.*
 
-[Installers](#pre-built-installers) • [Browser Extension Setup](#browser-extension-setup) • [Features](#key-features) • [Engine Architecture](#engine-architecture) • [Building From Source](#building-from-source) • [Project Notice](#academic-disclaimer)
+[Installers](#-pre-built-installers) • [Browser Extension Setup](#-browser-extension-setup) • [Features](#-key-features) • [Engine Architecture](#-engine-architecture) • [Building From Source](#-building-from-source) • [Project Notice](#-project-information--academic-disclaimer)
 
 </div>
 
@@ -27,7 +27,6 @@
 
 ---
 
-<a id="pre-built-installers"></a><a id="-pre-built-installers"></a>
 ## 📦 Pre-Built Installers
 
 Native release packages are compiled across all three operating systems via GitHub Actions CI/CD:
@@ -43,7 +42,6 @@ Native release packages are compiled across all three operating systems via GitH
 
 ---
 
-<a id="browser-extension-setup"></a><a id="-browser-extension-setup"></a>
 ## 🧩 Browser Extension Setup
 
 Because this is an independent academic project and not published on the commercial Google Chrome Web Store, the browser extension is loaded locally via **Developer Mode**:
@@ -92,7 +90,6 @@ Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan`
 
 ---
 
-<a id="key-features"></a><a id="-key-features"></a>
 ## ⚡ Key Features
 
 - **🚀 Dynamic Work-Stealing Chunking:**
@@ -128,7 +125,6 @@ Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan`
 
 ---
 
-<a id="engine-architecture"></a><a id="-engine-architecture"></a>
 ## 🏛️ Engine Architecture
 
 The application is structured into a modular, multi-tier architecture with clean separation between the user interface, network worker pool, and browser bridge:
@@ -162,7 +158,6 @@ The application is structured into a modular, multi-tier architecture with clean
 
 ---
 
-<a id="building-from-source"></a><a id="-building-from-source"></a>
 ## 💻 Building From Source
 
 ### Prerequisites
@@ -236,7 +231,6 @@ idm/
 
 ---
 
-<a id="academic-disclaimer"></a><a id="project-information--academic-disclaimer"></a><a id="-project-information--academic-disclaimer"></a>
 ## 🎓 Project Information & Academic Disclaimer
 
 This software is developed strictly for **academic, research, and educational demonstration** as a university computer science team capstone project.
