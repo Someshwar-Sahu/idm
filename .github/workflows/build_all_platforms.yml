@@ -76,6 +76,9 @@ jobs:
             qt6-base-dev \
             qt6-base-dev-tools \
             libqt6svg6-dev \
+            libgl1-mesa-dev \
+            libegl1-mesa-dev \
+            libxkbcommon-dev \
             libcurl4-openssl-dev \
             libssl-dev
 
@@ -107,25 +110,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Qt6 via Homebrew
-        run: |
-          brew update
-          brew install qt@6 ninja
+      - name: Install Qt 6.7.2
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.7.2'
+          arch: 'clang_64'
+
+      - name: Install Ninja
+        run: brew install ninja
 
       - name: Configure CMake
         run: |
-          QT_PATH=$(brew --prefix qt@6)
           cmake -B build -G "Ninja" \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$QT_PATH"
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
 
       - name: Build IDMan.app
         run: cmake --build build --target idm_app -j$(sysctl -n hw.ncpu)
 
       - name: Deploy macOS App & Create .dmg
         run: |
-          QT_PATH=$(brew --prefix qt@6)
-          $QT_PATH/bin/macdeployqt build/IDMan.app -dmg
+          "$QT_ROOT_DIR/bin/macdeployqt" build/IDMan.app -dmg
           mv build/IDMan.dmg build/IDMan_macOS_v6.42.dmg
 
       - name: Upload macOS Disk Image (.dmg)
@@ -133,3 +138,4 @@ jobs:
         with:
           name: IDMan_macOS_v6.42
           path: build/IDMan_macOS_v6.42.dmg
+
