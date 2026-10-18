@@ -7,7 +7,7 @@
 [![CI/CD Multi-Platform Build](https://github.com/Someshwar-Sahu/idm/actions/workflows/build_all_platforms.yml/badge.svg)](https://github.com/Someshwar-Sahu/idm/actions/workflows/build_all_platforms.yml)
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-17%20%2F%2020-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
 [![GUI Framework](https://img.shields.io/badge/GUI-Qt%206.7%20Native-41CD52?style=flat-square&logo=qt&logoColor=white)](https://www.qt.io/)
-[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](https://github.com/Someshwar-Sahu/idm/actions)
+[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](#-pre-built-installers)
 
 **A high-performance, multithreaded download accelerator developed in modern C++ with a pure native Qt 6 desktop interface.**  
 *Engineered by the Student Engineering Team as an Academic Computer Science & Systems Programming Capstone Project.*
