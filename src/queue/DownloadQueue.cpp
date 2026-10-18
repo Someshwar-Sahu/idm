@@ -35,8 +35,15 @@ void DownloadQueue::add_task(shared_ptr<DownloadTask> task){
 
 bool DownloadQueue::remove_task(const string &destination_filepath){
     lock_guard<mutex> lock(m_mutex);
+    auto normalizePath = [](const string& p) {
+        string norm = p;
+        for (char &c : norm) if (c == '\\') c = '/';
+        return norm;
+    };
+    string normTarget = normalizePath(destination_filepath);
     for(auto iter = m_tasks.begin(); iter != m_tasks.end(); ++iter){
-        if(*iter && ((*iter)->get_destination_filepath() == destination_filepath || (*iter)->get_url() == destination_filepath)){
+        if(*iter && (normalizePath((*iter)->get_destination_filepath()) == normTarget || (*iter)->get_url() == destination_filepath)){
+            m_dispatched_tasks.erase((*iter).get());
             if((*iter)->get_status() == DownloadStatus::Downloading){
                 (*iter)->pause();
             }
@@ -74,23 +81,26 @@ void DownloadQueue::start(QueueCompletionCallback completion_callback){
         m_completion_callback = completion_callback;
     }
 
-    bool was_running = (m_state == QueueState::Running);
+    if (m_state == QueueState::Running && m_queue_thread.joinable() && !m_stop_thread) {
+        return;
+    }
+
     m_stop_thread = false;
     m_state = QueueState::Running;
 
-    if (!was_running || !m_queue_thread.joinable()) {
-        if (m_queue_thread.joinable()) {
-            m_queue_thread.join();
-        }
-        m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
+    if (m_queue_thread.joinable()) {
+        m_queue_thread.join();
     }
+    m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
 }
 
 void DownloadQueue::pause() {
     m_state = QueueState::Paused;
     lock_guard<mutex> lock(m_mutex);
     for(auto &t: m_tasks){
-        if(t && (t->get_status() == DownloadStatus::Downloading || t->get_status() == DownloadStatus::Probing)){
+        if(t && (t->get_status() == DownloadStatus::Downloading || 
+                 t->get_status() == DownloadStatus::Probing ||
+                 m_dispatched_tasks.count(t.get()) > 0)){
             t->pause();
         }
     }
@@ -103,7 +113,9 @@ void DownloadQueue::stop() {
     {
         lock_guard<mutex> lock(m_mutex);
         for(auto &t: m_tasks){
-            if(t&& (t->get_status() == DownloadStatus::Downloading || t->get_status() == DownloadStatus::Probing)){
+            if(t && (t->get_status() == DownloadStatus::Downloading || 
+                     t->get_status() == DownloadStatus::Probing ||
+                     m_dispatched_tasks.count(t.get()) > 0)){
                 t->pause();
             }
         }
@@ -114,37 +126,71 @@ void DownloadQueue::stop() {
     }
 }
 
-bool DownloadQueue::resume_task(const string &destination_filepath) {
+bool DownloadQueue::resume_task(DownloadTask* task) {
+    if (!task) return false;
     bool found = false;
-    bool need_restart = false;
     {
         lock_guard<mutex> lock(m_mutex);
         for (auto &t : m_tasks) {
-            if (t && (t->get_destination_filepath() == destination_filepath || t->get_url() == destination_filepath)) {
+            if (t && t.get() == task) {
                 t->resume();
-                if (m_state != QueueState::Running) {
-                    m_state = QueueState::Running;
-                    m_stop_thread = false;
-                    need_restart = true;
-                }
                 found = true;
                 break;
             }
         }
     }
-    if (need_restart) {
-        if (m_queue_thread.joinable()) {
-            m_queue_thread.join();
+    if (found) {
+        start();
+    }
+    return found;
+}
+
+bool DownloadQueue::pause_task(DownloadTask* task) {
+    if (!task) return false;
+    lock_guard<mutex> lock(m_mutex);
+    for (auto &t : m_tasks) {
+        if (t && t.get() == task) {
+            t->pause();
+            return true;
         }
-        m_queue_thread = thread(&DownloadQueue::process_queue_loop, this);
+    }
+    return false;
+}
+
+bool DownloadQueue::resume_task(const string &destination_filepath) {
+    bool found = false;
+    auto normalizePath = [](const string& p) {
+        string norm = p;
+        for (char &c : norm) if (c == '\\') c = '/';
+        return norm;
+    };
+    string normTarget = normalizePath(destination_filepath);
+    {
+        lock_guard<mutex> lock(m_mutex);
+        for (auto &t : m_tasks) {
+            if (t && (normalizePath(t->get_destination_filepath()) == normTarget || t->get_url() == destination_filepath)) {
+                t->resume();
+                found = true;
+                break;
+            }
+        }
+    }
+    if (found) {
+        start();
     }
     return found;
 }
 
 bool DownloadQueue::pause_task(const string &destination_filepath) {
     lock_guard<mutex> lock(m_mutex);
+    auto normalizePath = [](const string& p) {
+        string norm = p;
+        for (char &c : norm) if (c == '\\') c = '/';
+        return norm;
+    };
+    string normTarget = normalizePath(destination_filepath);
     for (auto &t : m_tasks) {
-        if (t && (t->get_destination_filepath() == destination_filepath || t->get_url() == destination_filepath)) {
+        if (t && (normalizePath(t->get_destination_filepath()) == normTarget || t->get_url() == destination_filepath)) {
             t->pause();
             return true;
         }
@@ -192,6 +238,12 @@ size_t DownloadQueue::get_task_count() const {
 }
 
 void DownloadQueue::process_queue_loop() {
+    struct LoopGuard {
+        std::atomic<bool>& flag;
+        LoopGuard(std::atomic<bool>& f) : flag(f) { flag = true; }
+        ~LoopGuard() { flag = false; }
+    } guard(m_is_loop_running);
+
     while (!m_stop_thread && m_state == QueueState::Running) {
         this_thread::sleep_for(chrono::milliseconds(200));
 
@@ -201,7 +253,7 @@ void DownloadQueue::process_queue_loop() {
 
         {
             lock_guard<mutex> lock(m_mutex);
-            if (m_tasks.empty()) continue;
+            if (m_tasks.empty() || m_state != QueueState::Running || m_stop_thread) continue;
 
             int active_downloads = 0;
             int runnable_count = 0;
@@ -224,7 +276,7 @@ void DownloadQueue::process_queue_loop() {
                 }
             }
 
-            if (active_downloads < m_max_concurrent_tasks) {
+            if (m_state == QueueState::Running && !m_stop_thread && active_downloads < m_max_concurrent_tasks) {
                 for (auto &t : m_tasks) {
                     if (!t) continue;
                     auto status = t->get_status();

@@ -5,9 +5,9 @@
 
 using namespace std;
 
-ProgressTracker::ProgressTracker(uint64_t total_size)
+ProgressTracker::ProgressTracker(uint64_t total_size, uint64_t initial_downloaded)
     : m_total_size(total_size),
-      m_last_bytes(0),
+      m_last_bytes(initial_downloaded),
       m_current_speed_bps(0.0) {
     m_start_time = chrono::steady_clock::now();
     m_last_time = m_start_time;

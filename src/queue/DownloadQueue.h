@@ -46,6 +46,10 @@ public:
     void stop();
     bool resume_task(const std::string &destination_filepath);
     bool pause_task(const std::string &destination_filepath);
+    bool resume_task(DownloadTask* task);
+    bool pause_task(DownloadTask* task);
+    bool resume_task(const std::shared_ptr<DownloadTask>& task) { return resume_task(task.get()); }
+    bool pause_task(const std::shared_ptr<DownloadTask>& task) { return pause_task(task.get()); }
 
     void set_max_concurrent_tasks(int max_concurrent);
     int get_max_concurrent_tasks() const; 
@@ -92,12 +96,13 @@ private:
 
     std::string m_queue_name;
     int m_max_concurrent_tasks{3};
-    int m_max_total_threads{16};
+    int m_max_total_threads{0}; // 0 = unconstrained by default, preserves per-task configured thread counts
     PostQueueAction m_post_action{PostQueueAction::None};
 
     std::vector<std::shared_ptr<DownloadTask>> m_tasks;
     std::atomic<QueueState> m_state{QueueState::Stopped};
     std::atomic<bool> m_stop_thread{false};
+    std::atomic<bool> m_is_loop_running{false};
 
     mutable std::mutex m_mutex;
     QueueCompletionCallback m_completion_callback;

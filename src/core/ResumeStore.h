@@ -34,6 +34,12 @@ public:
 
     static bool exists(const std::string &sidecar_filepath);
     static bool remove(const std::string &sidecar_filepath);
+
+    static std::string get_effective_cache_dir(const std::string &cache_directory = "");
+    static uint64_t get_cache_size_bytes(const std::string &cache_directory = "");
+    static size_t prune_old_cache(int max_age_days = 7, const std::string &cache_directory = "");
+    static size_t enforce_cache_limit(uint64_t max_bytes, const std::string &cache_directory = "");
+    static size_t purge_all_cache(const std::string &cache_directory = "");
 };
 
 #endif 

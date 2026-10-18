@@ -56,6 +56,8 @@ private:
     QPushButton* m_browseDefaultDirBtn{nullptr};
     QLineEdit* m_tempDirEdit{nullptr};
     QPushButton* m_browseTempDirBtn{nullptr};
+    QSpinBox* m_maxCacheLimitSpin{nullptr};
+    QSpinBox* m_cacheExpirySpin{nullptr};
 
     // Tab 4: Connection
     QComboBox* m_connectionTypeCombo{nullptr};

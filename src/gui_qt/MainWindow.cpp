@@ -11,6 +11,7 @@
 #include "DownloadInfoDialog.h"
 #include "DownloadStatusDialog.h"
 #include "DownloadCompleteDialog.h"
+#include "DownloadCancelledDialog.h"
 #include "SchedulerDialog.h"
 #include "OptionsDialog.h"
 #include "../queue/DownloadQueue.h"
@@ -18,6 +19,7 @@
 #include "../media/StreamPreviewer.h"
 #include "../tools/ArchiveVerifier.h"
 #include "../security/Vault.h"
+#include "../core/ResumeStore.h"
 
 #include <QMenuBar>
 #include <QMenu>
@@ -305,9 +307,8 @@ void MainWindow::createTableView() {
     m_tableModel = new DownloadTableModel(m_queue, this);
     m_tableModel->attachQueues(&m_queues);
 
-    m_proxyModel = new QSortFilterProxyModel(this);
+    m_proxyModel = new TaskFilterProxyModel(this);
     m_proxyModel->setSourceModel(m_tableModel);
-    m_proxyModel->setFilterKeyColumn(DownloadTableModel::ColCategory);
     m_proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
 
     m_tableView = new QTableView(this);
@@ -389,10 +390,15 @@ std::shared_ptr<DownloadQueue> MainWindow::findQueueForTask(const std::shared_pt
         auto it = m_queues.find(QString::fromStdString(qName));
         if (it != m_queues.end()) return it->second;
     }
+    auto norm = [](std::string p) {
+        for (char& c : p) if (c == '\\') c = '/';
+        return p;
+    };
+    std::string taskTarget = norm(task->get_destination_filepath());
     for (const auto& [name, q] : m_queues) {
         if (!q) continue;
         for (const auto& t : q->get_tasks()) {
-            if (t && t->get_destination_filepath() == task->get_destination_filepath()) {
+            if (t && (t == task || (!taskTarget.empty() && norm(t->get_destination_filepath()) == taskTarget))) {
                 return q;
             }
         }
@@ -544,6 +550,35 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos) {
     }
 }
 
+bool TaskFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const {
+    auto* srcModel = qobject_cast<DownloadTableModel*>(sourceModel());
+    if (!srcModel) return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
+
+    auto task = srcModel->getTask(sourceRow);
+    if (!task) return false;
+
+    if (m_isQueueFilter) {
+        if (!m_filterText.isEmpty() && m_filterText != QStringLiteral("All Queues")) {
+            QString qName = QString::fromStdString(task->get_queue_name());
+            if (qName != m_filterText) return false;
+        }
+        auto st = task->get_status();
+        if (st == DownloadStatus::Completed || st == DownloadStatus::Cancelled) {
+            return false;
+        }
+        return true;
+    }
+
+    if (m_filterText.isEmpty() || m_filterText == QStringLiteral("All Downloads") ||
+        m_filterText == QStringLiteral("Categories") || m_filterText == QStringLiteral("Queues")) {
+        return true;
+    }
+
+    QModelIndex catIdx = srcModel->index(sourceRow, DownloadTableModel::ColCategory);
+    QString cat = srcModel->data(catIdx).toString();
+    return cat.compare(m_filterText, Qt::CaseInsensitive) == 0;
+}
+
 void MainWindow::onCategorySelected(QTreeWidgetItem* current, QTreeWidgetItem*) {
     if (!current || !m_proxyModel) return;
     QString cat = current->text(0);
@@ -551,16 +586,10 @@ void MainWindow::onCategorySelected(QTreeWidgetItem* current, QTreeWidgetItem*) 
 
     if (current->parent() == m_queuesRootItem) {
         m_isQueueFilter = true;
-        m_proxyModel->setFilterKeyColumn(DownloadTableModel::ColQueue);
-        m_proxyModel->setFilterFixedString(cat);
+        m_proxyModel->setQueueMode(true, cat);
     } else {
         m_isQueueFilter = false;
-        m_proxyModel->setFilterKeyColumn(DownloadTableModel::ColCategory);
-        if (cat == QStringLiteral("All Downloads") || cat == QStringLiteral("Categories") || cat == QStringLiteral("Queues")) {
-            m_proxyModel->setFilterRegularExpression(QString());
-        } else {
-            m_proxyModel->setFilterFixedString(cat);
-        }
+        m_proxyModel->setQueueMode(false, cat);
     }
 }
 
@@ -617,9 +646,10 @@ void MainWindow::onResumeClicked() {
     auto task = m_tableModel->getTask(sourceRow);
     if (!task) return;
 
+    task->resume();
     auto q = findQueueForTask(task);
     if (q) {
-        q->resume_task(task->get_destination_filepath());
+        q->resume_task(task.get());
         q->start();
     }
     m_tableModel->refreshTasks();
@@ -634,7 +664,7 @@ void MainWindow::onPauseClicked() {
 
     auto q = findQueueForTask(task);
     if (q) {
-        q->pause_task(task->get_destination_filepath());
+        q->pause_task(task.get());
     }
     m_tableModel->refreshTasks();
 }
@@ -688,8 +718,9 @@ void MainWindow::onDeleteClicked() {
         std::error_code ec;
         if (!destPath.empty()) {
             std::filesystem::remove(destPath, ec);
-            std::string sidecar = destPath + ".idm_sidecar";
-            std::filesystem::remove(sidecar, ec);
+            ResumeStore::remove(task->get_sidecar_filepath());
+            std::filesystem::remove(destPath + ".progress.json", ec);
+            std::filesystem::remove(destPath + ".idm_sidecar", ec);
         }
         statusBar()->showMessage(QStringLiteral("Permanently deleted '%1' from disk and removed from IDM").arg(fileName), 3000);
     }
@@ -745,8 +776,9 @@ void MainWindow::onDeleteFileClicked() {
         std::error_code ec;
         if (!destPath.empty()) {
             std::filesystem::remove(destPath, ec);
-            std::string sidecar = destPath + ".idm_sidecar";
-            std::filesystem::remove(sidecar, ec);
+            ResumeStore::remove(task->get_sidecar_filepath());
+            std::filesystem::remove(destPath + ".progress.json", ec);
+            std::filesystem::remove(destPath + ".idm_sidecar", ec);
         }
         statusBar()->showMessage(QStringLiteral("Permanently deleted '%1' from disk").arg(fileName), 3000);
     }
@@ -840,7 +872,7 @@ void MainWindow::onTableDoubleClicked(const QModelIndex& index) {
                 task->resume();
                 auto q = findQueueForTask(task);
                 if (q) {
-                    q->resume_task(task->get_destination_filepath());
+                    q->resume_task(task.get());
                     q->start();
                 }
                 m_tableModel->refreshTasks();
@@ -848,6 +880,10 @@ void MainWindow::onTableDoubleClicked(const QModelIndex& index) {
             return;
         }
         QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(task->get_destination_filepath())));
+    } else if (task->get_status() == DownloadStatus::Cancelled) {
+        auto q = findQueueForTask(task);
+        auto* cancelledDlg = new DownloadCancelledDialog(task, q ? q.get() : m_queue, m_tableModel, this);
+        cancelledDlg->show();
     } else {
         auto q = findQueueForTask(task);
         auto* statusDlg = new DownloadStatusDialog(task, q ? q.get() : m_queue, this);
@@ -900,7 +936,7 @@ void MainWindow::onTableContextMenuRequested(const QPoint& pos) {
             task->resume();
             auto q = findQueueForTask(task);
             if (q) {
-                q->resume_task(task->get_destination_filepath());
+                q->resume_task(task.get());
                 q->start();
             }
             if (m_tableModel) m_tableModel->refreshTasks();
@@ -1165,6 +1201,12 @@ void MainWindow::onRefreshTimerTick() {
     if (activeCount > 0 || s_lastActiveCount > 0 || totalTasks != s_lastTaskCount || (s_tick % 5 == 0)) {
         if (m_tableModel) m_tableModel->refreshTasks();
     }
+    if (s_tick % 300 == 0 && m_settings) {
+        auto s = m_settings->get_settings();
+        uint64_t maxCacheBytes = s.max_cache_size_mb * 1024ULL * 1024ULL;
+        ResumeStore::enforce_cache_limit(maxCacheBytes, s.cache_directory);
+        ResumeStore::prune_old_cache(s.cache_expiry_days, s.cache_directory);
+    }
     s_lastActiveCount = activeCount;
     s_lastTaskCount = totalTasks;
 }
@@ -1311,7 +1353,7 @@ void MainWindow::onRefreshUrlClicked() {
         task->resume();
         auto q = findQueueForTask(task);
         if (q) {
-            q->resume_task(task->get_destination_filepath());
+            q->resume_task(task.get());
             q->start();
         }
         if (m_tableModel) m_tableModel->refreshTasks();
@@ -1407,7 +1449,16 @@ void MainWindow::onVerifyChecksumClicked() {
     connect(compEdit, &QLineEdit::textChanged, doVerify);
 
     QString clip = QGuiApplication::clipboard()->text().trimmed();
-    if (!clip.isEmpty() && clip.length() >= 32) {
+    auto isHexHash = [](const QString& str) {
+        if (str.length() != 32 && str.length() != 40 && str.length() != 64) return false;
+        for (QChar ch : str) {
+            if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) {
+                return false;
+            }
+        }
+        return true;
+    };
+    if (!clip.isEmpty() && isHexHash(clip)) {
         compEdit->setText(clip);
         doVerify();
     }

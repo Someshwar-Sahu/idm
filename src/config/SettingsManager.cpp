@@ -73,6 +73,8 @@ bool SettingsManager::load(const string &config_filepath) {
 
         m_settings.default_download_directory = j.value("default_download_directory", default_dir);
         m_settings.cache_directory = j.value("cache_directory", m_settings.default_download_directory + "/Cache");
+        m_settings.max_cache_size_mb = j.value("max_cache_size_mb", static_cast<uint64_t>(1024));
+        m_settings.cache_expiry_days = j.value("cache_expiry_days", 7);
         m_settings.max_concurrent_download = j.value("max_concurrent_download", 3);
         m_settings.default_connections_per_task = j.value("default_connections_per_task", 8);
 
@@ -127,6 +129,8 @@ bool SettingsManager::save(const string &config_filepath) const {
         json j;
         j["default_download_directory"] = m_settings.default_download_directory;
         j["cache_directory"] = m_settings.cache_directory;
+        j["max_cache_size_mb"] = m_settings.max_cache_size_mb;
+        j["cache_expiry_days"] = m_settings.cache_expiry_days;
         j["max_concurrent_download"] = m_settings.max_concurrent_download;
         j["default_connections_per_task"] = m_settings.default_connections_per_task;
 

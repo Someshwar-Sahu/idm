@@ -80,6 +80,7 @@ add_executable(idm_app
     src/gui_qt/DownloadStatusDialog.cpp
     src/gui_qt/SegmentedProgressWidget.cpp
     src/gui_qt/DownloadCompleteDialog.cpp
+    src/gui_qt/DownloadCancelledDialog.cpp
     src/gui_qt/SchedulerDialog.cpp
     src/gui_qt/SecurityWarningDialog.cpp
     src/gui_qt/OptionsDialog.cpp

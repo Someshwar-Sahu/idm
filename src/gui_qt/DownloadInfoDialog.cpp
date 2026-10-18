@@ -282,8 +282,13 @@ void DownloadInfoDialog::probeUrlAsync(const QString& urlStr) {
     std::string cookies = m_cookies.toStdString();
     std::string userAgent = m_userAgent.toStdString();
 
-    std::thread([safeThis, cancelled, url, referer, cookies, userAgent]() {
-        DownloadTask task(url, "tmp.bin", 1, 0, referer, cookies, userAgent);
+    std::string initialFilename = DownloadTask::extract_filename_from_url(url);
+    if (initialFilename.empty() || initialFilename == "/" || initialFilename == "\\") {
+        initialFilename = "download.bin";
+    }
+
+    std::thread([safeThis, cancelled, url, referer, cookies, userAgent, initialFilename]() {
+        DownloadTask task(url, initialFilename, 1, 0, referer, cookies, userAgent);
         bool ok = task.probe_url();
         if (cancelled->load()) return;
         uint64_t total = task.get_total_size();
@@ -305,7 +310,7 @@ void DownloadInfoDialog::probeUrlAsync(const QString& urlStr) {
                 safeThis->m_fileSizeLabel->setText(QStringLiteral("Unknown (Streaming / Dynamic)"));
             }
 
-            if (!probedFilename.empty() && probedFilename != "tmp.bin" && probedFilename != "download.bin") {
+            if (!probedFilename.empty() && probedFilename != "tmp.bin" && probedFilename != "download.bin" && probedFilename.rfind("tmp.", 0) != 0) {
                 safeThis->setCustomFilename(QString::fromStdString(probedFilename));
             }
         }, Qt::QueuedConnection);

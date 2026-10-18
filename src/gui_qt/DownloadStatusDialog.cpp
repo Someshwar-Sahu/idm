@@ -136,12 +136,27 @@ void DownloadStatusDialog::onRefreshTick() {
     if (status == DownloadStatus::Downloading) {
         m_statusLabel->setText(QStringLiteral("<font color='#34d399'>Downloading</font>"));
         m_pauseResumeBtn->setText(QStringLiteral("Pause"));
+        m_pauseResumeBtn->setEnabled(true);
+    } else if (status == DownloadStatus::NotStarted) {
+        m_statusLabel->setText(QStringLiteral("<font color='#60a5fa'>Connecting...</font>"));
+        m_pauseResumeBtn->setText(QStringLiteral("Pause"));
+        m_pauseResumeBtn->setEnabled(true);
+    } else if (status == DownloadStatus::Probing) {
+        m_statusLabel->setText(QStringLiteral("<font color='#60a5fa'>Connecting to server...</font>"));
+        m_pauseResumeBtn->setText(QStringLiteral("Pause"));
+        m_pauseResumeBtn->setEnabled(true);
     } else if (status == DownloadStatus::Paused) {
         m_statusLabel->setText(QStringLiteral("<font color='#fbbf24'>Paused</font>"));
         m_pauseResumeBtn->setText(QStringLiteral("Resume"));
+        m_pauseResumeBtn->setEnabled(true);
+    } else if (status == DownloadStatus::Cancelled) {
+        m_statusLabel->setText(QStringLiteral("<font color='#fb923c'>Cancelled</font>"));
+        m_pauseResumeBtn->setText(QStringLiteral("Resume"));
+        m_pauseResumeBtn->setEnabled(true);
     } else if (status == DownloadStatus::Completed) {
         m_statusLabel->setText(QStringLiteral("<font color='#10b981'>Complete</font>"));
         m_overrideBtn->setVisible(false);
+        m_pauseResumeBtn->setEnabled(false);
     } else if (status == DownloadStatus::Failed) {
         std::string err = m_task->get_last_error();
         bool isSecurityAlert = (err.find("Security Warning") != std::string::npos || err.find("Threat detected") != std::string::npos);
@@ -180,6 +195,8 @@ void DownloadStatusDialog::onRefreshTick() {
             std::string errStr = err.empty() ? "Server connection failed" : err;
             m_statusLabel->setText(QStringLiteral("<font color='#f87171'><b>Error:</b> %1</font>").arg(QString::fromStdString(errStr)));
             m_overrideBtn->setVisible(false);
+            m_pauseResumeBtn->setText(QStringLiteral("Resume"));
+            m_pauseResumeBtn->setEnabled(true);
         }
     }
 
@@ -217,17 +234,31 @@ void DownloadStatusDialog::onOverrideSecurityClicked() {
 }
 
 void DownloadStatusDialog::onPauseResumeClicked() {
-    if (!m_task || !m_queue) return;
-    if (m_task->get_status() == DownloadStatus::Downloading) {
-        m_queue->pause_task(m_task->get_destination_filepath());
-    } else if (m_task->get_status() == DownloadStatus::Paused) {
-        m_queue->resume_task(m_task->get_destination_filepath());
-        m_queue->start();
+    if (!m_task) return;
+    auto status = m_task->get_status();
+    if (status == DownloadStatus::Downloading || status == DownloadStatus::NotStarted || status == DownloadStatus::Probing) {
+        if (m_queue) {
+            m_queue->pause_task(m_task.get());
+        }
+        m_task->pause();
+        m_statusLabel->setText(QStringLiteral("<font color='#fbbf24'>Paused</font>"));
+        m_pauseResumeBtn->setText(QStringLiteral("Resume"));
+    } else if (status == DownloadStatus::Paused || status == DownloadStatus::Cancelled || status == DownloadStatus::Failed) {
+        m_task->resume();
+        if (m_queue) {
+            m_queue->resume_task(m_task.get());
+            m_queue->start();
+        }
+        m_statusLabel->setText(QStringLiteral("<font color='#60a5fa'>Connecting...</font>"));
+        m_pauseResumeBtn->setText(QStringLiteral("Pause"));
     }
 }
 
 void DownloadStatusDialog::onCancelClicked() {
-    if (!m_task || !m_queue) return;
-    m_queue->remove_task(m_task->get_destination_filepath());
+    if (!m_task) return;
+    m_task->cancel();
+    if (m_queue) {
+        m_queue->pause_task(m_task.get());
+    }
     close();
 }

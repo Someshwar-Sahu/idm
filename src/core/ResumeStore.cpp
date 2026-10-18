@@ -10,12 +10,22 @@ using namespace std;
 using json = nlohmann::json;
 
 string ResumeStore::get_sidecar_filepath(const string &destination_filepath, const string &cache_directory){
-    if(cache_directory.empty()){
-        return destination_filepath + ".progress.json";
-    }
     namespace fs = std::filesystem;
+    string effective_cache = cache_directory;
+    if (effective_cache.empty()) {
+#ifdef _WIN32
+        const char* localAppData = getenv("LOCALAPPDATA");
+        if (localAppData && strlen(localAppData) > 0) {
+            effective_cache = (fs::path(localAppData) / "IDM" / "cache").string();
+        } else {
+            effective_cache = (fs::temp_directory_path() / "IDM_Cache").string();
+        }
+#else
+        effective_cache = (fs::temp_directory_path() / "IDM_Cache").string();
+#endif
+    }
     try{
-        fs::path cache_path(cache_directory);
+        fs::path cache_path(effective_cache);
         std::error_code ec;
         fs::create_directories(cache_path, ec);
 
@@ -145,13 +155,120 @@ bool ResumeStore::load(const string &sidecar_filepath,
 }
 
 bool ResumeStore::exists(const string &sidecar_filepath){
-    ifstream file(sidecar_filepath);
-    return file.good();
+    if (sidecar_filepath.empty()) return false;
+    std::error_code ec;
+    return std::filesystem::exists(sidecar_filepath, ec);
 }
 
 bool ResumeStore::remove(const string &sidecar_filepath){
-    if(exists(sidecar_filepath)){
-        return std::remove(sidecar_filepath.c_str()) == 0;
+    if (sidecar_filepath.empty()) return false;
+    std::error_code ec;
+    return std::filesystem::remove(sidecar_filepath, ec);
+}
+
+string ResumeStore::get_effective_cache_dir(const string &cache_directory) {
+    namespace fs = std::filesystem;
+    if (!cache_directory.empty()) return cache_directory;
+#ifdef _WIN32
+    const char* localAppData = getenv("LOCALAPPDATA");
+    if (localAppData && strlen(localAppData) > 0) {
+        return (fs::path(localAppData) / "IDM" / "cache").string();
     }
-    return true;
+#endif
+    return (fs::temp_directory_path() / "IDM_Cache").string();
+}
+
+uint64_t ResumeStore::get_cache_size_bytes(const string &cache_directory) {
+    namespace fs = std::filesystem;
+    uint64_t total = 0;
+    string dir = get_effective_cache_dir(cache_directory);
+    std::error_code ec;
+    if (!fs::exists(dir, ec)) return 0;
+    for (const auto& entry : fs::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file(ec)) {
+            total += entry.file_size(ec);
+        }
+    }
+    return total;
+}
+
+size_t ResumeStore::prune_old_cache(int max_age_days, const string &cache_directory) {
+    if (max_age_days <= 0) return 0;
+    namespace fs = std::filesystem;
+    string dir = get_effective_cache_dir(cache_directory);
+    std::error_code ec;
+    if (!fs::exists(dir, ec)) return 0;
+
+    auto now = fs::file_time_type::clock::now();
+    auto max_age = std::chrono::hours(24 * max_age_days);
+    size_t removed = 0;
+
+    for (const auto& entry : fs::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file(ec)) {
+            auto last_write = entry.last_write_time(ec);
+            if (now - last_write > max_age) {
+                if (fs::remove(entry.path(), ec)) {
+                    removed++;
+                }
+            }
+        }
+    }
+    return removed;
+}
+
+size_t ResumeStore::enforce_cache_limit(uint64_t max_bytes, const string &cache_directory) {
+    if (max_bytes == 0) return 0;
+    namespace fs = std::filesystem;
+    string dir = get_effective_cache_dir(cache_directory);
+    std::error_code ec;
+    if (!fs::exists(dir, ec)) return 0;
+
+    struct FileEntry {
+        fs::path path;
+        uint64_t size;
+        fs::file_time_type time;
+    };
+    vector<FileEntry> files;
+    uint64_t total = 0;
+
+    for (const auto& entry : fs::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file(ec)) {
+            uint64_t sz = entry.file_size(ec);
+            total += sz;
+            files.push_back({entry.path(), sz, entry.last_write_time(ec)});
+        }
+    }
+
+    if (total <= max_bytes) return 0;
+
+    std::sort(files.begin(), files.end(), [](const FileEntry& a, const FileEntry& b) {
+        return a.time < b.time;
+    });
+
+    size_t removed = 0;
+    uint64_t target = static_cast<uint64_t>(max_bytes * 0.8);
+    for (const auto& f : files) {
+        if (total <= target) break;
+        if (fs::remove(f.path, ec)) {
+            total = (total > f.size) ? (total - f.size) : 0;
+            removed++;
+        }
+    }
+    return removed;
+}
+
+size_t ResumeStore::purge_all_cache(const string &cache_directory) {
+    namespace fs = std::filesystem;
+    string dir = get_effective_cache_dir(cache_directory);
+    std::error_code ec;
+    if (!fs::exists(dir, ec)) return 0;
+    size_t removed = 0;
+    for (const auto& entry : fs::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file(ec)) {
+            if (fs::remove(entry.path(), ec)) {
+                removed++;
+            }
+        }
+    }
+    return removed;
 }

@@ -44,6 +44,7 @@ public:
     void pause();
     void resume();
     void cancel();
+    void clear_cache_and_partial_file();
 
     void set_speed_limit(uint64_t max_bytes_per_sec);
     uint64_t get_speed_limit() const;

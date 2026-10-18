@@ -112,6 +112,7 @@ QVariant DownloadTableModel::data(const QModelIndex& index, int role) const {
             if (st == DownloadStatus::Completed) return QColor(52, 211, 153); // #34d399 green
             if (st == DownloadStatus::Downloading) return QColor(96, 165, 250); // #60a5fa blue
             if (st == DownloadStatus::Paused) return QColor(251, 191, 36); // #fbbf24 amber
+            if (st == DownloadStatus::Cancelled) return QColor(251, 146, 60); // #fb923c orange
             if (st == DownloadStatus::Failed) return QColor(248, 113, 113); // #f87171 red
         }
     }
@@ -233,10 +234,26 @@ std::shared_ptr<DownloadTask> DownloadTableModel::getTask(int row) const {
     return nullptr;
 }
 
+static std::string normalizeTaskPath(const std::string& p) {
+    std::string norm = p;
+    for (char& c : norm) {
+        if (c == '\\') c = '/';
+    }
+    return norm;
+}
+
+static bool isSameTask(const std::shared_ptr<DownloadTask>& a, const std::shared_ptr<DownloadTask>& b) {
+    if (!a || !b) return false;
+    if (a.get() == b.get()) return true;
+    std::string pathA = normalizeTaskPath(a->get_destination_filepath());
+    std::string pathB = normalizeTaskPath(b->get_destination_filepath());
+    return !pathA.empty() && pathA == pathB;
+}
+
 void DownloadTableModel::addTask(const std::shared_ptr<DownloadTask>& task) {
     if (!task) return;
     for (const auto& t : m_masterTasks) {
-        if (t && (t->get_destination_filepath() == task->get_destination_filepath() || t->get_url() == task->get_url())) {
+        if (isSameTask(t, task)) {
             return;
         }
     }
@@ -245,8 +262,9 @@ void DownloadTableModel::addTask(const std::shared_ptr<DownloadTask>& task) {
 }
 
 bool DownloadTableModel::removeTask(const std::string& destination_filepath) {
+    std::string normTarget = normalizeTaskPath(destination_filepath);
     for (auto it = m_masterTasks.begin(); it != m_masterTasks.end(); ++it) {
-        if (*it && ((*it)->get_destination_filepath() == destination_filepath || (*it)->get_url() == destination_filepath)) {
+        if (*it && (normalizeTaskPath((*it)->get_destination_filepath()) == normTarget || (*it)->get_url() == destination_filepath)) {
             m_masterTasks.erase(it);
             refreshTasks();
             return true;
@@ -264,7 +282,7 @@ void DownloadTableModel::refreshTasks() {
                     if (!t) continue;
                     bool exists = false;
                     for (const auto& mt : m_masterTasks) {
-                        if (mt && (mt->get_destination_filepath() == t->get_destination_filepath() || mt->get_url() == t->get_url())) {
+                        if (isSameTask(mt, t)) {
                             exists = true;
                             break;
                         }
@@ -280,7 +298,7 @@ void DownloadTableModel::refreshTasks() {
             if (!t) continue;
             bool exists = false;
             for (const auto& mt : m_masterTasks) {
-                if (mt && (mt->get_destination_filepath() == t->get_destination_filepath() || mt->get_url() == t->get_url())) {
+                if (isSameTask(mt, t)) {
                     exists = true;
                     break;
                 }
@@ -306,8 +324,9 @@ void DownloadTableModel::refreshTasks() {
 }
 
 void DownloadTableModel::onTaskProgressUpdated(const std::string& taskId) {
+    std::string normTarget = normalizeTaskPath(taskId);
     for (int row = 0; row < static_cast<int>(m_tasks.size()); ++row) {
-        if (m_tasks[row] && m_tasks[row]->get_destination_filepath() == taskId) {
+        if (m_tasks[row] && (normalizeTaskPath(m_tasks[row]->get_destination_filepath()) == normTarget || m_tasks[row]->get_url() == taskId)) {
             emit dataChanged(index(row, 0), index(row, ColCount - 1));
             break;
         }

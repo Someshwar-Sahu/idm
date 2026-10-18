@@ -8,7 +8,7 @@
 
 class ProgressTracker {
 public:
-    ProgressTracker(uint64_t total_size);
+    ProgressTracker(uint64_t total_size, uint64_t initial_downloaded = 0);
 
     void update(uint64_t current_downloaded_bytes);
 

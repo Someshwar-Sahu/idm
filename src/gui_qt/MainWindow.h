@@ -21,6 +21,27 @@
 
 class SettingsManager;
 
+class TaskFilterProxyModel : public QSortFilterProxyModel {
+public:
+    explicit TaskFilterProxyModel(QObject* parent = nullptr) : QSortFilterProxyModel(parent) {}
+
+    void setQueueMode(bool isQueue, const QString& filterText) {
+        m_isQueueFilter = isQueue;
+        m_filterText = filterText;
+        invalidateRowsFilter();
+    }
+
+    bool isQueueMode() const { return m_isQueueFilter; }
+    QString filterText() const { return m_filterText; }
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
+
+private:
+    bool m_isQueueFilter{false};
+    QString m_filterText;
+};
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -95,7 +116,7 @@ private:
     QTreeWidgetItem* m_queuesRootItem{nullptr};
     SettingsManager* m_settings{nullptr};
     DownloadTableModel* m_tableModel{nullptr};
-    QSortFilterProxyModel* m_proxyModel{nullptr};
+    TaskFilterProxyModel* m_proxyModel{nullptr};
     ProgressBarDelegate* m_progressDelegate{nullptr};
 
     // UI Widgets

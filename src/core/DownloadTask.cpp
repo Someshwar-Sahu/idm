@@ -601,6 +601,10 @@ bool DownloadTask::start(ProgressCallback callback) {
             return false;
         }
     }
+    if (m_pause_requested.load()) {
+        m_status = DownloadStatus::Paused;
+        return false;
+    }
     m_pause_requested = false;
 
     bool is_resuming = false;
@@ -712,7 +716,8 @@ bool DownloadTask::start(ProgressCallback callback) {
         return false;
     }
 
-    m_progress_tracker = make_unique<ProgressTracker>(m_total_size);
+    uint64_t initial_bytes = m_chunk_manager ? m_chunk_manager->get_total_downloaded_bytes() : 0;
+    m_progress_tracker = make_unique<ProgressTracker>(m_total_size, initial_bytes);
     m_thread_pool = make_unique<ThreadPool>(m_supports_ranges ? m_num_threads : 1);
 
     m_status = DownloadStatus::Downloading;
@@ -726,7 +731,8 @@ bool DownloadTask::start(ProgressCallback callback) {
             while (!m_pause_requested && !m_chunk_manager->is_complete()) {
                 auto chunk_opt = m_chunk_manager->get_next_pending_chunk();
                 if (!chunk_opt.has_value()) {
-                    chunk_opt = m_chunk_manager->steal_slowest_chunk(10 * 1024 * 1024, m_num_threads);
+                    size_t max_chunks = std::max<size_t>(32, static_cast<size_t>(m_num_threads * 2));
+                    chunk_opt = m_chunk_manager->steal_slowest_chunk(1024 * 1024, max_chunks);
                     if (!chunk_opt.has_value()) {
                         // Wait briefly for donor chunks to establish or finish
                         std::this_thread::sleep_for(std::chrono::milliseconds(150));
@@ -751,6 +757,7 @@ bool DownloadTask::start(ProgressCallback callback) {
         });
     }
 
+    bool was_paused = false;
     while (!m_pause_requested && !m_chunk_manager->is_complete()) {
         if (m_chunk_manager->has_failed()) {
             m_last_error = "One or more chunks failed to download after maximum retries.";
@@ -767,15 +774,22 @@ bool DownloadTask::start(ProgressCallback callback) {
         this_thread::sleep_for(chrono::milliseconds(200));
     }
 
-    bool paused = m_pause_requested.load() || (m_status == DownloadStatus::Paused);
-    if (paused) {
+    if (m_pause_requested.load() || m_status == DownloadStatus::Paused) {
+        was_paused = true;
+    }
+
+    if (was_paused || m_pause_requested.load() || m_status == DownloadStatus::Paused) {
         m_thread_pool.reset();
         m_file_writer->close();
         ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager, m_supports_ranges);
-        if (m_status != DownloadStatus::NotStarted) {
+        if (m_status != DownloadStatus::NotStarted && m_status != DownloadStatus::Cancelled) {
             m_status = DownloadStatus::Paused;
         }
-        cout << "[DownloadTask] Download paused successfully." << endl;
+        if (m_status == DownloadStatus::Cancelled) {
+            cout << "[DownloadTask] Download cancelled successfully." << endl;
+        } else {
+            cout << "[DownloadTask] Download paused successfully." << endl;
+        }
         return true;
     }
 
@@ -842,6 +856,20 @@ void DownloadTask::resume() {
 
 void DownloadTask::cancel() {
     pause();
+    m_status = DownloadStatus::Cancelled;
+}
+
+void DownloadTask::clear_cache_and_partial_file() {
+    pause();
+    std::error_code ec;
+    if (!m_destination_filepath.empty()) {
+        std::filesystem::remove(m_destination_filepath, ec);
+    }
+    if (!m_sidecar_filepath.empty()) {
+        ResumeStore::remove(m_sidecar_filepath);
+    }
+    m_chunk_manager.reset();
+    m_progress_tracker.reset();
     m_status = DownloadStatus::Cancelled;
 }
 

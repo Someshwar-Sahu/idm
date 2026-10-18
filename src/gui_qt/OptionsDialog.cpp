@@ -7,6 +7,7 @@
 
 #include "OptionsDialog.h"
 #include "../native_host/NativeHost.h"
+#include "../core/ResumeStore.h"
 #include <filesystem>
 
 #include <QVBoxLayout>
@@ -18,6 +19,24 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QTimer>
+#include <sstream>
+#include <iomanip>
+
+namespace {
+QString formatBytes(uint64_t bytes) {
+    if (bytes == 0) return QStringLiteral("0 B");
+    static const char* units[] = {"B", "KB", "MB", "GB", "TB"};
+    int unitIndex = 0;
+    double size = static_cast<double>(bytes);
+    while (size >= 1024.0 && unitIndex < 4) {
+        size /= 1024.0;
+        unitIndex++;
+    }
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(unitIndex == 0 ? 0 : 2) << size << " " << units[unitIndex];
+    return QString::fromStdString(ss.str());
+}
+}
 
 OptionsDialog::OptionsDialog(SettingsManager* settings, QWidget* parent)
     : QDialog(parent), m_settings(settings) {
@@ -137,6 +156,42 @@ void OptionsDialog::setupUi() {
     dirGrid->addWidget(m_browseTempDirBtn, 1, 2);
 
     saveLayout->addWidget(dirGroup);
+
+    auto* cacheLimitGroup = new QGroupBox(QStringLiteral("Cache Management & Storage Limits"), tabSaveTo);
+    auto* cacheGrid = new QGridLayout(cacheLimitGroup);
+    cacheGrid->setHorizontalSpacing(10);
+    cacheGrid->setVerticalSpacing(10);
+
+    uint64_t curBytes = ResumeStore::get_cache_size_bytes(m_settings ? m_settings->get_settings().cache_directory : "");
+    auto* cacheSizeLabel = new QLabel(QStringLiteral("Current cache usage: <b>%1</b>").arg(formatBytes(curBytes)), cacheLimitGroup);
+    cacheGrid->addWidget(cacheSizeLabel, 0, 0, 1, 2);
+
+    auto* purgeBtn = new QPushButton(QStringLiteral("Purge All Cache"), cacheLimitGroup);
+    purgeBtn->setStyleSheet(QStringLiteral("background: #3f3f46; color: #f4f4f5; font-size: 11px;"));
+    connect(purgeBtn, &QPushButton::clicked, this, [this, cacheSizeLabel]() {
+        std::string cDir = m_settings ? m_settings->get_settings().cache_directory : "";
+        size_t count = ResumeStore::purge_all_cache(cDir);
+        cacheSizeLabel->setText(QStringLiteral("Current cache usage: <b>0 B</b>"));
+        QMessageBox::information(this, QStringLiteral("Cache Purged"),
+            QStringLiteral("Purged %1 cache/sidecar file(s) and reclaimed disk space!").arg(count));
+    });
+    cacheGrid->addWidget(purgeBtn, 0, 2);
+
+    cacheGrid->addWidget(new QLabel(QStringLiteral("Max Cache Limit:"), cacheLimitGroup), 1, 0);
+    m_maxCacheLimitSpin = new QSpinBox(cacheLimitGroup);
+    m_maxCacheLimitSpin->setRange(100, 50000);
+    m_maxCacheLimitSpin->setSuffix(QStringLiteral(" MB"));
+    m_maxCacheLimitSpin->setValue(m_settings ? static_cast<int>(m_settings->get_settings().max_cache_size_mb) : 1024);
+    cacheGrid->addWidget(m_maxCacheLimitSpin, 1, 1);
+
+    cacheGrid->addWidget(new QLabel(QStringLiteral("Auto-prune cache older than:"), cacheLimitGroup), 2, 0);
+    m_cacheExpirySpin = new QSpinBox(cacheLimitGroup);
+    m_cacheExpirySpin->setRange(1, 90);
+    m_cacheExpirySpin->setSuffix(QStringLiteral(" days"));
+    m_cacheExpirySpin->setValue(m_settings ? m_settings->get_settings().cache_expiry_days : 7);
+    cacheGrid->addWidget(m_cacheExpirySpin, 2, 1);
+
+    saveLayout->addWidget(cacheLimitGroup);
 
     auto* catDescGroup = new QGroupBox(QStringLiteral("Category Subdirectories"), tabSaveTo);
     auto* catDescLayout = new QVBoxLayout(catDescGroup);
@@ -304,6 +359,8 @@ void OptionsDialog::loadSettings() {
     // Save To
     m_defaultDirEdit->setText(QString::fromStdString(s.default_download_directory));
     m_tempDirEdit->setText(QString::fromStdString(s.cache_directory));
+    if (m_maxCacheLimitSpin) m_maxCacheLimitSpin->setValue(s.max_cache_size_mb > 0 ? static_cast<int>(s.max_cache_size_mb) : 1024);
+    if (m_cacheExpirySpin) m_cacheExpirySpin->setValue(s.cache_expiry_days > 0 ? s.cache_expiry_days : 7);
 
     // Connection
     m_maxConcurrentSpin->setValue(s.max_concurrent_download > 0 ? s.max_concurrent_download : 3);
@@ -353,6 +410,9 @@ void OptionsDialog::saveSettings() {
         s.cache_directory = tempDir.toStdString();
         QDir().mkpath(tempDir);
     }
+
+    if (m_maxCacheLimitSpin) s.max_cache_size_mb = static_cast<uint64_t>(m_maxCacheLimitSpin->value());
+    if (m_cacheExpirySpin) s.cache_expiry_days = m_cacheExpirySpin->value();
 
     s.max_concurrent_download = m_maxConcurrentSpin->value();
     s.default_connections_per_task = m_connectionsPerTaskCombo->currentText().toInt();

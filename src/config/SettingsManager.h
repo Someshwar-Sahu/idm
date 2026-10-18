@@ -15,6 +15,8 @@ enum class SpeedLimiterMode {
 struct AppSettings {
     std::string default_download_directory{"C:/Downloads"};
     std::string cache_directory{"C:/Downloads/Cache"};
+    uint64_t max_cache_size_mb{1024};
+    int cache_expiry_days{7};
     int max_concurrent_download{3};
     int default_connections_per_task{8};
 
