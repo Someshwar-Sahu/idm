@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="wsBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+
+    <!-- Bar Gradients -->
+    <linearGradient id="barGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="barOrange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="barBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="eventPillGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0369a1"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <!-- Arrow Markers with userSpaceOnUse to prevent giant distortion -->
+    <marker id="wsArrowCyan" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="wsArrowAmber" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#fbbf24"/>
+    </marker>
+
+    <!-- Shadow -->
+    <filter id="wsShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <style>
+    .ws-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 19px; font-weight: 700; fill: #f8fafc; }
+    .ws-subtitle { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12.5px; font-weight: 400; fill: #94a3b8; }
+    .ws-box-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 700; fill: #f1f5f9; }
+    .ws-box-desc { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 400; fill: #94a3b8; }
+    .ws-thread { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; fill: #cbd5e1; }
+    .ws-pill-text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 700; text-anchor: middle; }
+    .ws-action-text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+    .ws-footer-note { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11.5px; font-weight: 500; fill: #38bdf8; }
+  </style>
+
+  <!-- Background Canvas -->
+  <rect width="1000" height="480" rx="16" fill="url(#wsBg)" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- Main Header -->
+  <text x="50" y="42" class="ws-title">⚡ Dynamic Chunk Work-Stealing Algorithm</text>
+  <text x="50" y="64" class="ws-subtitle">How idle threads automatically bisect and divide slow connections to maximize download throughput</text>
+
+  <!-- ========================================================================= -->
+  <!-- STATE 1: BOTTLENECK (UNEVEN SERVER PERFORMANCE)                           -->
+  <!-- ========================================================================= -->
+  <g filter="url(#wsShadow)">
+    <rect x="50" y="85" width="900" height="130" rx="12" fill="#131c2e" stroke="#253349" stroke-width="1.2"/>
+    
+    <!-- State 1 Header -->
+    <circle cx="72" cy="110" r="5" fill="#f59e0b"/>
+    <text x="85" y="114" class="ws-box-title">State 1: Uneven Server Mirror Performance</text>
+    <text x="690" y="114" class="ws-box-desc">Connection Bottleneck Detected (Thread 2 Stalls)</text>
+
+    <!-- Thread 1: Chunk 1 Completed -->
+    <text x="75" y="145" class="ws-thread">Thread 1</text>
+    <text x="145" y="145" class="ws-box-desc">[Chunk 1: 0 - 50 MB]</text>
+    <rect x="320" y="131" width="410" height="20" rx="6" fill="#1e293b"/>
+    <rect x="320" y="131" width="410" height="20" rx="6" fill="url(#barGreen)"/>
+    <rect x="755" y="129" width="115" height="24" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+    <text x="812" y="145" class="ws-pill-text" fill="#6ee7b7">100% IDLE</text>
+
+    <!-- Thread 2: Chunk 2 Stalled -->
+    <text x="75" y="185" class="ws-thread">Thread 2</text>
+    <text x="145" y="185" class="ws-box-desc">[Chunk 2: 50 - 100 MB]</text>
+    <rect x="320" y="171" width="410" height="20" rx="6" fill="#1e293b"/>
+    <rect x="320" y="171" width="164" height="20" rx="6" fill="url(#barOrange)"/>
+    <rect x="755" y="169" width="165" height="24" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1"/>
+    <text x="837" y="185" class="ws-pill-text" fill="#fde68a">40% SLOW STREAM</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- TRANSITION EVENT: DYNAMIC SPLIT & WORK-STEALING ACTION                    -->
+  <!-- ========================================================================= -->
+  <!-- Thread 1 Idle Trigger Arrow -->
+  <path d="M 380,215 L 440,230" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-dasharray="4 2"/>
+  
+  <!-- Thread 2 Slow Segment Trigger Arrow -->
+  <path d="M 620,215 L 560,230" fill="none" stroke="#fbbf24" stroke-width="1.8" stroke-dasharray="4 2"/>
+
+  <!-- Centered Action Pill -->
+  <g filter="url(#wsShadow)">
+    <rect x="260" y="222" width="480" height="32" rx="16" fill="url(#eventPillGrad)" stroke="#38bdf8" stroke-width="1.2"/>
+    <text x="500" y="242" class="ws-action-text">⚡ Thread 1 Steals &amp; Bisects Remaining 60 MB of Chunk 2</text>
+  </g>
+
+  <!-- Clean Downward Pointer to State 2 (no boundary clipping) -->
+  <line x1="500" y1="254" x2="500" y2="280" stroke="#38bdf8" stroke-width="2" marker-end="url(#wsArrowCyan)"/>
+
+  <!-- ========================================================================= -->
+  <!-- STATE 2: ACCELERATED DOWNLOAD (POST WORK-STEALING)                        -->
+  <!-- ========================================================================= -->
+  <g filter="url(#wsShadow)">
+    <rect x="50" y="286" width="900" height="165" rx="12" fill="#131c2e" stroke="#253349" stroke-width="1.2"/>
+    
+    <!-- State 2 Header -->
+    <circle cx="72" cy="311" r="5" fill="#10b981"/>
+    <text x="85" y="315" class="ws-box-title">State 2: Saturated Bandwidth (Parallel Sub-Chunks)</text>
+    <text x="670" y="315" class="ws-box-desc">Dual Threads Accelerate Remaining Bytes in Parallel</text>
+
+    <!-- Thread 2: Handles Sub-chunk 2a -->
+    <text x="75" y="347" class="ws-thread">Thread 2</text>
+    <text x="145" y="347" class="ws-box-desc">[Sub-chunk 2a: 50 - 75 MB]</text>
+    <rect x="320" y="333" width="410" height="20" rx="6" fill="#1e293b"/>
+    <rect x="320" y="333" width="348" height="20" rx="6" fill="url(#barGreen)"/>
+    <rect x="755" y="331" width="145" height="24" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+    <text x="827" y="347" class="ws-pill-text" fill="#6ee7b7">85% Finishing Soon</text>
+
+    <!-- Thread 1: Handles Sub-chunk 2b (STOLEN) -->
+    <text x="75" y="389" class="ws-thread" fill="#38bdf8">Thread 1 ⚡</text>
+    <text x="145" y="389" class="ws-box-desc">[Sub-chunk 2b: 75 - 100 MB]</text>
+    <rect x="320" y="375" width="410" height="20" rx="6" fill="#1e293b"/>
+    <rect x="320" y="375" width="307" height="20" rx="6" fill="url(#barBlue)"/>
+    <rect x="755" y="373" width="165" height="24" rx="6" fill="#082f49" stroke="#0284c7" stroke-width="1"/>
+    <text x="837" y="389" class="ws-pill-text" fill="#38bdf8">75% High-Speed Steal</text>
+
+    <!-- Result / Efficiency Summary inside State 2 -->
+    <circle cx="72" cy="425" r="3" fill="#38bdf8"/>
+    <text x="85" y="429" class="ws-footer-note">⚡ Result: Both threads actively transfer data concurrently — eliminates idle wait time and delivers up to 2.4x speedup on slow mirrors.</text>
+  </g>
+</svg>

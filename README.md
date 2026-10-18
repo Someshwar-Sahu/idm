@@ -8,12 +8,11 @@
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-17%20%2F%2020-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
 [![GUI Framework](https://img.shields.io/badge/GUI-Qt%206.7%20Native-41CD52?style=flat-square&logo=qt&logoColor=white)](https://www.qt.io/)
 [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](https://github.com/Someshwar-Sahu/idm/actions)
-[![License](https://img.shields.io/badge/License-MIT%20Academic-blue?style=flat-square)](#-academic-disclaimer--license)
 
 **A high-performance, multithreaded download accelerator developed in modern C++ with a pure native Qt 6 desktop interface.**  
-*Engineered as an Academic Computer Science & Systems Programming Capstone Project.*
+*Engineered by the Student Engineering Team as an Academic Computer Science & Systems Programming Capstone Project.*
 
-[Installers](#-pre-built-installers) • [Browser Extension Setup](#-browser-extension-setup) • [Features](#-key-features) • [Engine Architecture](#-engine-architecture--internals) • [Building From Source](#-building-from-source) • [Disclaimer](#-academic-disclaimer--license)
+[Installers](#-pre-built-installers) • [Browser Extension Setup](#-browser-extension-setup) • [Features](#-key-features) • [Engine Architecture](#-engine-architecture--internals) • [Building From Source](#-building-from-source) • [Project Notice](#-project-information--academic-disclaimer)
 
 </div>
 
@@ -34,12 +33,12 @@ Native release packages are compiled across all three operating systems via GitH
 
 | Operating System | Package | Architecture | Features | Download |
 | :--- | :---: | :---: | :--- | :---: |
-| 🪟 **Windows** | **`.exe`** | 64-bit (`x86_64`) | Standalone Inno Setup Wizard, Desktop & Start Menu shortcuts, native browser host registration, zero terminal popups. | [**Download .exe**](https://github.com/Someshwar-Sahu/idm/actions) |
-| 🍏 **macOS** | **`.dmg`** | Apple Silicon & Intel | Native Apple Disk Image with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](https://github.com/Someshwar-Sahu/idm/actions) |
-| 🐧 **Linux** | **`.deb`** | Ubuntu / Debian | Native `.deb` package installable via `sudo dpkg -i` on Ubuntu, Debian, Linux Mint, and Pop!_OS. | [**Download .deb**](https://github.com/Someshwar-Sahu/idm/actions) |
-| 🐧 **Linux** | **`.tar.gz`** | Universal Linux | Portable tarball archive with pre-linked binaries for Arch, Fedora, openSUSE, etc. | [**Download .tar.gz**](https://github.com/Someshwar-Sahu/idm/actions) |
+| 🪟 **Windows** | **`.exe`** | 64-bit (`x86_64`) | Standalone Inno Setup Wizard, Desktop & Start Menu shortcuts, native browser host registration, zero terminal popups. | [**Download .exe**](../../actions) |
+| 🍏 **macOS** | **`.dmg`** | Apple Silicon & Intel | Native Apple Disk Image with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](../../actions) |
+| 🐧 **Linux** | **`.deb`** | Ubuntu / Debian | Native `.deb` package installable via `sudo dpkg -i` on Ubuntu, Debian, Linux Mint, and Pop!_OS. | [**Download .deb**](../../actions) |
+| 🐧 **Linux** | **`.tar.gz`** | Universal Linux | Portable tarball archive with pre-linked binaries for Arch, Fedora, openSUSE, etc. | [**Download .tar.gz**](../../actions) |
 
-> 💡 **Where to download:** In the GitHub repository, navigate to the [**Actions**](https://github.com/Someshwar-Sahu/idm/actions) tab, open the latest workflow run, and scroll to the **Artifacts** table at the bottom of the page to download any package.
+> 💡 **Where to download:** In the GitHub repository, navigate to the [**Actions**](../../actions) tab, open the latest workflow run, and scroll to the **Artifacts** table at the bottom of the page to download any package.
 
 ---
 
@@ -96,6 +95,10 @@ Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan`
 - **🚀 Dynamic Work-Stealing Chunking:**
   Files are divided into concurrent byte-range streams (configurable up to 32 connections). Faster worker threads that finish early dynamically bisect and assist slower connections, eliminating lagging tails and saturating available network bandwidth.
 
+  <p align="center">
+    <img src="docs/work_stealing.svg" alt="Dynamic Chunk Work-Stealing Flow Diagram" width="100%"/>
+  </p>
+
 - **🛡️ State Recovery & Resilient Resume:**
   Non-destructive sidecar metadata (`.idm`) persists chunk boundaries, downloaded byte offsets, and ETags. Downloads can be paused and resumed cleanly across network drops or system reboots.
 
@@ -122,35 +125,36 @@ Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan`
 
 ---
 
-## 🏛️ Engine Architecture & Internals
+## 🏛️ Engine Architecture & System Design
 
-```mermaid
-graph TD
-    subgraph Browser Layer
-        Web[Web Page / Video Stream] --> Ext[Chrome / Edge Manifest V3 Extension]
-        Ext -->|Native Messaging JSON-RPC| Bridge[Native Host Bridge Process]
-    end
+The application is structured into a modular, multi-tier architecture with clean separation between the user interface, network worker pool, and browser bridge:
 
-    subgraph IPC & Control
-        Bridge -->|Local Socket / Named Pipe| Server[IPC Local Server]
-        UI[Native Qt 6 GUI] -->|Signals & Slots| Engine[IDM Core Engine]
-        Server --> Engine
-    end
+<p align="center">
+  <img src="docs/architecture.svg" alt="IDM Multi-Tier Architecture Diagram" width="100%"/>
+</p>
 
-    subgraph Core Acceleration Pipeline
-        Engine --> Task[DownloadTaskManager]
-        Task --> Chunks[Chunk Worker Thread Pool]
-        Chunks --> Stealer[Dynamic Work-Stealing Coordinator]
-        Stealer -->|Bisects Slow Chunks| Chunks
-        Chunks --> Writer[Asynchronous File Assembler]
-        Writer --> Sidecar[State Recovery / .idm Sidecar]
-    end
+### 🔄 End-to-End Download Pipeline
 
-    subgraph Queue & Scheduling
-        Queue[DownloadQueue] --> Scheduler[QueueScheduler]
-        Scheduler --> Task
-    end
-```
+1. **Capture**: Browser Extension intercepts media streams or download URLs via context menus and download listeners.
+2. **IPC Bridge**: The extension dispatches a JSON-RPC payload over standard I/O to the C++ Native Messaging Host, which forwards it to the local IDM IPC Server.
+3. **Task Initialization**: `DownloadTaskManager` probes the remote URL (detecting HTTP Range support, file size, MIME type, and redirect URLs).
+4. **Dynamic Chunking**: The file is segmented into parallel byte ranges, distributed across active worker threads in the pool.
+5. **Work-Stealing**: Faster threads monitor slower connections; if a chunk stalls, an idle thread automatically bisects the slowest segment and takes over the remaining range.
+6. **Sparse Assembly & Verification**: Data chunks are committed to pre-allocated sparse storage alongside `.idm` state sidecars, followed by CRC32 / SHA256 integrity checks.
+
+---
+
+### 🧩 Subsystem Architecture
+
+| Subsystem | Source Location | Engineering Responsibility |
+| :--- | :--- | :--- |
+| **🌐 Browser Bridge** | [`src/native_host/`](src/native_host/) | Manifest V3 Native Messaging Host bridging browser events to the desktop application. |
+| **🔌 IPC Server** | [`src/ipc/`](src/ipc/) | Local domain socket server handling asynchronous JSON-RPC commands and event dispatching. |
+| **🖥️ Native Qt 6 GUI** | [`src/gui_qt/`](src/gui_qt/) | Pure C++ desktop interface with segmented progress bars, system tray alerts, and category sorting. |
+| **⚡ Acceleration Core** | [`src/core/`](src/core/) | Multithreaded chunk worker pool with real-time dynamic work-stealing and slow-chunk splitting. |
+| **🛡️ Resilience Engine** | [`src/core/`](src/core/) | Non-destructive sidecar state persistence (`.idm`) enabling seamless pause and resume across network drops. |
+| **⏱️ Queue Scheduler** | [`src/queue/`](src/queue/) | FIFO queue manager with concurrency limits, calendar scheduling, and post-queue power triggers. |
+| **🔐 Credential Vault** | [`src/security/`](src/security/) | Encrypted credential store managing authenticated servers (HTTP Basic, Digest, Bearer). |
 
 ---
 
@@ -227,10 +231,10 @@ idm/
 
 ---
 
-## 📜 Academic Disclaimer & License
+## 🎓 Project Information & Academic Disclaimer
 
-This software is developed strictly for **academic, research, and educational demonstration** as a university computer science capstone project. 
+This software is developed strictly for **academic, research, and educational demonstration** as a university computer science team capstone project.
 
-- Licensed under the **[MIT License](LICENSE)**.
-- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files to use, study, copy, modify, and distribute the software for educational purposes.
-- All product and company names are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.
+- **Clean-Room Implementation**: Developed from first principles using standard networking protocols and open-source libraries (Qt 6, libcurl, nlohmann/json).
+- **Non-Commercial**: This is an educational student submission and is not intended for commercial distribution or sale.
+- **Trademark Notice**: All product names, logos, and brands are property of their respective owners. Mention of them is solely for comparative study and academic evaluation.

@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+
+    <!-- Card Gradients -->
+    <linearGradient id="cardCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#083344" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#0e7490" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="cardIndigo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#4338ca" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="cardEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064e3b" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="cardAmber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#451a03" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="cardRose" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4c0519" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#e11d48" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- Stroke Gradients -->
+    <linearGradient id="strokeCyan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="strokeIndigo" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="strokeEmerald" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="strokeAmber" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="strokeRose" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+
+    <!-- Arrow Markers with userSpaceOnUse to prevent giant distortion -->
+    <marker id="arrowCyan" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowIndigo" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#a5b4fc"/>
+    </marker>
+    <marker id="arrowEmerald" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#34d399"/>
+    </marker>
+    <marker id="arrowAmber" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrowRose" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L0,7 L7,4 z" fill="#fb7185"/>
+    </marker>
+
+    <!-- Shadow -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 700; fill: #f8fafc; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12.5px; font-weight: 400; fill: #94a3b8; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14.5px; font-weight: 700; }
+    .card-text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; font-weight: 400; fill: #cbd5e1; }
+    .badge { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; text-anchor: middle; }
+    .conn-label { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; text-anchor: middle; fill: #cbd5e1; }
+    .code-tag { font-family: 'SF Mono', Consolas, Monaco, monospace; font-size: 10.5px; fill: #94a3b8; }
+  </style>
+
+  <!-- Background Canvas -->
+  <rect width="1000" height="680" rx="16" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="1.5"/>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 1: BROWSER INTEGRATION (CYAN)                                      -->
+  <!-- ========================================================================= -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="24" width="900" height="92" rx="12" fill="url(#cardCyan)" stroke="url(#strokeCyan)" stroke-width="1.5"/>
+    <circle cx="82" cy="70" r="18" fill="#083344" stroke="#06b6d4" stroke-width="1"/>
+    <text x="82" y="76" text-anchor="middle" font-size="18">🌐</text>
+    
+    <!-- Title & Subtitle (Left aligned with plenty of margin) -->
+    <text x="115" y="58" class="title">Browser Integration Layer (Manifest V3)</text>
+    <text x="115" y="82" class="subtitle">Intercepts media streams, downloads, and context menu events in Chrome &amp; Edge</text>
+
+    <!-- Component Badges (Right aligned with safe spacing) -->
+    <rect x="615" y="52" width="145" height="34" rx="7" fill="#082f49" stroke="#0284c7" stroke-width="1"/>
+    <text x="687" y="73" class="badge" fill="#38bdf8">Extension content.js</text>
+
+    <rect x="770" y="52" width="165" height="34" rx="7" fill="#082f49" stroke="#0284c7" stroke-width="1"/>
+    <text x="852" y="73" class="badge" fill="#38bdf8">Background Service Worker</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- CONNECTION 1 -> 2: Standard I/O Native Messaging Bridge                   -->
+  <!-- ========================================================================= -->
+  <!-- Down arrow directly into Native Messaging Host (x=195) -->
+  <path d="M 220,116 L 220,172" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrowCyan)"/>
+  <rect x="100" y="132" width="240" height="22" rx="11" fill="#0f172a" stroke="#0284c7" stroke-width="1.2"/>
+  <text x="220" y="147" class="badge" fill="#38bdf8">Native Messaging (JSON-RPC / stdio)</text>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 2: IPC & APPLICATION INTERFACE (INDIGO)                             -->
+  <!-- ========================================================================= -->
+  <g filter="url(#shadow)">
+    <!-- Subcard 1: Native Host (x: 50, w: 275) -->
+    <rect x="50" y="176" width="275" height="112" rx="10" fill="url(#cardIndigo)" stroke="url(#strokeIndigo)" stroke-width="1.5"/>
+    <text x="70" y="204" class="card-title" fill="#a5b4fc">🔌 Native Messaging Host</text>
+    <text x="70" y="226" class="card-text">• Stdio JSON-RPC packet bridge</text>
+    <text x="70" y="246" class="card-text">• Dispatches URLs to IPC server</text>
+    <text x="70" y="271" class="code-tag">src/native_host/NativeHost.cpp</text>
+
+    <!-- Subcard 2: Localhost IPC Server (x: 362, w: 276) -->
+    <rect x="362" y="176" width="276" height="112" rx="10" fill="url(#cardIndigo)" stroke="url(#strokeIndigo)" stroke-width="1.5"/>
+    <text x="382" y="204" class="card-title" fill="#a5b4fc">⚡ Localhost IPC Server</text>
+    <text x="382" y="226" class="card-text">• Asynchronous domain sockets</text>
+    <text x="382" y="246" class="card-text">• Decoupled bidirectional events</text>
+    <text x="382" y="271" class="code-tag">src/ipc/LocalServer.cpp</text>
+
+    <!-- Subcard 3: Native Qt 6 GUI (x: 675, w: 275) -->
+    <rect x="675" y="176" width="275" height="112" rx="10" fill="url(#cardIndigo)" stroke="url(#strokeIndigo)" stroke-width="1.5"/>
+    <text x="695" y="204" class="card-title" fill="#a5b4fc">🖥️ Native Qt 6 Desktop UI</text>
+    <text x="695" y="226" class="card-text">• Segmented progress visuals</text>
+    <text x="695" y="246" class="card-text">• System tray &amp; TaskTableModel</text>
+    <text x="695" y="271" class="code-tag">src/gui_qt/MainWindow.cpp</text>
+  </g>
+
+  <!-- Horizontal Connector 1: Native Host -> IPC Server -->
+  <line x1="325" y1="232" x2="356" y2="232" stroke="#a5b4fc" stroke-width="2" marker-end="url(#arrowIndigo)"/>
+
+  <!-- Horizontal Connector 2: IPC Server <-> Qt 6 Desktop UI (Bidirectional) -->
+  <line x1="638" y1="232" x2="669" y2="232" stroke="#a5b4fc" stroke-width="2" marker-end="url(#arrowIndigo)"/>
+
+  <!-- ========================================================================= -->
+  <!-- CONNECTION 2 -> 3: Internal C++ Thread Dispatch                           -->
+  <!-- ========================================================================= -->
+  <line x1="500" y1="288" x2="500" y2="348" stroke="#34d399" stroke-width="2" marker-end="url(#arrowEmerald)"/>
+  <rect x="385" y="306" width="230" height="24" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+  <text x="500" y="322" class="badge" fill="#6ee7b7">Internal C++ Thread Dispatch</text>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 3: CORE ACCELERATION & QUEUE ENGINE (EMERALD)                       -->
+  <!-- ========================================================================= -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="352" width="900" height="110" rx="12" fill="url(#cardEmerald)" stroke="url(#strokeEmerald)" stroke-width="1.5"/>
+    <circle cx="82" cy="385" r="18" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+    <text x="82" y="391" text-anchor="middle" font-size="18">⚡</text>
+    
+    <text x="115" y="380" class="title">IDM Core Engine &amp; Queue Scheduler</text>
+    <text x="115" y="401" class="subtitle">Multi-connection HTTP/1.1 range orchestration, queue automation, and bandwidth control</text>
+
+    <!-- Sub-Pills evenly distributed inside Layer 3 -->
+    <rect x="70" y="416" width="265" height="32" rx="7" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="202" y="436" class="badge" fill="#6ee7b7">DownloadTaskManager</text>
+
+    <rect x="367" y="416" width="266" height="32" rx="7" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="500" y="436" class="badge" fill="#6ee7b7">FIFO Queue Scheduler &amp; Timers</text>
+
+    <rect x="665" y="416" width="265" height="32" rx="7" fill="#022c22" stroke="#059669" stroke-width="1"/>
+    <text x="797" y="436" class="badge" fill="#6ee7b7">Smart Auto-QoS Speed Limiter</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- CONNECTION 3 -> 4: Range Allocation & Disk Writers                       -->
+  <!-- ========================================================================= -->
+  <!-- Left Arrow to Dynamic Work-Stealing Pool (x: 270) -->
+  <line x1="270" y1="462" x2="270" y2="505" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  
+  <!-- Right Arrow to Resilient File Assembler (x: 730) -->
+  <line x1="730" y1="462" x2="730" y2="505" stroke="#fb7185" stroke-width="2" marker-end="url(#arrowRose)"/>
+
+  <!-- ========================================================================= -->
+  <!-- LAYER 4: WORK-STEALING POOL & DISK PERSISTENCE (AMBER & ROSE)             -->
+  <!-- ========================================================================= -->
+  <g filter="url(#shadow)">
+    <!-- Dynamic Work-Stealing Workers (x: 50, w: 435, h: 140) -->
+    <rect x="50" y="510" width="435" height="142" rx="10" fill="url(#cardAmber)" stroke="url(#strokeAmber)" stroke-width="1.5"/>
+    <text x="70" y="538" class="card-title" fill="#fde68a">🔄 Dynamic Chunk Work-Stealing Pool</text>
+    <text x="70" y="562" class="card-text">• Splits file into concurrent byte-range streams (up to 32)</text>
+    <text x="70" y="582" class="card-text">• Faster idle threads bisect and steal slow lagging chunks</text>
+    <text x="70" y="602" class="card-text">• Maximizes network throughput without bandwidth stalls</text>
+    <text x="70" y="632" class="code-tag">src/core/ChunkWorker.cpp &amp; DownloadTask.cpp</text>
+
+    <!-- Resilient File Assembler & Sidecar Recovery (x: 515, w: 435, h: 140) -->
+    <rect x="515" y="510" width="435" height="142" rx="10" fill="url(#cardRose)" stroke="url(#strokeRose)" stroke-width="1.5"/>
+    <text x="535" y="538" class="card-title" fill="#fecdd3">🛡️ Resilient File Assembler &amp; Sidecar Recovery</text>
+    <text x="535" y="562" class="card-text">• Pre-allocated sparse files prevent out-of-order fragmentation</text>
+    <text x="535" y="582" class="card-text">• State sidecars (.idm) guarantee atomic pause/resume safety</text>
+    <text x="535" y="602" class="card-text">• Automatic post-download CRC32 / SHA256 checksum verifier</text>
+    <text x="535" y="632" class="code-tag">src/core/FileWriter.cpp &amp; src/tools/ArchiveVerifier.cpp</text>
+  </g>
+</svg>
