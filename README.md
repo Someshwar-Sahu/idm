@@ -34,11 +34,10 @@ Native release packages are compiled across all three operating systems via GitH
 | Operating System | Package | Architecture | Features | Download |
 | :--- | :---: | :---: | :--- | :---: |
 | 🪟 **Windows** | **`.exe`** | 64-bit (`x86_64`) | Standalone Inno Setup Wizard, Desktop & Start Menu shortcuts, native browser host registration, zero terminal popups. | [**Download .exe**](../../releases/latest/download/IDMan_Setup_v6.42.exe) |
-| 🍏 **macOS** | **`.dmg`** | Apple Silicon & Intel | Native Apple Disk Image with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](../../releases/latest/download/IDMan_macOS_v6.42.dmg) |
-| 🐧 **Linux** | **`.deb`** | Ubuntu / Debian | Native `.deb` package installable via `sudo dpkg -i` on Ubuntu, Debian, Linux Mint, and Pop!_OS. | [**Download .deb**](../../releases/latest/download/idman-6.42.0-Linux.deb) |
-| 🐧 **Linux** | **`.tar.gz`** | Universal Linux | Portable tarball archive with pre-linked binaries for Arch, Fedora, openSUSE, etc. | [**Download .tar.gz**](../../releases/latest/download/idman-6.42.0-Linux.tar.gz) |
+| 🍏 **macOS** | **`.dmg (zip)`** | Apple Silicon & Intel | Native Apple Disk Image (`IDMan_macOS_v6.42.dmg`) with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](../../releases/latest/download/IDMan_macOS_v6.42.zip) |
+| 🐧 **Linux** | **`.deb / .tar.gz`** | Universal Linux | Complete package bundle containing native Debian package (`.deb`) and portable archive (`.tar.gz`). | [**Download Linux**](../../releases/latest/download/IDMan_Linux_Packages.zip) |
 
-> 💡 **Direct Downloads:** Binaries are published under [**Releases**](../../releases/latest). Select your operating system above to start downloading immediately.
+> 💡 **Direct Downloads:** Pre-built release binaries are published under [**Releases**](../../releases/latest). Click any link above to start downloading immediately.
 
 ---
 
