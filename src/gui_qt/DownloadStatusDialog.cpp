@@ -177,7 +177,8 @@ void DownloadStatusDialog::onRefreshTick() {
                 }
             }
         } else {
-            m_statusLabel->setText(QStringLiteral("<font color='#f87171'>Error</font>"));
+            std::string errStr = err.empty() ? "Server connection failed" : err;
+            m_statusLabel->setText(QStringLiteral("<font color='#f87171'><b>Error:</b> %1</font>").arg(QString::fromStdString(errStr)));
             m_overrideBtn->setVisible(false);
         }
     }

@@ -172,6 +172,19 @@ QVariant DownloadTableModel::data(const QModelIndex& index, int role) const {
                     if (err.find("Threat detected") != std::string::npos || err.find("Security Warning") != std::string::npos) {
                         return QStringLiteral("Threat Blocked");
                     }
+                    if (err.find("HTTP 403") != std::string::npos) {
+                        return QStringLiteral("Error (HTTP 403 Forbidden)");
+                    }
+                    if (err.find("HTTP 404") != std::string::npos) {
+                        return QStringLiteral("Error (HTTP 404 Not Found)");
+                    }
+                    if (err.find("HTTP 401") != std::string::npos) {
+                        return QStringLiteral("Error (HTTP 401 Unauthorized)");
+                    }
+                    size_t http_pos = err.find("HTTP ");
+                    if (http_pos != std::string::npos) {
+                        return QString::fromStdString("Error (" + err.substr(http_pos, 8) + ")");
+                    }
                     return QStringLiteral("Error");
                 }
                 return statusToString(task->get_status());
