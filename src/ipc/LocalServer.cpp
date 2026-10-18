@@ -1753,7 +1753,7 @@ bool LocalServer::start(const std::string& host, int port) {
     server_addr.sin_port = htons(static_cast<uint16_t>(m_port));
     server_addr.sin_addr.s_addr = inet_addr(m_host.c_str());
 
-    if (bind(s, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) == SOCKET_ERROR) {
+    if (::bind(s, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) == SOCKET_ERROR) {
         std::cerr << "[LocalServer] Failed to bind to " << m_host << ":" << m_port << std::endl;
         CLOSESOCKET(s);
         return false;

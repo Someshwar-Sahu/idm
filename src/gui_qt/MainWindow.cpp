@@ -163,7 +163,8 @@ void MainWindow::setupUi() {
 
 void MainWindow::createMenuBar() {
     QMenu* tasksMenu = menuBar()->addMenu(QStringLiteral("&Tasks"));
-    tasksMenu->addAction(style()->standardIcon(QStyle::SP_FileIcon), QStringLiteral("Add &new download..."), QKeySequence::New, this, &MainWindow::onAddUrlClicked);
+    QAction* addAct = tasksMenu->addAction(style()->standardIcon(QStyle::SP_FileIcon), QStringLiteral("Add &new download..."), this, &MainWindow::onAddUrlClicked);
+    addAct->setShortcut(QKeySequence::New);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_MediaPlay), QStringLiteral("&Resume download"), this, &MainWindow::onResumeClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_MediaPause), QStringLiteral("&Stop download"), this, &MainWindow::onPauseClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_MediaStop), QStringLiteral("Stop &all"), this, &MainWindow::onStopAllClicked);
@@ -171,7 +172,8 @@ void MainWindow::createMenuBar() {
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_TrashIcon), QStringLiteral("Remove from IDM (keep file)"), this, &MainWindow::onRemoveFromListClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_DialogDiscardButton), QStringLiteral("Delete file from disk..."), this, &MainWindow::onDeleteFileClicked);
     tasksMenu->addSeparator();
-    tasksMenu->addAction(style()->standardIcon(QStyle::SP_DialogCloseButton), QStringLiteral("E&xit"), QKeySequence::Quit, qApp, &QCoreApplication::quit);
+    QAction* exitAct = tasksMenu->addAction(style()->standardIcon(QStyle::SP_DialogCloseButton), QStringLiteral("E&xit"), qApp, &QCoreApplication::quit);
+    exitAct->setShortcut(QKeySequence::Quit);
 
     QMenu* downloadsMenu = menuBar()->addMenu(QStringLiteral("&Downloads"));
     downloadsMenu->addAction(style()->standardIcon(QStyle::SP_FileDialogDetailedView), QStringLiteral("&Options..."), this, &MainWindow::onOptionsClicked);
@@ -189,9 +191,10 @@ void MainWindow::createMenuBar() {
     downloadsMenu->addAction(style()->standardIcon(QStyle::SP_MediaPause), QStringLiteral("Stop Q&ueue"), this, &MainWindow::onStopQueueClicked);
 
     QMenu* viewMenu = menuBar()->addMenu(QStringLiteral("&View"));
-    viewMenu->addAction(QStringLiteral("&Refresh"), QKeySequence::Refresh, this, [this]() {
+    QAction* refreshAct = viewMenu->addAction(QStringLiteral("&Refresh"), this, [this]() {
         if (m_tableModel) m_tableModel->refreshTasks();
     });
+    refreshAct->setShortcut(QKeySequence::Refresh);
 
     QMenu* helpMenu = menuBar()->addMenu(QStringLiteral("&Help"));
     helpMenu->addAction(QStringLiteral("&About IDM..."), this, [this]() {
