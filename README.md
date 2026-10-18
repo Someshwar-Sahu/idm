@@ -1,94 +1,153 @@
-# Internet Download Manager (IDM) Native Accelerator
+# Internet Download Manager (IDM) — Native C++ Accelerator
 
 <div align="center">
 
-![IDM Banner](https://img.shields.io/badge/IDM-Native%20Accelerator-0078d7?style=for-the-badge&logo=windows&logoColor=white)
-<br/>
+![IDM Native Accelerator](https://img.shields.io/badge/IDM-Native%20Accelerator-0078d7?style=for-the-badge&logo=windows&logoColor=white)
 
 [![CI/CD Multi-Platform Build](https://github.com/Someshwar-Sahu/idm/actions/workflows/build_all_platforms.yml/badge.svg)](https://github.com/Someshwar-Sahu/idm/actions/workflows/build_all_platforms.yml)
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-17%20%2F%2020-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
-[![Qt Framework](https://img.shields.io/badge/GUI-Qt%206.7-41CD52?style=flat-square&logo=qt&logoColor=white)](https://www.qt.io/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](https://github.com/Someshwar-Sahu/idm/actions)
-[![License](https://img.shields.io/badge/License-Proprietary%20%2F%20MIT-blue?style=flat-square)](LICENSE)
+[![GUI Framework](https://img.shields.io/badge/GUI-Qt%206.7%20Native-41CD52?style=flat-square&logo=qt&logoColor=white)](https://www.qt.io/)
+[![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)](https://github.com/Someshwar-Sahu/idm/actions)
+[![License](https://img.shields.io/badge/License-MIT%20Academic-blue?style=flat-square)](#-academic-disclaimer--license)
 
-**A high-performance, multithreaded download accelerator engineered in modern C++ with a pure native Qt 6 desktop interface.**  
-Features intelligent dynamic work-stealing, resilient pause/resume integrity, automated queue scheduling, and seamless browser integration.
+**A high-performance, multithreaded download accelerator developed in modern C++ with a pure native Qt 6 desktop interface.**  
+*Engineered as an Academic Computer Science & Systems Programming Capstone Project.*
 
-[Download Installers](#-download-installers) • [Key Features](#-key-features) • [Architecture](#-architecture--engine-internals) • [Building From Source](#-building-from-source)
+[Installers](#-pre-built-installers) • [Browser Extension Setup](#-browser-extension-setup) • [Features](#-key-features) • [Engine Architecture](#-engine-architecture--internals) • [Building From Source](#-building-from-source) • [Disclaimer](#-academic-disclaimer--license)
 
 </div>
 
 ---
 
-## 📦 Download Installers
+## 🎓 Academic Notice & Project Scope
 
-Automated multi-platform binaries are compiled directly from source for each operating system:
+> **Important Academic Disclaimer:**  
+> This project is an **independent academic implementation** created solely for educational, research, and portfolio purposes for a college engineering degree.  
+> - **Clean-Room Engineering:** All backend network routines, socket IPC, dynamic work-stealing algorithms, and Qt desktop interfaces were written from scratch. Zero proprietary or decompiled code is used.  
+> - **Trademark Notice:** This project is **not affiliated with, endorsed by, or associated with Tonec Inc.** or the commercial software "Internet Download Manager". All visual styling and workflow patterns are implemented as an academic study in network protocol acceleration and desktop systems engineering.
 
-| Platform | Package Format | Target Architecture | Description | Quick Download |
+---
+
+## 📦 Pre-Built Installers
+
+Native release packages are compiled across all three operating systems via GitHub Actions CI/CD:
+
+| Operating System | Package | Architecture | Features | Download |
 | :--- | :---: | :---: | :--- | :---: |
-| 🪟 **Windows** | **`.exe`** | `x86_64` (64-bit) | Standalone Inno Setup installer with Desktop shortcuts, Start Menu entry, registry setup, and pure GUI (no console window). | [**Download .exe**](https://github.com/Someshwar-Sahu/idm/actions) |
-| 🍏 **macOS** | **`.dmg`** | `arm64` / `x86_64` | Native Apple Disk Image with drag-and-drop `IDMan.app` bundle and Cocoa integration. | [**Download .dmg**](https://github.com/Someshwar-Sahu/idm/actions) |
-| 🐧 **Linux** | **`.deb`** | `x86_64` (Ubuntu / Debian) | Native Debian package for Ubuntu, Linux Mint, Debian, and Pop!_OS via `apt` or `dpkg`. | [**Download .deb**](https://github.com/Someshwar-Sahu/idm/actions) |
-| 🐧 **Linux** | **`.tar.gz`** | `x86_64` (Universal) | Portable standalone tarball archive with pre-linked dependencies. | [**Download .tar.gz**](https://github.com/Someshwar-Sahu/idm/actions) |
+| 🪟 **Windows** | **`.exe`** | 64-bit (`x86_64`) | Standalone Inno Setup Wizard, Desktop & Start Menu shortcuts, native browser host registration, zero terminal popups. | [**Download .exe**](https://github.com/Someshwar-Sahu/idm/actions) |
+| 🍏 **macOS** | **`.dmg`** | Apple Silicon & Intel | Native Apple Disk Image with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](https://github.com/Someshwar-Sahu/idm/actions) |
+| 🐧 **Linux** | **`.deb`** | Ubuntu / Debian | Native `.deb` package installable via `sudo dpkg -i` on Ubuntu, Debian, Linux Mint, and Pop!_OS. | [**Download .deb**](https://github.com/Someshwar-Sahu/idm/actions) |
+| 🐧 **Linux** | **`.tar.gz`** | Universal Linux | Portable tarball archive with pre-linked binaries for Arch, Fedora, openSUSE, etc. | [**Download .tar.gz**](https://github.com/Someshwar-Sahu/idm/actions) |
 
-> **Tip:** You can always find the latest pre-built `.dmg`, `.deb`, and `.exe` packages under the **Artifacts** section of the latest [GitHub Actions Build](https://github.com/Someshwar-Sahu/idm/actions).
+> 💡 **Where to download:** In the GitHub repository, navigate to the [**Actions**](https://github.com/Someshwar-Sahu/idm/actions) tab, open the latest workflow run, and scroll to the **Artifacts** table at the bottom of the page to download any package.
+
+---
+
+## 🧩 Browser Extension Setup (Chrome & Edge)
+
+Because this is an independent academic project and not published on the commercial Google Chrome Web Store, the browser extension is loaded locally via **Developer Mode**:
+
+```
+idm/
+└── extension/
+    ├── manifest.json                  # Manifest V3 extension configuration
+    ├── background.js                  # Background service worker & native bridge
+    ├── content.js                     # Media stream & download link interceptor
+    ├── com.idm.native_host.json       # Native Messaging Host manifest
+    └── install_native_host.ps1        # Windows registry registration script
+```
+
+### Step 1: Load the Extension in Your Browser
+1. Open **Google Chrome** or **Microsoft Edge**.
+2. Navigate to your browser's extensions page:
+   - Chrome: `chrome://extensions`
+   - Edge: `edge://extensions`
+3. Toggle on **Developer mode** (switch located in the top-right corner).
+4. Click the **Load unpacked** button.
+5. In the file picker, select the [`extension/`](extension/) directory from this repository.
+6. The **IDM Download Integration** extension will appear with a 32-character Extension ID (e.g., `bjgkbgeokfiebnpmenpcojhlehlapjih`).
+
+---
+
+### Step 2: Register the Native Messaging Host
+
+The Native Messaging Host is a lightweight C++ bridge that allows the browser extension to communicate directly with the local IDM desktop app via standard I/O (stdin/stdout).
+
+#### On Windows:
+1. Open **PowerShell as Administrator** in the project directory.
+2. Run the registration script:
+   ```powershell
+   .\extension\install_native_host.ps1
+   ```
+   *(Note: If you install IDM using the pre-built `IDMan_Setup_v6.42.exe`, this registration happens automatically during setup).*
+
+#### On Linux / macOS:
+Copy the [`com.idm.native_host.json`](extension/com.idm.native_host.json) manifest to your browser's native messaging directory:
+- **Linux (Chrome)**: `~/.config/google-chrome/NativeMessagingHosts/`
+- **Linux (Chromium)**: `~/.config/chromium/NativeMessagingHosts/`
+- **macOS (Chrome)**: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`
+
+Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan` executable on your system.
 
 ---
 
 ## ⚡ Key Features
 
-### 🚀 Dynamic Chunk Work-Stealing
-- Divides any file into multiple concurrent segments (configurable up to 32 streams).
-- Fast worker threads that finish early automatically **steal and bisect remaining slow chunks** in real-time, preventing stalled segments and saturating your connection bandwidth.
+- **🚀 Dynamic Work-Stealing Chunking:**
+  Files are divided into concurrent byte-range streams (configurable up to 32 connections). Faster worker threads that finish early dynamically bisect and assist slower connections, eliminating lagging tails and saturating available network bandwidth.
 
-### 🛡️ Resilient Pause, Resume & State Recovery
-- Non-destructive sidecar state persistence (`.idm` metadata files).
-- Downloads survive network interruptions, computer restarts, and server-side socket resets without file corruption or byte loss.
+- **🛡️ State Recovery & Resilient Resume:**
+  Non-destructive sidecar metadata (`.idm`) persists chunk boundaries, downloaded byte offsets, and ETags. Downloads can be paused and resumed cleanly across network drops or system reboots.
 
-### 🗂️ Category Partitioning & File Sorting
-- Automatically organizes incoming downloads into dedicated category directories:
-  - 📄 **Documents** (`.pdf`, `.docx`, `.xlsx`, `.txt`, etc.)
-  - 📦 **Compressed** (`.zip`, `.rar`, `.7z`, `.tar`, `.gz`, `.iso`, etc.)
-  - 🎬 **Video** (`.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`, etc.)
-  - 🎵 **Music** (`.mp3`, `.flac`, `.wav`, `.aac`, etc.)
-  - 💻 **Programs** (`.exe`, `.msi`, `.dmg`, `.deb`, `.pkg`, etc.)
-  - 📁 **General** (all other file formats)
+- **🗂️ Automatic Category Partitioning:**
+  Incoming downloads are automatically classified and organized into dedicated system folders:
+  - 📄 **Documents** (`.pdf`, `.docx`, `.xlsx`, `.txt`, `.pptx`)
+  - 📦 **Compressed** (`.zip`, `.rar`, `.7z`, `.tar`, `.gz`, `.iso`)
+  - 🎬 **Video** (`.mp4`, `.mkv`, `.avi`, `.mov`, `.webm`)
+  - 🎵 **Music** (`.mp3`, `.flac`, `.wav`, `.aac`)
+  - 💻 **Programs** (`.exe`, `.msi`, `.dmg`, `.deb`, `.pkg`)
+  - 📁 **General** (all other formats)
 
-### ⏱️ Scheduler & Queue Automation
-- Advanced FIFO queue processor with configurable concurrent task limits.
-- Schedule automatic download start and stop times, recurring downloads, and post-queue triggers (e.g., *Turn off computer when done*, *Sleep*, *Close connection*).
-- Filtering proxy models hide completed/cancelled tasks from active queue views.
+- **⏱️ Scheduler & Queue Automation:**
+  FIFO download queueing with configurable concurrent task limits, scheduled start/stop execution times, and automated post-queue actions (*Turn off computer*, *Sleep*, *Exit IDM*).
 
-### 🌐 Seamless Browser Integration (Chrome, Edge, Firefox)
-- Built-in **Native Messaging Host** (`com.idm.native_host`).
-- Browser extension automatically captures downloads, media streams, and right-click download requests directly into IDM.
-- Per-browser toggle and exception site list configuration.
+- **🧠 Smart Auto-QoS & Bandwidth Limiter:**
+  Dynamic latency-aware bandwidth throttling modes:
+  - *Maximum Speed* (Uncapped multi-connection saturation)
+  - *Smart Auto-QoS* (Automatically throttles when local gaming/streaming latency spikes)
+  - *Manual Cap* (User-defined speed limits)
 
-### 🔐 Site Logins Vault
-- Encrypted storage for protected servers requiring HTTP Basic, Digest, or Bearer authentication.
+- **🔐 Encrypted Site Logins Vault:**
+  Secure credential storage for password-protected download sources (HTTP Basic, Digest, Bearer).
 
 ---
 
-## 🛠️ Architecture & Engine Internals
+## 🏛️ Engine Architecture & Internals
 
 ```mermaid
 graph TD
-    Browser[Browser Extension / Web Request] -->|Native Messaging IPC| Host[Native Host Process]
-    Host -->|Local Socket / JSON-RPC| Server[IPC Local Server]
-    UI[Native Qt 6 GUI] -->|Signals & Slots| Engine[IDM Core Engine]
-    Server --> Engine
-    
-    subgraph Core Engine
-        Engine --> Task[Download Task Manager]
-        Task --> Chunks[Chunk Worker Pool]
-        Chunks --> Stealer[Dynamic Work-Stealer]
-        Stealer --> Chunks
-        Chunks --> Writer[Asynchronous File Writer]
+    subgraph Browser Layer
+        Web[Web Page / Video Stream] --> Ext[Chrome / Edge Manifest V3 Extension]
+        Ext -->|Native Messaging JSON-RPC| Bridge[Native Host Bridge Process]
+    end
+
+    subgraph IPC & Control
+        Bridge -->|Local Socket / Named Pipe| Server[IPC Local Server]
+        UI[Native Qt 6 GUI] -->|Signals & Slots| Engine[IDM Core Engine]
+        Server --> Engine
+    end
+
+    subgraph Core Acceleration Pipeline
+        Engine --> Task[DownloadTaskManager]
+        Task --> Chunks[Chunk Worker Thread Pool]
+        Chunks --> Stealer[Dynamic Work-Stealing Coordinator]
+        Stealer -->|Bisects Slow Chunks| Chunks
+        Chunks --> Writer[Asynchronous File Assembler]
         Writer --> Sidecar[State Recovery / .idm Sidecar]
     end
-    
-    subgraph Queue System
-        Queue[Download Queue] --> Scheduler[Queue Scheduler]
+
+    subgraph Queue & Scheduling
+        Queue[DownloadQueue] --> Scheduler[QueueScheduler]
         Scheduler --> Task
     end
 ```
@@ -101,32 +160,27 @@ graph TD
 - **CMake** (>= 3.20)
 - **Ninja** or **Make**
 - **Qt 6.7+** (`Core`, `Gui`, `Widgets`, `Network`, `Svg`)
-- **C++20 compliant compiler** (GCC 13+, Clang 15+, or MSVC 2022)
+- **C++20 compliant compiler** (MinGW GCC 13+, Clang 15+, or Apple Clang)
 - **libcurl** (automatically fetched if not present on system)
 
 ### 1. Windows (MinGW 64-bit)
-
 ```powershell
 # Configure CMake
 cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.7.2\mingw_64"
 
-# Build IDMan.exe
+# Compile IDMan
 cmake --build build --target idm_app --config Release
 
-# Package dependencies into dist/
+# Package dependencies and Qt DLLs
 .\package.ps1
 
-# (Optional) Compile standalone setup executable
+# (Optional) Compile standalone installer via Inno Setup
 & "D:\Inno Setup 6\ISCC.exe" installer.iss
 ```
 
-The resulting installer is generated at:  
-`installer_output/IDMan_Setup_v6.42.exe`
-
 ### 2. Linux (Ubuntu / Debian)
-
 ```bash
-# Install build dependencies
+# Install dependencies
 sudo apt-get update && sudo apt-get install -y \
   build-essential cmake ninja-build qt6-base-dev qt6-base-dev-tools \
   libqt6svg6-dev libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libcurl4-openssl-dev
@@ -135,52 +189,48 @@ sudo apt-get update && sudo apt-get install -y \
 ./package_linux.sh
 ```
 
-The native package is generated at:  
-`build/idman-6.42.0-Linux.deb`
-
 ### 3. macOS (Apple Silicon & Intel)
-
 ```bash
-# Make sure Qt 6 is installed (via Homebrew or official installer)
+# Install Qt 6 and Ninja
 brew install qt@6 ninja
 
 # Build & Package .dmg
 ./package_mac.sh
 ```
 
-The standalone disk image is generated at:  
-`build/IDMan_macOS_v6.42.dmg`
-
 ---
 
-## 📂 Project Directory Structure
+## 📂 Repository Structure
 
 ```
 idm/
 ├── .github/
 │   └── workflows/
-│       └── build_all_platforms.yml # Multi-platform CI/CD (Win/Mac/Linux)
+│       └── build_all_platforms.yml # CI/CD for Windows, macOS, and Linux
 ├── src/
-│   ├── config/                     # SettingsManager & JSON persistence
+│   ├── config/                     # SettingsManager & settings.json persistence
 │   ├── core/                       # DownloadTask, ChunkWorker, Work-stealing
-│   ├── gui_qt/                     # Native Qt 6 Dialogs, Models & Views
+│   ├── gui_qt/                     # Pure Qt 6 Native GUI Dialogs & Views
 │   ├── ipc/                        # Local IPC Socket Server
 │   ├── native_host/                # Chrome/Edge Native Messaging Host
-│   ├── net/                        # NetworkMonitor, PowerMonitor, QoS
+│   ├── net/                        # NetworkMonitor, PowerMonitor, Smart QoS
 │   ├── queue/                      # DownloadQueue & QueueScheduler
 │   └── security/                   # Encrypted Credential Vault & Scanner
 ├── extension/                      # Chrome / Edge Browser Extension
 ├── installer.iss                   # Inno Setup Windows installer script
-├── package.ps1                     # Windows Qt deployment script
-├── package_linux.sh                # Linux CPack .deb packager
-├── package_mac.sh                  # macOS macdeployqt .dmg packager
+├── package.ps1                     # Windows packaging script
+├── package_linux.sh                # Linux CPack .deb packaging script
+├── package_mac.sh                  # macOS macdeployqt .dmg packaging script
 ├── CMakeLists.txt                  # Universal CMake build definitions
 └── README.md                       # Project documentation
 ```
 
 ---
 
-## 📜 License
+## 📜 Academic Disclaimer & License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-All trademarks, logos, and brand names are the property of their respective owners.
+This software is developed strictly for **academic, research, and educational demonstration** as a university computer science capstone project. 
+
+- Licensed under the **[MIT License](LICENSE)**.
+- Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files to use, study, copy, modify, and distribute the software for educational purposes.
+- All product and company names are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.
