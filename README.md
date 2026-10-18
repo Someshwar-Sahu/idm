@@ -125,7 +125,7 @@ Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan`
 
 ---
 
-## 🏛️ Engine Architecture
+## 🏛 Engine Architecture
 
 The application is structured into a modular, multi-tier architecture with clean separation between the user interface, network worker pool, and browser bridge:
 
