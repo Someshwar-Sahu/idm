@@ -36,11 +36,15 @@ jobs:
           $mingwBin = if ($mingw) { $mingw.DirectoryName } else { "$env:RUNNER_WORKSPACE\Qt\Tools\mingw1310_64\bin" }
           Write-Host "Selected MinGW Toolchain: $mingwBin"
           "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $qt = Get-ChildItem -Path "$env:RUNNER_WORKSPACE" -Recurse -Filter "windeployqt.exe" | Select-Object -First 1
+          $qtBin = if ($qt) { $qt.DirectoryName } else { "$env:RUNNER_WORKSPACE\Qt\6.7.2\mingw_64\bin" }
+          "$qtBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $qtRoot = Split-Path $qtBin -Parent
           cmake -B build -G "Ninja" `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER="$mingwBin\gcc.exe" `
             -DCMAKE_CXX_COMPILER="$mingwBin\g++.exe" `
-            -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" `
+            -DCMAKE_PREFIX_PATH="$qtRoot" `
             -DQT_NO_PACKAGE_VERSION_CHECK=TRUE
 
       - name: Build IDMan
@@ -51,7 +55,8 @@ jobs:
         run: |
           $mingw = Get-ChildItem -Path "$env:RUNNER_WORKSPACE" -Recurse -Filter "g++.exe" | Where-Object { $_.FullName -like "*mingw1310_64*" } | Select-Object -First 1
           $env:MinGWBin = if ($mingw) { $mingw.DirectoryName } else { "$env:RUNNER_WORKSPACE\Qt\Tools\mingw1310_64\bin" }
-          $env:QtBin = "$env:QT_ROOT_DIR\bin"
+          $qt = Get-ChildItem -Path "$env:RUNNER_WORKSPACE" -Recurse -Filter "windeployqt.exe" | Select-Object -First 1
+          $env:QtBin = if ($qt) { $qt.DirectoryName } else { "$env:RUNNER_WORKSPACE\Qt\6.7.2\mingw_64\bin" }
           .\package.ps1
 
       - name: Compile Inno Setup Installer

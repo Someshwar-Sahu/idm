@@ -4,11 +4,36 @@
 
 $ErrorActionPreference = "Stop"
 
-$QtBin    = if ($env:QtBin) { $env:QtBin } else { "C:\Qt\6.7.2\mingw_64\bin" }
-$MinGWBin = if ($env:MinGWBin) { $env:MinGWBin } else { "C:\Qt\Tools\mingw1310_64\bin" }
-$DistDir  = ".\dist"
+# Auto-resolve Qt bin folder containing windeployqt.exe
+$QtBin = if ($env:QtBin -and (Test-Path (Join-Path $env:QtBin "windeployqt.exe"))) {
+    $env:QtBin
+} else {
+    $found = (Get-Command windeployqt.exe -ErrorAction SilentlyContinue)
+    if ($found) {
+        $found.Source | Split-Path -Parent
+    } else {
+        $searchDirs = @($env:RUNNER_WORKSPACE, "D:\a", "C:\Qt") | Where-Object { $_ -and (Test-Path $_) }
+        $match = Get-ChildItem -Path $searchDirs -Recurse -Filter "windeployqt.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($match) { $match.DirectoryName } else { "C:\Qt\6.7.2\mingw_64\bin" }
+    }
+}
 
-Write-Host "==> [1/4] Preparing clean dist directory..." -ForegroundColor Cyan
+# Auto-resolve MinGW bin folder containing runtime DLLs
+$MinGWBin = if ($env:MinGWBin -and (Test-Path (Join-Path $env:MinGWBin "g++.exe"))) {
+    $env:MinGWBin
+} else {
+    $searchDirs = @($env:RUNNER_WORKSPACE, "D:\a", "C:\Qt") | Where-Object { $_ -and (Test-Path $_) }
+    $match = Get-ChildItem -Path $searchDirs -Recurse -Filter "g++.exe" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*mingw1310_64*" } | Select-Object -First 1
+    if ($match) { $match.DirectoryName } else { "C:\Qt\Tools\mingw1310_64\bin" }
+}
+
+$DistDir = ".\dist"
+
+Write-Host "==> Configured paths:" -ForegroundColor Cyan
+Write-Host "    QtBin:    $QtBin"
+Write-Host "    MinGWBin: $MinGWBin"
+
+Write-Host "`n==> [1/4] Preparing clean dist directory..." -ForegroundColor Cyan
 if (Test-Path $DistDir) {
     Remove-Item -Recurse -Force $DistDir
 }
@@ -24,7 +49,13 @@ Copy-Item -Recurse ".\extension" -Destination "$DistDir\extension"
 
 Write-Host "==> [3/4] Running windeployqt to collect Qt6 DLLs and plugins..." -ForegroundColor Cyan
 $env:PATH = "$QtBin;$MinGWBin;" + $env:PATH
-& "$QtBin\windeployqt.exe" --release --no-translations --no-compiler-runtime "$DistDir\IDMan.exe"
+$windeploy = Join-Path $QtBin "windeployqt.exe"
+if (-not (Test-Path $windeploy)) {
+    $cmd = (Get-Command windeployqt.exe -ErrorAction SilentlyContinue)
+    if ($cmd) { $windeploy = $cmd.Source }
+}
+Write-Host "    Executing: $windeploy"
+& "$windeploy" --release --no-translations --no-compiler-runtime "$DistDir\IDMan.exe"
 
 Write-Host "==> [4/4] Copying GCC/MinGW C++ runtime libraries..." -ForegroundColor Cyan
 $runtimes = @(
