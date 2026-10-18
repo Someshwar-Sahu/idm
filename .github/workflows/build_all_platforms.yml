@@ -1,0 +1,134 @@
+name: Build All Platforms (Windows, Linux, macOS)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # ============================================================================
+  # 1. WINDOWS: Build IDMan.exe & Standalone Inno Setup Installer
+  # ============================================================================
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.7.2 (MinGW)
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.7.2'
+          arch: 'win64_mingw'
+          modules: 'qtnetworkauth'
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
+
+      - name: Build IDMan
+        run: cmake --build build --target idm_app --config Release -j4
+
+      - name: Run Package Script
+        shell: pwsh
+        run: |
+          $env:QtBin = "$env:QT_ROOT_DIR\bin"
+          $env:MinGWBin = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+          if (-not (Test-Path $env:MinGWBin)) {
+            $env:MinGWBin = (Get-Command g++).Source | Split-Path
+          }
+          .\package.ps1
+
+      - name: Compile Inno Setup Installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Upload Windows Installer (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IDMan_Windows_Setup_v6.42
+          path: installer_output/IDMan_Setup_v6.42.exe
+
+  # ============================================================================
+  # 2. LINUX: Build Native Linux Binary & Debian (.deb) Package
+  # ============================================================================
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 & Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            libcurl4-openssl-dev \
+            libssl-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build IDMan
+        run: cmake --build build --target idm_app -j$(nproc)
+
+      - name: Package Debian (.deb) & Archive (.tar.gz)
+        run: |
+          cd build
+          cpack -G "DEB;TGZ"
+
+      - name: Upload Linux Packages (.deb / .tar.gz)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IDMan_Linux_Packages
+          path: build/idman-*.*
+
+  # ============================================================================
+  # 3. macOS: Build Native macOS App Bundle & Disk Image (.dmg)
+  # ============================================================================
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 via Homebrew
+        run: |
+          brew update
+          brew install qt@6 ninja
+
+      - name: Configure CMake
+        run: |
+          QT_PATH=$(brew --prefix qt@6)
+          cmake -B build -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$QT_PATH"
+
+      - name: Build IDMan.app
+        run: cmake --build build --target idm_app -j$(sysctl -n hw.ncpu)
+
+      - name: Deploy macOS App & Create .dmg
+        run: |
+          QT_PATH=$(brew --prefix qt@6)
+          $QT_PATH/bin/macdeployqt build/IDMan.app -dmg
+          mv build/IDMan.dmg build/IDMan_macOS_v6.42.dmg
+
+      - name: Upload macOS Disk Image (.dmg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: IDMan_macOS_v6.42
+          path: build/IDMan_macOS_v6.42.dmg
