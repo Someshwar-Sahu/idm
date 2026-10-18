@@ -8,6 +8,9 @@
 #include <QCheckBox>
 #include <QStringList>
 #include <string>
+#include <memory>
+#include <atomic>
+#include <QPointer>
 #include "../config/SettingsManager.h"
 
 class DownloadInfoDialog : public QDialog {
@@ -18,6 +21,7 @@ public:
                                 const QStringList& queues = {},
                                 SettingsManager* settings = nullptr,
                                 QWidget* parent = nullptr);
+    ~DownloadInfoDialog() override;
 
     // Getters for chosen download parameters
     std::string getUrl() const;
@@ -64,5 +68,6 @@ private:
     QString m_cookies;
     QString m_referer;
     QString m_userAgent;
+    std::shared_ptr<std::atomic<bool>> m_probeCancelled;
 };
 

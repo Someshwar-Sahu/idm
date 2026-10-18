@@ -6,6 +6,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QMessageBox>
+#include <QApplication>
 #include <filesystem>
 #include "../core/DownloadTask.h"
 #include "../security/AntivirusScanner.h"
@@ -15,6 +16,7 @@
 
 DownloadInfoDialog::DownloadInfoDialog(const QString& initialUrl, const QStringList& queues, SettingsManager* settings, QWidget* parent)
     : QDialog(parent), m_settings(settings), m_availableQueues(queues) {
+    m_probeCancelled = std::make_shared<std::atomic<bool>>(false);
     setWindowTitle(QStringLiteral("Enter New Download Address"));
     setMinimumWidth(560);
     setModal(true);
@@ -25,6 +27,12 @@ DownloadInfoDialog::DownloadInfoDialog(const QString& initialUrl, const QStringL
         m_urlEdit->setText(initialUrl);
         autoDetectFileNameAndCategory(initialUrl);
         probeUrlAsync(initialUrl);
+    }
+}
+
+DownloadInfoDialog::~DownloadInfoDialog() {
+    if (m_probeCancelled) {
+        m_probeCancelled->store(true);
     }
 }
 
@@ -263,37 +271,51 @@ void DownloadInfoDialog::probeUrlAsync(const QString& urlStr) {
     }
     m_fileSizeLabel->setText(QStringLiteral("Querying server..."));
 
+    if (m_probeCancelled) {
+        m_probeCancelled->store(true);
+    }
+    m_probeCancelled = std::make_shared<std::atomic<bool>>(false);
+    auto cancelled = m_probeCancelled;
+    QPointer<DownloadInfoDialog> safeThis(this);
+
     std::string referer = m_referer.toStdString();
     std::string cookies = m_cookies.toStdString();
     std::string userAgent = m_userAgent.toStdString();
 
-    std::thread([this, url, referer, cookies, userAgent]() {
+    std::thread([safeThis, cancelled, url, referer, cookies, userAgent]() {
         DownloadTask task(url, "tmp.bin", 1, 0, referer, cookies, userAgent);
         bool ok = task.probe_url();
+        if (cancelled->load()) return;
         uint64_t total = task.get_total_size();
         std::string probedFilename = QFileInfo(QString::fromStdString(task.get_destination_filepath())).fileName().toStdString();
         bool resumeOk = task.supports_ranges();
 
-        QMetaObject::invokeMethod(this, [this, ok, total, probedFilename, resumeOk]() {
+        if (cancelled->load()) return;
+
+        QMetaObject::invokeMethod(qApp, [safeThis, cancelled, ok, total, probedFilename, resumeOk]() {
+            if (cancelled->load() || !safeThis) return;
             if (ok && total > 0) {
-                setFileSize(total);
+                safeThis->setFileSize(total);
                 if (resumeOk) {
-                    m_fileSizeLabel->setText(m_fileSizeLabel->text() + QStringLiteral("  [Resume: Yes]"));
+                    safeThis->m_fileSizeLabel->setText(safeThis->m_fileSizeLabel->text() + QStringLiteral("  [Resume: Yes]"));
                 } else {
-                    m_fileSizeLabel->setText(m_fileSizeLabel->text() + QStringLiteral("  [Resume: No]"));
+                    safeThis->m_fileSizeLabel->setText(safeThis->m_fileSizeLabel->text() + QStringLiteral("  [Resume: No]"));
                 }
             } else {
-                m_fileSizeLabel->setText(QStringLiteral("Unknown (Streaming / Dynamic)"));
+                safeThis->m_fileSizeLabel->setText(QStringLiteral("Unknown (Streaming / Dynamic)"));
             }
 
             if (!probedFilename.empty() && probedFilename != "tmp.bin" && probedFilename != "download.bin") {
-                setCustomFilename(QString::fromStdString(probedFilename));
+                safeThis->setCustomFilename(QString::fromStdString(probedFilename));
             }
         }, Qt::QueuedConnection);
     }).detach();
 }
 
 void DownloadInfoDialog::onStartClicked() {
+    if (m_probeCancelled) {
+        m_probeCancelled->store(true);
+    }
     QString urlStr = m_urlEdit->text().trimmed();
     if (urlStr.isEmpty()) {
         QMessageBox::warning(this, QStringLiteral("Invalid URL"), QStringLiteral("Please enter a valid URL address."));
@@ -323,6 +345,9 @@ void DownloadInfoDialog::onStartClicked() {
 }
 
 void DownloadInfoDialog::onDownloadLaterClicked() {
+    if (m_probeCancelled) {
+        m_probeCancelled->store(true);
+    }
     QString urlStr = m_urlEdit->text().trimmed();
     if (urlStr.isEmpty()) {
         QMessageBox::warning(this, QStringLiteral("Invalid URL"), QStringLiteral("Please enter a valid URL address."));
