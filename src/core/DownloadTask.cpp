@@ -15,6 +15,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <cstring>
 
 using namespace std;
 

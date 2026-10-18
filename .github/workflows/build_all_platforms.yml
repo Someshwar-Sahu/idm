@@ -130,7 +130,8 @@ jobs:
 
       - name: Deploy macOS App & Create .dmg
         run: |
-          "$QT_ROOT_DIR/bin/macdeployqt" build/IDMan.app -dmg
+          export PATH="$Qt6_DIR/bin:$PATH"
+          macdeployqt build/IDMan.app -dmg
           mv build/IDMan.dmg build/IDMan_macOS_v6.42.dmg
 
       - name: Upload macOS Disk Image (.dmg)
