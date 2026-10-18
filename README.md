@@ -12,7 +12,7 @@
 **A high-performance, multithreaded download accelerator developed in modern C++ with a pure native Qt 6 desktop interface.**  
 *Engineered by the Student Engineering Team as an Academic Computer Science & Systems Programming Capstone Project.*
 
-[Installers](#-pre-built-installers) • [Browser Extension Setup](#-browser-extension-setup) • [Features](#-key-features) • [Engine Architecture](#-engine-architecture--internals) • [Building From Source](#-building-from-source) • [Project Notice](#-project-information--academic-disclaimer)
+[Installers](#-pre-built-installers) • [Browser Extension Setup](#-browser-extension-setup) • [Features](#-key-features) • [Engine Architecture](#-engine-architecture) • [Building From Source](#-building-from-source) • [Project Notice](#-project-information--academic-disclaimer)
 
 </div>
 
@@ -42,7 +42,7 @@ Native release packages are compiled across all three operating systems via GitH
 
 ---
 
-## 🧩 Browser Extension Setup (Chrome & Edge)
+## 🧩 Browser Extension Setup
 
 Because this is an independent academic project and not published on the commercial Google Chrome Web Store, the browser extension is loaded locally via **Developer Mode**:
 
@@ -125,7 +125,7 @@ Ensure the `"path"` in `com.idm.native_host.json` points to the compiled `IDMan`
 
 ---
 
-## 🏛️ Engine Architecture & System Design
+## 🏛️ Engine Architecture
 
 The application is structured into a modular, multi-tier architecture with clean separation between the user interface, network worker pool, and browser bridge:
 
