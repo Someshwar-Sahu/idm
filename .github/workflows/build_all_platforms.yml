@@ -4,8 +4,16 @@ on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '*.md'
   workflow_dispatch:
 
 jobs:
@@ -151,4 +159,33 @@ jobs:
         with:
           name: IDMan_macOS_v6.42
           path: build/IDMan_macOS_v6.42.dmg
+
+  # ============================================================================
+  # 4. RELEASE: Automatically Publish GitHub Release on tag push (v*)
+  # ============================================================================
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: IDM Native C++ Accelerator ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/IDMan_Windows_Setup_v6.42/IDMan_Setup_v6.42.exe
+            artifacts/IDMan_Linux_Packages/*.deb
+            artifacts/IDMan_Linux_Packages/*.tar.gz
+            artifacts/IDMan_macOS_v6.42/IDMan_macOS_v6.42.dmg
 
