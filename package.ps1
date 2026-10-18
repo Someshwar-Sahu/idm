@@ -4,8 +4,8 @@
 
 $ErrorActionPreference = "Stop"
 
-$QtBin    = "C:\Qt\6.7.2\mingw_64\bin"
-$MinGWBin = "C:\Qt\Tools\mingw1310_64\bin"
+$QtBin    = if ($env:QtBin) { $env:QtBin } else { "C:\Qt\6.7.2\mingw_64\bin" }
+$MinGWBin = if ($env:MinGWBin) { $env:MinGWBin } else { "C:\Qt\Tools\mingw1310_64\bin" }
 $DistDir  = ".\dist"
 
 Write-Host "==> [1/4] Preparing clean dist directory..." -ForegroundColor Cyan
