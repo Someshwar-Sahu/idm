@@ -16,6 +16,13 @@ set(CMAKE_TLS_VERIFY OFF)
 
 if(WIN32)
     set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32 crypt32 user32 comdlg32)
+elseif(APPLE)
+    find_library(CORE_FOUNDATION CoreFoundation)
+    find_library(SECURITY_LIB Security)
+    find_library(SYSTEM_CONFIG SystemConfiguration)
+    set(PLATFORM_LIBS ${CORE_FOUNDATION} ${SECURITY_LIB} ${SYSTEM_CONFIG} pthread)
+elseif(UNIX)
+    set(PLATFORM_LIBS pthread dl)
 endif()
 
 include(FetchContent)
@@ -68,7 +75,7 @@ set(CORE_SOURCES
 # ---------------------------------------------------------
 set(PLATFORM_SOURCES "")
 if(WIN32)
-    set(PLATFORM_SOURCES src/gui/resources.rc)
+    set(PLATFORM_SOURCES src/gui_qt/resources.rc)
 endif()
 
 add_executable(idm_app
@@ -84,7 +91,7 @@ add_executable(idm_app
     src/gui_qt/SchedulerDialog.cpp
     src/gui_qt/SecurityWarningDialog.cpp
     src/gui_qt/OptionsDialog.cpp
-    src/gui_qt/resources.rc
+    ${PLATFORM_SOURCES}
     src/gui_qt/resources.qrc
     ${CORE_SOURCES}
     src/native_host/NativeHost.cpp
@@ -111,8 +118,15 @@ target_link_libraries(idm_app PRIVATE
     ${PLATFORM_LIBS}
 )
 
-set_target_properties(idm_app PROPERTIES OUTPUT_NAME "IDMan")
-target_link_options(idm_app PRIVATE -static-libgcc -static-libstdc++)
+set_target_properties(idm_app PROPERTIES 
+    OUTPUT_NAME "IDMan"
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+)
+
+if(MINGW)
+    target_link_options(idm_app PRIVATE -static-libgcc -static-libstdc++)
+endif()
 
 # ---------------------------------------------------------
 # Unit Tests
@@ -181,3 +195,30 @@ target_link_libraries(test_vault PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohma
 
 add_executable(test_remote_dashboard test/test_remote_dashboard.cpp src/net/RemoteDashboard.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_remote_dashboard PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+# ---------------------------------------------------------
+# Cross-Platform Packaging (CPack for Linux .deb and macOS .dmg)
+# ---------------------------------------------------------
+install(TARGETS idm_app
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY extension/ DESTINATION share/idman/extension)
+
+set(CPACK_PACKAGE_NAME "idman")
+set(CPACK_PACKAGE_VENDOR "IDM Project Team")
+set(CPACK_PACKAGE_VERSION "6.42.0")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Internet Download Manager Native Accelerator")
+
+if(APPLE)
+    set(CPACK_GENERATOR "DragNDrop")
+    set(CPACK_DMG_VOLUME_NAME "Internet Download Manager")
+elseif(UNIX AND NOT APPLE)
+    set(CPACK_GENERATOR "DEB;TGZ")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "IDM Project Team")
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6widgets6, libqt6network6, libcurl4")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "net")
+endif()
+
+include(CPack)
