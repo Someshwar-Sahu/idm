@@ -3,6 +3,15 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#include <iostream>
+static LONG WINAPI GlobalCrashHandler(EXCEPTION_POINTERS* ep) {
+    std::cerr << "\n============================================\n";
+    std::cerr << "[CRASH DETECTED]\n";
+    std::cerr << "Exception Code: 0x" << std::hex << ep->ExceptionRecord->ExceptionCode << std::dec << "\n";
+    std::cerr << "Exception Address: " << ep->ExceptionRecord->ExceptionAddress << "\n";
+    std::cerr << "============================================\n" << std::endl;
+    return EXCEPTION_CONTINUE_SEARCH;
+}
 #endif
 
 #include <QApplication>
@@ -19,6 +28,7 @@
 
 int main(int argc, char* argv[]) {
 #ifdef _WIN32
+    SetUnhandledExceptionFilter(GlobalCrashHandler);
     HANDLE hMutex = CreateMutexA(NULL, TRUE, "Global\\IDMan_SingleInstance_Mutex_Qt");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         HWND existingWnd = FindWindowA(NULL, "Internet Download Manager 6.42");

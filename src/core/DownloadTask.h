@@ -11,6 +11,7 @@
 #include <functional>
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <cstdint>
 
 enum class DownloadStatus {
@@ -123,6 +124,7 @@ private:
 
     bool m_antivirus_scan_enabled{true};
     bool m_security_override{false};
+    mutable std::mutex m_run_mutex;
 };
 
 #endif

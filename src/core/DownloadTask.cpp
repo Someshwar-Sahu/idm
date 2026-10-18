@@ -591,6 +591,8 @@ bool DownloadTask::probe_url() {
 }
 
 bool DownloadTask::start(ProgressCallback callback) {
+    std::unique_lock<std::mutex> run_lock(m_run_mutex);
+
     if(m_antivirus_scan_enabled && !m_security_override){
         auto rep = AntivirusScanner::check_url_reputation(m_url, m_destination_filepath);
         if(!rep.is_safe){
@@ -765,11 +767,14 @@ bool DownloadTask::start(ProgressCallback callback) {
         this_thread::sleep_for(chrono::milliseconds(200));
     }
 
-    if (m_pause_requested) {
-        m_status = DownloadStatus::Paused;
+    bool paused = m_pause_requested.load() || (m_status == DownloadStatus::Paused);
+    if (paused) {
         m_thread_pool.reset();
         m_file_writer->close();
         ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager, m_supports_ranges);
+        if (m_status != DownloadStatus::NotStarted) {
+            m_status = DownloadStatus::Paused;
+        }
         cout << "[DownloadTask] Download paused successfully." << endl;
         return true;
     }

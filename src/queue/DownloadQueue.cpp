@@ -122,7 +122,6 @@ bool DownloadQueue::resume_task(const string &destination_filepath) {
         for (auto &t : m_tasks) {
             if (t && (t->get_destination_filepath() == destination_filepath || t->get_url() == destination_filepath)) {
                 t->resume();
-                m_dispatched_tasks.erase(t.get());
                 if (m_state != QueueState::Running) {
                     m_state = QueueState::Running;
                     m_stop_thread = false;

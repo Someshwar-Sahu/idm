@@ -41,6 +41,7 @@ private:
         uint64_t bytes_written{0};
         CURL *curl{nullptr};
         std::atomic<bool> *pause_requested{nullptr};
+        bool was_paused{false};
     };
 
     std::string m_url;

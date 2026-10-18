@@ -52,6 +52,7 @@ size_t ChunkWorker::write_callback(char *ptr, size_t size, size_t nmemb, void *u
 
     // Abort curl immediately if user requested pause
     if (ctx->pause_requested && ctx->pause_requested->load()) {
+        ctx->was_paused = true;
         return 0;
     }
 
@@ -205,7 +206,7 @@ bool ChunkWorker::download() {
         CURLcode res = curl_easy_perform(m_curl);
 
         // Clean pause check right after perform
-        if (m_pause_requested && m_pause_requested->load()) {
+        if (ctx.was_paused || (m_pause_requested && m_pause_requested->load())) {
             m_chunk.bytes_downloaded = ctx.bytes_written;
             m_chunk_manager.update_chunk_progress(m_chunk.id, ctx.bytes_written);
             return false;
