@@ -111,6 +111,7 @@ target_link_libraries(idm_app PRIVATE
 )
 
 set_target_properties(idm_app PROPERTIES OUTPUT_NAME "IDMan")
+target_link_options(idm_app PRIVATE -static-libgcc -static-libstdc++)
 
 # ---------------------------------------------------------
 # Unit Tests
