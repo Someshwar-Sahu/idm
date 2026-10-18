@@ -33,9 +33,3 @@ BEGIN
         VALUE "Translation", 0x409, 1200
     END
 END
-
-// Embedded Zero-Browser UI Resources
-1001 RCDATA "../../ui/index.html"
-1002 RCDATA "../../ui/css/styles.css"
-1003 RCDATA "../../ui/js/app.js"
-1004 RCDATA "../../ui/js/chunk_visualizer.js"
