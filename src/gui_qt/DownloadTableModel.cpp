@@ -3,6 +3,8 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <chrono>
+#include <ctime>
 #include <QColor>
 #include <QFont>
 #include "../core/DownloadTask.h"
@@ -45,11 +47,28 @@ QString statusToString(DownloadStatus status) {
 QString categorizeExtension(const std::string& extRaw) {
     std::string ext = extRaw;
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz") return QStringLiteral("Compressed");
-    if (ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".xlsx") return QStringLiteral("Documents");
-    if (ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac") return QStringLiteral("Music");
-    if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".apk") return QStringLiteral("Programs");
-    if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm") return QStringLiteral("Video");
+    if (ext == ".zip" || ext == ".rar" || ext == ".7z" || ext == ".tar" || ext == ".gz" ||
+        ext == ".bz2" || ext == ".xz" || ext == ".iso" || ext == ".tgz" || ext == ".zst") {
+        return QStringLiteral("Compressed");
+    }
+    if (ext == ".pdf" || ext == ".doc" || ext == ".docx" || ext == ".txt" || ext == ".xlsx" ||
+        ext == ".xls" || ext == ".csv" || ext == ".tsv" || ext == ".ppt" || ext == ".pptx" ||
+        ext == ".rtf" || ext == ".odt" || ext == ".ods" || ext == ".odp" || ext == ".log" ||
+        ext == ".md" || ext == ".json" || ext == ".xml" || ext == ".html" || ext == ".htm" || ext == ".epub") {
+        return QStringLiteral("Documents");
+    }
+    if (ext == ".mp3" || ext == ".wav" || ext == ".flac" || ext == ".aac" || ext == ".ogg" ||
+        ext == ".m4a" || ext == ".wma" || ext == ".opus") {
+        return QStringLiteral("Music");
+    }
+    if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm" ||
+        ext == ".flv" || ext == ".wmv" || ext == ".m4v" || ext == ".ts" || ext == ".3gp") {
+        return QStringLiteral("Videos");
+    }
+    if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".cmd" || ext == ".apk" ||
+        ext == ".appx" || ext == ".ps1" || ext == ".vbs" || ext == ".sh" || ext == ".jar") {
+        return QStringLiteral("Programs");
+    }
     return QStringLiteral("General");
 }
 
@@ -97,8 +116,7 @@ QVariant DownloadTableModel::data(const QModelIndex& index, int role) const {
 
     bool isMissing = false;
     if (task->get_status() == DownloadStatus::Completed) {
-        std::error_code ec;
-        if (!task->get_destination_filepath().empty() && !std::filesystem::exists(task->get_destination_filepath(), ec)) {
+        if (!task->is_destination_file_present()) {
             isMissing = true;
         }
     }
@@ -168,6 +186,10 @@ QVariant DownloadTableModel::data(const QModelIndex& index, int role) const {
                 if (isMissing) {
                     return QStringLiteral("File missing");
                 }
+                std::string statusMsg = task->get_status_message();
+                if (!statusMsg.empty() && task->get_status() != DownloadStatus::Completed) {
+                    return QString::fromStdString(statusMsg);
+                }
                 if (task->get_status() == DownloadStatus::Failed) {
                     std::string err = task->get_last_error();
                     if (err.find("Threat detected") != std::string::npos || err.find("Security Warning") != std::string::npos) {
@@ -213,8 +235,25 @@ QVariant DownloadTableModel::data(const QModelIndex& index, int role) const {
                 std::string qn = task->get_queue_name();
                 return qn.empty() ? QStringLiteral("-") : QString::fromStdString(qn);
             }
-            case ColLastTry:
-                return QStringLiteral("Queued");
+            case ColLastTry: {
+                if (task->get_status() == DownloadStatus::Downloading) {
+                    return QStringLiteral("Active");
+                }
+                auto tp = task->get_last_try_time();
+                if (tp.time_since_epoch().count() == 0) {
+                    return (task->get_status() == DownloadStatus::NotStarted) ? QStringLiteral("Queued") : QStringLiteral("-");
+                }
+                auto time_t_val = std::chrono::system_clock::to_time_t(tp);
+                std::tm tm_buf;
+#ifdef _WIN32
+                localtime_s(&tm_buf, &time_t_val);
+#else
+                localtime_r(&time_t_val, &tm_buf);
+#endif
+                char buf[64];
+                std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_buf);
+                return QString::fromLatin1(buf);
+            }
             default:
                 break;
         }
@@ -263,55 +302,73 @@ void DownloadTableModel::addTask(const std::shared_ptr<DownloadTask>& task) {
 
 bool DownloadTableModel::removeTask(const std::string& destination_filepath) {
     std::string normTarget = normalizeTaskPath(destination_filepath);
-    for (auto it = m_masterTasks.begin(); it != m_masterTasks.end(); ++it) {
+    bool erased = false;
+    for (auto it = m_masterTasks.begin(); it != m_masterTasks.end(); ) {
         if (*it && (normalizeTaskPath((*it)->get_destination_filepath()) == normTarget || (*it)->get_url() == destination_filepath)) {
-            m_masterTasks.erase(it);
-            refreshTasks();
-            return true;
+            it = m_masterTasks.erase(it);
+            erased = true;
+        } else {
+            ++it;
         }
     }
-    return false;
+    if (m_queues) {
+        for (const auto& [name, q] : *m_queues) {
+            if (q) q->remove_task(destination_filepath);
+        }
+    } else if (m_queue) {
+        m_queue->remove_task(destination_filepath);
+    }
+    refreshTasks();
+    return erased;
 }
 
 void DownloadTableModel::refreshTasks() {
-    // Sync any tasks from m_queues or m_queue into m_masterTasks if not already tracked
+    // Collect all tasks currently belonging to active queues
+    std::vector<std::shared_ptr<DownloadTask>> queueTasks;
     if (m_queues) {
         for (const auto& [name, q] : *m_queues) {
             if (q) {
                 for (const auto& t : q->get_tasks()) {
-                    if (!t) continue;
-                    bool exists = false;
-                    for (const auto& mt : m_masterTasks) {
-                        if (isSameTask(mt, t)) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        m_masterTasks.push_back(t);
-                    }
+                    if (t) queueTasks.push_back(t);
                 }
             }
         }
     } else if (m_queue) {
         for (const auto& t : m_queue->get_tasks()) {
-            if (!t) continue;
-            bool exists = false;
-            for (const auto& mt : m_masterTasks) {
-                if (isSameTask(mt, t)) {
-                    exists = true;
-                    break;
-                }
+            if (t) queueTasks.push_back(t);
+        }
+    }
+
+    // Merge: retain queue tasks plus any detached/unqueued tasks already in m_masterTasks
+    std::vector<std::shared_ptr<DownloadTask>> updatedMaster = queueTasks;
+    for (const auto& existing : m_masterTasks) {
+        if (!existing) continue;
+        bool found = false;
+        for (const auto& qt : queueTasks) {
+            if (isSameTask(existing, qt)) {
+                found = true;
+                break;
             }
-            if (!exists) {
-                m_masterTasks.push_back(t);
+        }
+        if (!found) {
+            updatedMaster.push_back(existing);
+        }
+    }
+    m_masterTasks = std::move(updatedMaster);
+
+    std::vector<std::shared_ptr<DownloadTask>> current = m_masterTasks;
+
+    bool needsReset = (current.size() != m_tasks.size());
+    if (!needsReset) {
+        for (size_t i = 0; i < current.size(); ++i) {
+            if (current[i] != m_tasks[i]) {
+                needsReset = true;
+                break;
             }
         }
     }
 
-    std::vector<std::shared_ptr<DownloadTask>> current = m_masterTasks;
-
-    if (current.size() != m_tasks.size()) {
+    if (needsReset) {
         beginResetModel();
         m_tasks = current;
         endResetModel();

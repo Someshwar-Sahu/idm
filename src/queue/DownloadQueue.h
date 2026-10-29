@@ -87,6 +87,12 @@ private:
     void process_queue_loop();
     std::unordered_set<DownloadTask*> m_dispatched_tasks;
 
+    struct WorkerThreadEntry {
+        std::thread th;
+        std::shared_ptr<std::atomic<bool>> done;
+    };
+    std::vector<WorkerThreadEntry> m_worker_threads;
+
     std::thread m_scheduler_thread;
     std::atomic<bool> m_stop_scheduler{false};
     void schedule_evaluator_loop();

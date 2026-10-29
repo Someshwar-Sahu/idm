@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
+#include <filesystem>
 
 using namespace std;
 
@@ -37,6 +38,10 @@ int main() {
 
     // 1.3 Positive / Edge: Empty string
     assert(ResumeStore::get_sidecar_filepath("") == ".progress.json");
+
+    // 1.4 Positive: Centralized cache directory routing
+    assert(ResumeStore::get_sidecar_filepath("test_file.zip", "custom_cache").find("custom_cache") != string::npos);
+    std::filesystem::remove_all("custom_cache");
     cout << "  -> get_sidecar_filepath() resolution: PASSED" << endl;
 
     // =========================================================================
@@ -59,7 +64,18 @@ int main() {
     assert(save_ok == true);
     assert(ResumeStore::exists(TEST_VALID_SIDECAR) == true);
 
-    // 2.2 Negative: Saving to non-existent directory/path must fail gracefully
+    // 2.2 Bug #8 Fix: Overwriting an already existing sidecar file on Windows (atomic replace)
+    const string TEST_OVERWRITE_SIDECAR = "test_overwrite.progress.json";
+    ResumeStore::remove(TEST_OVERWRITE_SIDECAR);
+    bool ow_save1 = ResumeStore::save(TEST_OVERWRITE_SIDECAR, URL, TOTAL_SIZE, ETAG, cm_save);
+    assert(ow_save1 == true);
+    cm_save.update_chunk_progress(1, 150);
+    bool ow_save2 = ResumeStore::save(TEST_OVERWRITE_SIDECAR, URL, TOTAL_SIZE, ETAG, cm_save);
+    assert(ow_save2 == true);
+    ResumeStore::remove(TEST_OVERWRITE_SIDECAR);
+    cm_save.update_chunk_progress(1, 100);
+
+    // 2.3 Negative: Saving to non-existent directory/path must fail gracefully
     bool save_bad = ResumeStore::save("Z:/non_existent_drive_9999/test.json", URL, TOTAL_SIZE, ETAG, cm_save);
     assert(save_bad == false);
     cout << "  -> save() and exists() state handling: PASSED" << endl;

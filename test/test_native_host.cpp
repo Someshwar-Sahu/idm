@@ -103,6 +103,9 @@ void test_browser_registry_key_paths() {
     string ff_key = NativeHost::get_registry_key_path(BrowserType::Firefox);
     assert(ff_key.find("Mozilla") != string::npos);
 
+    string brave_key = NativeHost::get_registry_key_path(BrowserType::Brave);
+    assert(brave_key.find("BraveSoftware\\Brave-Browser") != string::npos);
+
     cout << "  -> Correct HKCU registry key strings: PASSED" << endl;
 }
 
@@ -207,6 +210,60 @@ void test_extension_manifest_v3_validation() {
     cout << "  -> Manifest V3 structure and component files verified: PASSED" << endl;
 }
 
+void test_stream_framing_read_write() {
+    cout << "\n[9/9] Testing Native Messaging 32-bit Stream Framing..." << endl;
+
+    // 1. Test write_response framing
+    ostringstream oss;
+    assert(NativeHost::write_response(oss, true, "Download added"));
+    string written = oss.str();
+    assert(written.size() > 4);
+    uint32_t resp_len = *reinterpret_cast<const uint32_t*>(written.data());
+    assert(resp_len == written.size() - 4);
+    json j_resp = json::parse(written.substr(4));
+    assert(j_resp["success"] == true);
+    assert(j_resp["message"] == "Download added");
+
+    // 2. Test read_message framing roundtrip
+    InterceptedDownloadPayload in_payload;
+    in_payload.url = "https://example.com/test.zip";
+    in_payload.filename = "test.zip";
+    string json_str = NativeHost::payload_to_json(in_payload);
+    uint32_t payload_len = static_cast<uint32_t>(json_str.size());
+
+    string stream_data;
+    stream_data.append(reinterpret_cast<const char*>(&payload_len), 4);
+    stream_data.append(json_str);
+
+    istringstream iss(stream_data);
+    InterceptedDownloadPayload out_payload;
+    assert(NativeHost::read_message(iss, out_payload));
+    assert(out_payload.url == "https://example.com/test.zip");
+    assert(out_payload.filename == "test.zip");
+
+    // 3. Test oversized header rejection (> 10MB)
+    uint32_t oversized = 15 * 1024 * 1024;
+    string over_data(reinterpret_cast<const char*>(&oversized), 4);
+    istringstream iss_over(over_data);
+    InterceptedDownloadPayload dummy;
+    assert(!NativeHost::read_message(iss_over, dummy));
+
+    // 4. Test zero-length header rejection
+    uint32_t zero_len = 0;
+    string zero_data(reinterpret_cast<const char*>(&zero_len), 4);
+    istringstream iss_zero(zero_data);
+    assert(!NativeHost::read_message(iss_zero, dummy));
+
+    // 5. Test truncated body stream rejection
+    uint32_t trunc_len = 100;
+    string trunc_data(reinterpret_cast<const char*>(&trunc_len), 4);
+    trunc_data.append("short string");
+    istringstream iss_trunc(trunc_data);
+    assert(!NativeHost::read_message(iss_trunc, dummy));
+
+    cout << "  -> 32-bit little-endian framing roundtrip & protocol guards: PASSED" << endl;
+}
+
 int main() {
     cout << "==========================================================" << endl;
     cout << "  Comprehensive Unit Test: NativeHost & Manifest V3 (T26) " << endl;
@@ -220,6 +277,7 @@ int main() {
     test_payload_forwarding_to_live_local_server();
     test_offline_engine_fallback();
     test_extension_manifest_v3_validation();
+    test_stream_framing_read_write();
 
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF BROWSER EXTENSION & NATIVE HOST VERIFIED!" << endl;

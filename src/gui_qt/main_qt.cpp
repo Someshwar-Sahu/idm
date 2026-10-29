@@ -24,16 +24,21 @@ static LONG WINAPI GlobalCrashHandler(EXCEPTION_POINTERS* ep) {
 #include "../ipc/LocalServer.h"
 #include "../config/SettingsManager.h"
 #include "../media/StreamPreviewer.h"
+#include "../net/RemoteDashboard.h"
+#include "../security/AntivirusScanner.h"
 #include <curl/curl.h>
 
 int main(int argc, char* argv[]) {
+    // Bug #12 Fix: Initialize libcurl globally before any worker threads or curl_easy_init calls
+    curl_global_init(CURL_GLOBAL_ALL);
+
 #ifdef _WIN32
     SetUnhandledExceptionFilter(GlobalCrashHandler);
     HANDLE hMutex = CreateMutexA(NULL, TRUE, "Global\\IDMan_SingleInstance_Mutex_Qt");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
         HWND existingWnd = FindWindowA(NULL, "Internet Download Manager 6.42");
         if (existingWnd) {
-            ShowWindow(existingWnd, SW_RESTORE);
+            ShowWindowAsync(existingWnd, SW_RESTORE);
             SetForegroundWindow(existingWnd);
         }
         // Also ping REST API to restore window if minimized to system tray
@@ -46,6 +51,7 @@ int main(int argc, char* argv[]) {
             curl_easy_cleanup(curl);
         }
         CloseHandle(hMutex);
+        curl_global_cleanup();
         return 0;
     }
 #endif
@@ -57,8 +63,40 @@ int main(int argc, char* argv[]) {
     if (appIcon.isNull()) appIcon = QIcon("src/gui_qt/idm.ico");
     app.setWindowIcon(appIcon);
 
+    app.setStyleSheet(QStringLiteral(
+        "QSpinBox, QTimeEdit {"
+        "  background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 4px;"
+        "  padding-left: 6px; padding-right: 20px; padding-top: 3px; padding-bottom: 3px;"
+        "  font-size: 12px; min-height: 20px;"
+        "}"
+        "QSpinBox:focus, QTimeEdit:focus { border-color: #3b82f6; }"
+        "QSpinBox::up-button, QTimeEdit::up-button {"
+        "  subcontrol-origin: border; subcontrol-position: top right; width: 18px; height: 12px;"
+        "  border-left: 1px solid #3f3f46; border-bottom: 1px solid #3f3f46; border-top-right-radius: 3px;"
+        "  background: #2f2f35;"
+        "}"
+        "QSpinBox::up-button:hover, QTimeEdit::up-button:hover { background: #3f3f46; }"
+        "QSpinBox::up-button:pressed, QTimeEdit::up-button:pressed { background: #18181b; }"
+        "QSpinBox::up-arrow, QTimeEdit::up-arrow {"
+        "  width: 0px; height: 0px; border-left: 3px solid transparent; border-right: 3px solid transparent;"
+        "  border-bottom: 4px solid #f4f4f5;"
+        "}"
+        "QSpinBox::down-button, QTimeEdit::down-button {"
+        "  subcontrol-origin: border; subcontrol-position: bottom right; width: 18px; height: 12px;"
+        "  border-left: 1px solid #3f3f46; border-bottom-right-radius: 3px;"
+        "  background: #2f2f35;"
+        "}"
+        "QSpinBox::down-button:hover, QTimeEdit::down-button:hover { background: #3f3f46; }"
+        "QSpinBox::down-button:pressed, QTimeEdit::down-button:pressed { background: #18181b; }"
+        "QSpinBox::down-arrow, QTimeEdit::down-arrow {"
+        "  width: 0px; height: 0px; border-left: 3px solid transparent; border-right: 3px solid transparent;"
+        "  border-top: 4px solid #f4f4f5;"
+        "}"
+    ));
+
     auto settings = std::make_unique<SettingsManager>("settings.json");
     settings->load();
+    AntivirusScanner::load_whitelist();
 
     int maxConcurrent = settings->get_settings().max_concurrent_download;
     if (maxConcurrent <= 0) maxConcurrent = 3;
@@ -70,6 +108,9 @@ int main(int argc, char* argv[]) {
     auto server = std::make_unique<idm::LocalServer>();
     server->attach_queue(queue.get());
     server->attach_settings(settings.get());
+
+    auto dashboard = std::make_unique<idm::RemoteDashboard>();
+    dashboard->attach_to_server(*server, queue.get());
 
     MainWindow mainWindow(queue.get(), settings.get());
 
@@ -84,8 +125,8 @@ int main(int argc, char* argv[]) {
         QMetaObject::invokeMethod(&mainWindow, "restore_or_launch_window", Qt::QueuedConnection);
     });
 
-    server->set_app_terminator([&app]() {
-        QMetaObject::invokeMethod(&app, "quit", Qt::QueuedConnection);
+    server->set_app_terminator([&mainWindow]() {
+        QMetaObject::invokeMethod(&mainWindow, "onExitApp", Qt::QueuedConnection);
     });
 
     server->set_intercept_notifier([&mainWindow](const idm::LocalServer::InterceptRequest& req) {
@@ -113,5 +154,6 @@ int main(int argc, char* argv[]) {
         CloseHandle(hMutex);
     }
 #endif
+    curl_global_cleanup();
     return ret;
 }

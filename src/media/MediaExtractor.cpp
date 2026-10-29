@@ -122,8 +122,43 @@ MediaExtractor::MediaExtractor(const string& ytdlp_path, const string& ffmpeg_pa
 
 MediaExtractor::~MediaExtractor() = default;
 
+bool MediaExtractor::is_safe_shell_string(const string& str) {
+    if (str.empty()) return false;
+    if (str[0] == '-') return false; // Prevent flag injection
+    for (char c : str) {
+        if (static_cast<unsigned char>(c) < 32 || c == 127) return false;
+    }
+    // Disallow dangerous shell metacharacters
+    static const string dangerous = ";&|`$\"'<>\n\r";
+    for (char c : dangerous) {
+        if (str.find(c) != string::npos) return false;
+    }
+    return true;
+}
+
+bool MediaExtractor::is_safe_url(const string& url) {
+    if (url.empty() || url.size() > 4096) return false;
+    if (url[0] == '-') return false; // Prevent flag injection
+    if (url.find(' ') != string::npos) return false; // No spaces in URLs
+    for (char c : url) {
+        if (static_cast<unsigned char>(c) < 32 || c == 127) return false;
+    }
+    // Dangerous shell metacharacters that must NEVER be in a URL
+    static const string dangerous = ";|`$\"'<>\n\r\\";
+    for (char c : dangerous) {
+        if (url.find(c) != string::npos) return false;
+    }
+    // If '&' is present, ensure it only appears after '?' as part of a query string
+    size_t amp = url.find('&');
+    if (amp != string::npos) {
+        size_t qmark = url.find('?');
+        if (qmark == string::npos || amp < qmark) return false;
+    }
+    return true;
+}
+
 bool MediaExtractor::is_supported_media_url(const string& url) {
-    if (url.empty()) return false;
+    if (url.empty() || !is_safe_url(url)) return false;
     string lower = to_lower_str(url);
 
     static const vector<string> domains = {
@@ -425,8 +460,9 @@ string MediaExtractor::get_last_error() const {
 }
 
 MediaMetadata MediaExtractor::fetch_metadata(const string& url) {
-    if (!is_supported_media_url(url)) {
-        m_last_error = "URL is not a recognized streaming media service";
+    m_cancel_requested = false;
+    if (!is_supported_media_url(url) || !is_safe_url(url)) {
+        m_last_error = "URL is not a recognized or safe streaming media service";
         return MediaMetadata{};
     }
 
@@ -465,25 +501,81 @@ MediaMetadata MediaExtractor::fetch_metadata(const string& url) {
 
         if (CreateProcessA(nullptr, cmd_buf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
             CloseHandle(hWrite);
+
             char buf[4096];
-            DWORD read_bytes = 0;
-            while (ReadFile(hRead, buf, sizeof(buf) - 1, &read_bytes, nullptr) && read_bytes > 0) {
-                buf[read_bytes] = '\0';
-                json_output.append(buf, read_bytes);
+            DWORD start_tick = GetTickCount();
+            const DWORD timeout_ms = 15000;
+            bool timed_out = false;
+
+            while (true) {
+                if (m_cancel_requested) {
+                    TerminateProcess(pi.hProcess, 1);
+                    break;
+                }
+
+                DWORD bytes_avail = 0;
+                if (!PeekNamedPipe(hRead, NULL, 0, NULL, &bytes_avail, NULL)) {
+                    break; // Process exited and pipe closed
+                }
+
+                if (bytes_avail > 0) {
+                    DWORD read_bytes = 0;
+                    DWORD to_read = (bytes_avail < sizeof(buf) - 1) ? bytes_avail : (sizeof(buf) - 1);
+                    if (ReadFile(hRead, buf, to_read, &read_bytes, nullptr) && read_bytes > 0) {
+                        buf[read_bytes] = '\0';
+                        json_output.append(buf, read_bytes);
+                    }
+                } else {
+                    DWORD wait_res = WaitForSingleObject(pi.hProcess, 50);
+                    if (wait_res == WAIT_OBJECT_0) {
+                        // Drain any residual bytes in pipe before terminating loop
+                        while (PeekNamedPipe(hRead, NULL, 0, NULL, &bytes_avail, NULL) && bytes_avail > 0) {
+                            DWORD read_bytes = 0;
+                            DWORD to_read = (bytes_avail < sizeof(buf) - 1) ? bytes_avail : (sizeof(buf) - 1);
+                            if (ReadFile(hRead, buf, to_read, &read_bytes, nullptr) && read_bytes > 0) {
+                                json_output.append(buf, read_bytes);
+                            } else {
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (GetTickCount() - start_tick > timeout_ms) {
+                    timed_out = true;
+                    TerminateProcess(pi.hProcess, 1);
+                    break;
+                }
             }
+
             CloseHandle(hRead);
-            WaitForSingleObject(pi.hProcess, 15000);
+            if (WaitForSingleObject(pi.hProcess, 2000) == WAIT_TIMEOUT) {
+                TerminateProcess(pi.hProcess, 1);
+            }
             CloseHandle(pi.hProcess);
             CloseHandle(pi.hThread);
+
+            if (timed_out) {
+                m_last_error = "Metadata probing timed out after 15 seconds";
+                return MediaMetadata{};
+            }
+            if (m_cancel_requested) {
+                m_last_error = "Metadata probing cancelled by user";
+                return MediaMetadata{};
+            }
         } else {
             CloseHandle(hRead);
             CloseHandle(hWrite);
+            m_last_error = "Failed to spawn yt-dlp metadata child process";
+            return MediaMetadata{};
         }
 #else
         FILE* pipe = popen(cmd.c_str(), "r");
         if (pipe) {
             char buf[4096];
             while (fgets(buf, sizeof(buf), pipe)) {
+                if (m_cancel_requested) break;
                 json_output += buf;
             }
             pclose(pipe);
@@ -500,6 +592,20 @@ bool MediaExtractor::extract_media(const string& url,
                                   ProgressCallback callback,
                                   const string& custom_format) {
     m_cancel_requested = false;
+
+    if (!is_supported_media_url(url) || !is_safe_url(url)) {
+        m_last_error = "URL is not a recognized or safe streaming media service";
+        return false;
+    }
+    if (!is_safe_shell_string(output_path)) {
+        m_last_error = "Output path contains invalid or dangerous characters";
+        return false;
+    }
+    if (!custom_format.empty() && !is_safe_shell_string(custom_format)) {
+        m_last_error = "Custom format contains invalid or dangerous characters";
+        return false;
+    }
+
     string cmd = build_download_command(url, output_path, preset, custom_format);
 
     ExtractionStage current_stage = ExtractionStage::DownloadingVideo;
@@ -517,7 +623,7 @@ bool MediaExtractor::extract_media(const string& url,
             return false;
         }
 
-        if (callback) {
+        if (callback && !m_cancel_requested) {
             ExtractionProgress finished;
             finished.stage = ExtractionStage::Completed;
             finished.percent = 100.0;
@@ -565,37 +671,72 @@ bool MediaExtractor::extract_media(const string& url,
     }
 
     char buf[1024];
-    DWORD read_bytes = 0;
     string accumulator;
 
-    while (ReadFile(hRead, buf, sizeof(buf) - 1, &read_bytes, nullptr) && read_bytes > 0) {
+    while (true) {
         if (m_cancel_requested) {
             TerminateProcess(pi.hProcess, 1);
             break;
         }
 
-        buf[read_bytes] = '\0';
-        accumulator.append(buf, read_bytes);
+        DWORD bytes_avail = 0;
+        if (!PeekNamedPipe(hRead, NULL, 0, NULL, &bytes_avail, NULL)) {
+            break; // Child exited and pipe closed
+        }
 
-        size_t nl;
-        while ((nl = accumulator.find_first_of("\r\n")) != string::npos) {
-            string line = accumulator.substr(0, nl);
-            size_t next_idx = nl + 1;
-            if (next_idx < accumulator.size() && accumulator[nl] == '\r' && accumulator[next_idx] == '\n') {
-                next_idx++;
+        if (bytes_avail > 0) {
+            DWORD read_bytes = 0;
+            DWORD to_read = (bytes_avail < sizeof(buf) - 1) ? bytes_avail : (sizeof(buf) - 1);
+            if (ReadFile(hRead, buf, to_read, &read_bytes, nullptr) && read_bytes > 0) {
+                buf[read_bytes] = '\0';
+                accumulator.append(buf, read_bytes);
+
+                size_t nl;
+                while ((nl = accumulator.find_first_of("\r\n")) != string::npos) {
+                    string line = accumulator.substr(0, nl);
+                    size_t next_idx = nl + 1;
+                    if (next_idx < accumulator.size() && accumulator[nl] == '\r' && accumulator[next_idx] == '\n') {
+                        next_idx++;
+                    }
+                    accumulator.erase(0, next_idx);
+
+                    if (!line.empty()) {
+                        ExtractionProgress p = parse_progress_line(line, current_stage);
+                        current_stage = p.stage;
+                        if (callback) callback(p);
+                    }
+                }
             }
-            accumulator.erase(0, next_idx);
-
-            if (!line.empty()) {
-                ExtractionProgress p = parse_progress_line(line, current_stage);
-                current_stage = p.stage;
-                if (callback) callback(p);
+        } else {
+            DWORD wait_res = WaitForSingleObject(pi.hProcess, 50);
+            if (wait_res == WAIT_OBJECT_0) {
+                // Drain residual output
+                while (PeekNamedPipe(hRead, NULL, 0, NULL, &bytes_avail, NULL) && bytes_avail > 0) {
+                    DWORD read_bytes = 0;
+                    DWORD to_read = (bytes_avail < sizeof(buf) - 1) ? bytes_avail : (sizeof(buf) - 1);
+                    if (ReadFile(hRead, buf, to_read, &read_bytes, nullptr) && read_bytes > 0) {
+                        buf[read_bytes] = '\0';
+                        accumulator.append(buf, read_bytes);
+                    } else {
+                        break;
+                    }
+                }
+                break;
             }
         }
     }
 
+    if (!accumulator.empty() && !m_cancel_requested) {
+        ExtractionProgress p = parse_progress_line(accumulator, current_stage);
+        current_stage = p.stage;
+        if (callback) callback(p);
+        accumulator.clear();
+    }
+
     CloseHandle(hRead);
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    if (WaitForSingleObject(pi.hProcess, 2000) == WAIT_TIMEOUT) {
+        TerminateProcess(pi.hProcess, 1);
+    }
 
     DWORD exit_code = 0;
     GetExitCodeProcess(pi.hProcess, &exit_code);

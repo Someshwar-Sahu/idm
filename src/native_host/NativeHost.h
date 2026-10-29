@@ -4,13 +4,15 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <iosfwd>
 
 namespace idm {
 
 enum class BrowserType {
     Chrome,
     Edge,
-    Firefox
+    Firefox,
+    Brave
 };
 
 struct InterceptedDownloadPayload {
@@ -30,6 +32,10 @@ public:
     // Stdio Framing (4-byte length prefix)
     static bool read_message_from_stdin(InterceptedDownloadPayload &out_payload);
     static bool write_response_to_stdout(bool success, const std::string &message);
+
+    // Stream Framing
+    static bool read_message(std::istream &in, InterceptedDownloadPayload &out_payload);
+    static bool write_response(std::ostream &out, bool success, const std::string &message);
 
     // Serialization
     static std::string payload_to_json(const InterceptedDownloadPayload &payload);

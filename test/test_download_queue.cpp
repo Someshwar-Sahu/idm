@@ -301,6 +301,44 @@ int main() {
     ResumeStore::remove(ResumeStore::get_sidecar_filepath("test_pending.bin"));
     cout << "  -> Live scheduler minute-triggered queue auto-start: PASSED" << endl;
 
+    // =========================================================================
+    // 10. REORDERING & PATH NORMALIZATION (move_task_up / move_task_down)
+    // =========================================================================
+    cout << "\n[10/10] Testing Task Reordering with Normalized Paths..." << endl;
+    DownloadQueue reorder_queue("Reorder Queue", 2);
+    auto t_a = make_shared<DownloadTask>("https://example.com/a.zip", "C:/downloads/sub/a.zip", 2);
+    auto t_b = make_shared<DownloadTask>("https://example.com/b.zip", "C:\\downloads\\sub\\b.zip", 2);
+    auto t_c = make_shared<DownloadTask>("https://example.com/c.zip", "C:/downloads/sub/c.zip", 2);
+
+    reorder_queue.add_task(t_a);
+    reorder_queue.add_task(t_b);
+    reorder_queue.add_task(t_c);
+    assert(reorder_queue.get_task_count() == 3);
+
+    // Initial order: A, B, C
+    auto tasks_initial = reorder_queue.get_tasks();
+    assert(tasks_initial[0] == t_a);
+    assert(tasks_initial[1] == t_b);
+    assert(tasks_initial[2] == t_c);
+
+    // Move B up using forward-slash path even though B was added with backslashes
+    bool move_b_up = reorder_queue.move_task_up("C:/downloads/sub/b.zip");
+    assert(move_b_up == true);
+    auto tasks_after_b_up = reorder_queue.get_tasks();
+    assert(tasks_after_b_up[0] == t_b);
+    assert(tasks_after_b_up[1] == t_a);
+    assert(tasks_after_b_up[2] == t_c);
+
+    // Move B down using backslash path
+    bool move_b_down = reorder_queue.move_task_down("C:\\downloads\\sub\\b.zip");
+    assert(move_b_down == true);
+    auto tasks_after_b_down = reorder_queue.get_tasks();
+    assert(tasks_after_b_down[0] == t_a);
+    assert(tasks_after_b_down[1] == t_b);
+    assert(tasks_after_b_down[2] == t_c);
+
+    cout << "  -> move_task_up/down with mixed path slashes: PASSED" << endl;
+
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF DOWNLOADQUEUE FUNCTIONS VERIFIED!      " << endl;
     cout << "==========================================================" << endl;

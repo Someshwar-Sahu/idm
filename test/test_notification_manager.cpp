@@ -102,19 +102,16 @@ int main() {
     cout << "  [PASSED] 100% OF NOTIFICATIONMANAGER (TASK 19) VERIFIED!" << endl;
     cout << "==========================================================" << endl;
 
-        // Live demonstration: open project folder and highlight CMakeLists.txt
-    cout << "\n[Bonus] Testing Live Explorer Launch on existing file..." << endl;
+        // Portable demonstration: use a local relative file path
+    cout << "\n[Bonus] Testing Portable Notification Action Handler..." << endl;
     NotificationPayload live_test;
     live_test.id = "live_demo";
-    live_test.filepath = "E:/Projects/idm/CMakeLists.txt"; // A real file that exists!
+    live_test.filepath = "CMakeLists.txt";
     manager.show_download_complete(live_test);
 
-    bool opened = manager.trigger_action("live_demo", ToastAction::OpenFolder, /*dry_run=*/false);
+    bool opened = manager.trigger_action("live_demo", ToastAction::OpenFolder, /*dry_run=*/true);
     assert(opened == true);
-    cout << "  -> Explorer launched: " << (opened ? "PASSED (Check your screen!)" : "FAILED") << endl;
-
-    // Give Windows Explorer 1 second to render on screen before test finishes
-    this_thread::sleep_for(chrono::seconds(1));
+    cout << "  -> Action handler triggered: PASSED" << endl;
 
     return 0;
 }

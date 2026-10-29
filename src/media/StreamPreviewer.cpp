@@ -386,14 +386,23 @@ void StreamPreviewer::attach_to_server(LocalServer& server, DownloadQueue* queue
         string target_file = path;
         uint64_t total_size = 0;
         uint64_t playable_bytes = 0;
+        std::shared_ptr<DownloadTask> matched_task = nullptr;
 
-        if (queue && !task_id.empty()) {
+        if (queue) {
             for (const auto& t : queue->get_tasks()) {
-                if (t && t->get_destination_filepath() == task_id) {
-                    target_file = t->get_destination_filepath();
-                    break;
+                if (t) {
+                    if (!task_id.empty() && (t->get_destination_filepath() == task_id || t->get_url() == task_id)) {
+                        matched_task = t;
+                        target_file = t->get_destination_filepath();
+                        break;
+                    }
+                    if (!path.empty() && t->get_destination_filepath() == path) {
+                        matched_task = t;
+                        target_file = t->get_destination_filepath();
+                        break;
+                    }
                 }
-             }
+            }
         }
 
         if (target_file.empty()) {
@@ -407,8 +416,19 @@ void StreamPreviewer::attach_to_server(LocalServer& server, DownloadQueue* queue
             return HttpResponse::error_response(404, "Media file does not exist on disk");
         }
 
-        total_size = disk_size;
-        playable_bytes = disk_size;
+        if (matched_task) {
+            total_size = matched_task->get_total_size();
+            if (total_size == 0) total_size = disk_size;
+
+            if (matched_task->get_status() == DownloadStatus::Completed) {
+                playable_bytes = disk_size;
+            } else {
+                playable_bytes = calculate_contiguous_playable_bytes(matched_task->get_chunks());
+            }
+        } else {
+            total_size = disk_size;
+            playable_bytes = disk_size;
+        }
 
         return handle_preview_request(req, target_file, total_size, playable_bytes);
     });

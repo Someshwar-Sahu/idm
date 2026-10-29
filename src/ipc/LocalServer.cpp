@@ -35,6 +35,7 @@
 #include "DownloadQueue.h"
 #include "DownloadTask.h"
 #include "FileWriter.h"
+#include "ResumeStore.h"
 #include "AntivirusScanner.h"
 #include "../config/SettingsManager.h"
 #include <curl/curl.h>
@@ -49,6 +50,20 @@
 using namespace std;
 
 namespace idm {
+
+static bool is_matching_task(const std::shared_ptr<DownloadTask>& t, const std::string& id) {
+    if (!t || id.empty()) return false;
+    if (t->get_destination_filepath() == id || t->get_url() == id) return true;
+    try {
+        std::filesystem::path p_dest(t->get_destination_filepath());
+        std::filesystem::path p_id(id);
+        if (p_dest == p_id) return true;
+        if (p_dest.filename() == p_id.filename() && !p_id.has_parent_path()) {
+            return true;
+        }
+    } catch (...) {}
+    return false;
+}
 
 HttpResponse HttpResponse::json_response(int code, const json& j) {
     HttpResponse res;
@@ -97,6 +112,9 @@ std::string LocalServer::format_raw_response(const HttpResponse& res) {
     oss << "HTTP/1.1 " << res.status_code << " " << res.status_message << "\r\n";
     oss << "Content-Length: " << res.body.size() << "\r\n";
     for (const auto& [k, v] : res.headers) {
+        std::string lower_k = k;
+        for (char &c : lower_k) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        if (lower_k == "content-length") continue;
         oss << k << ": " << v << "\r\n";
     }
     oss << "\r\n";
@@ -366,6 +384,19 @@ HttpResponse LocalServer::dispatch_request(const HttpRequest& req) {
 }
 
 void LocalServer::init_default_routes() {
+    // GET/POST /api/show - Restores window to foreground when running second instance or from tray
+    auto show_handler = [this](const HttpRequest&) -> HttpResponse {
+        if (m_window_restorer) {
+            m_window_restorer();
+        }
+        json res;
+        res["status"] = "SUCCESS";
+        res["message"] = "Window restored to foreground.";
+        return HttpResponse::json_response(200, res);
+    };
+    register_route("GET", "/api/show", show_handler);
+    register_route("POST", "/api/show", show_handler);
+
     // POST /api/probe_url
     register_route("POST", "/api/probe_url", [this](const HttpRequest& req) -> HttpResponse {
         if (!req.json_body.is_object()) {
@@ -523,19 +554,6 @@ void LocalServer::init_default_routes() {
         return HttpResponse::json_response(200, res);
     });
 
-    // POST /api/show & GET /api/show (Restore IDM GUI from tray/background)
-    auto show_handler = [this](const HttpRequest&) -> HttpResponse {
-        if (m_window_restorer) {
-            m_window_restorer();
-        }
-        json res;
-        res["status"] = "SUCCESS";
-        res["message"] = "Window restore signal sent";
-        return HttpResponse::json_response(200, res);
-    };
-    register_route("POST", "/api/show", show_handler);
-    register_route("GET", "/api/show", show_handler);
-
     // GET /api/events (Long-polling endpoint for 0ms reactivity)
     register_route("GET", "/api/events", [this](const HttpRequest& req) -> HttpResponse {
         uint64_t client_since = 0;
@@ -631,13 +649,24 @@ void LocalServer::init_default_routes() {
             if (it_ua != req.headers.end()) user_agent = it_ua->second;
         }
         std::string browser = req.json_body.value("browser", "");
+        bool user_force_override = req.json_body.value("user_force_override", false);
+        uint64_t total_size = req.json_body.value("total_size", static_cast<uint64_t>(0));
 
-        if (!confirmed && m_settings != nullptr && !m_settings->is_interception_allowed(url, user_agent, browser)) {
-            json res;
-            res["status"] = "IGNORED";
-            res["success"] = false;
-            res["message"] = "Browser integration disabled for this browser or site in IDM settings";
-            return HttpResponse::json_response(200, res);
+        if (!confirmed && m_settings != nullptr) {
+            if (!m_settings->is_interception_allowed(url, user_agent, browser)) {
+                json res;
+                res["status"] = "IGNORED";
+                res["success"] = false;
+                res["message"] = "Browser integration disabled for this browser or site in IDM settings";
+                return HttpResponse::json_response(200, res);
+            }
+            if (!m_settings->should_intercept_download(total_size, user_force_override)) {
+                json res;
+                res["status"] = "IGNORED";
+                res["success"] = false;
+                res["message"] = "Download bypassed due to minimum file size threshold in settings";
+                return HttpResponse::json_response(200, res);
+            }
         }
 
         if (!confirmed && m_intercept_notifier) {
@@ -773,9 +802,7 @@ void LocalServer::init_default_routes() {
             if (!paused) {
                 auto tasks = m_queue->get_tasks();
                 for (auto& t : tasks) {
-                    if (t && (t->get_destination_filepath() == id || t->get_url() == id ||
-                              t->get_destination_filepath().find(id) != std::string::npos ||
-                              id.find(t->get_destination_filepath()) != std::string::npos)) {
+                    if (is_matching_task(t, id)) {
                         paused = m_queue->pause_task(t->get_destination_filepath());
                         break;
                     }
@@ -820,9 +847,7 @@ void LocalServer::init_default_routes() {
             if (!resumed) {
                 auto tasks = m_queue->get_tasks();
                 for (auto& t : tasks) {
-                    if (t && (t->get_destination_filepath() == id || t->get_url() == id ||
-                              t->get_destination_filepath().find(id) != std::string::npos ||
-                              id.find(t->get_destination_filepath()) != std::string::npos)) {
+                    if (is_matching_task(t, id)) {
                         resumed = m_queue->resume_task(t->get_destination_filepath());
                         break;
                     }
@@ -870,9 +895,7 @@ void LocalServer::init_default_routes() {
         if (m_queue != nullptr) {
             auto tasks = m_queue->get_tasks();
             for (auto& t : tasks) {
-                if (t && (t->get_destination_filepath() == id || t->get_url() == id ||
-                          t->get_destination_filepath().find(id) != std::string::npos ||
-                          id.find(t->get_destination_filepath()) != std::string::npos)) {
+                if (is_matching_task(t, id)) {
                     if (t->get_status() != DownloadStatus::Completed) {
                         t->cancel();
                     }
@@ -927,9 +950,7 @@ void LocalServer::init_default_routes() {
             auto tasks = m_queue->get_tasks();
             for (auto& t : tasks) {
                 if (t) {
-                    std::string nt_path = norm(t->get_destination_filepath());
-                    std::string nt_url = norm(t->get_url());
-                    if (nt_path == nid || nt_url == nid || nt_path.find(nid) != std::string::npos || nid.find(nt_path) != std::string::npos) {
+                    if (is_matching_task(t, id)) {
                         std::string full_path = t->get_destination_filepath();
                         std::string fhash = AntivirusScanner::calculate_file_sha256(full_path);
                         if (!fhash.empty()) {
@@ -982,9 +1003,7 @@ void LocalServer::init_default_routes() {
             auto tasks = m_queue->get_tasks();
             for (auto& t : tasks) {
                 if (t) {
-                    std::string nt_path = norm(t->get_destination_filepath());
-                    std::string nt_url = norm(t->get_url());
-                    if (nt_path == nid || nt_url == nid || nt_path.find(nid) != std::string::npos || nid.find(nt_path) != std::string::npos) {
+                    if (is_matching_task(t, id)) {
                         std::string full_path = t->get_destination_filepath();
                         bool q_ok = AntivirusScanner::quarantine_file(full_path, "Threat:IsolatedByUser", quarantined_path, t->get_url());
                         if (!q_ok) {
@@ -1023,29 +1042,35 @@ void LocalServer::init_default_routes() {
         bool delete_file = req.json_body.value("delete_file", false);
 
         if (m_queue != nullptr) {
-            bool removed = m_queue->remove_task(id);
-            if (!removed) {
-                auto tasks = m_queue->get_tasks();
-                for (auto& t : tasks) {
-                    if (t && (t->get_destination_filepath() == id || t->get_url() == id ||
-                              t->get_destination_filepath().find(id) != std::string::npos ||
-                              id.find(t->get_destination_filepath()) != std::string::npos)) {
-                        std::string full_path = t->get_destination_filepath();
-                        removed = m_queue->remove_task(full_path);
-                        if (delete_file) {
-                            std::error_code ec;
-                            std::filesystem::remove(full_path, ec);
-                            std::filesystem::remove(full_path + ".idm_sidecar", ec);
-                            std::filesystem::remove(full_path + ".idm_state", ec);
-                        }
-                        break;
+            std::shared_ptr<DownloadTask> target_task = nullptr;
+            auto tasks = m_queue->get_tasks();
+            for (auto& t : tasks) {
+                if (is_matching_task(t, id) || (t && t->get_destination_filepath() == id)) {
+                    target_task = t;
+                    break;
+                }
+            }
+
+            bool removed = false;
+            if (target_task) {
+                std::string full_path = target_task->get_destination_filepath();
+                std::string sidecar = target_task->get_sidecar_filepath();
+                removed = m_queue->remove_task(full_path);
+                if (delete_file) {
+                    target_task->clear_cache_and_partial_file();
+                    std::error_code ec;
+                    std::filesystem::remove(full_path, ec);
+                    if (!sidecar.empty()) {
+                        ResumeStore::remove(sidecar);
                     }
                 }
-            } else if (delete_file) {
-                std::error_code ec;
-                std::filesystem::remove(id, ec);
-                std::filesystem::remove(id + ".idm_sidecar", ec);
-                std::filesystem::remove(id + ".idm_state", ec);
+            } else {
+                removed = m_queue->remove_task(id);
+                if (delete_file) {
+                    std::error_code ec;
+                    std::filesystem::remove(id, ec);
+                    ResumeStore::remove(id);
+                }
             }
             json res;
             res["status"] = removed ? "SUCCESS" : "NOT_FOUND";
@@ -1278,9 +1303,7 @@ void LocalServer::init_default_routes() {
         if (m_queue != nullptr) {
             auto tasks = m_queue->get_tasks();
             for (const auto& t : tasks) {
-                if (t && (t->get_destination_filepath() == id || t->get_url() == id ||
-                          t->get_destination_filepath().find(id) != std::string::npos ||
-                          id.find(t->get_destination_filepath()) != std::string::npos)) {
+                if (is_matching_task(t, id)) {
                     auto chunks = t->get_chunks();
                     for (const auto& c : chunks) {
                         std::string state_str = "Pending";
@@ -1335,9 +1358,7 @@ void LocalServer::init_default_routes() {
         if (m_queue != nullptr) {
             auto tasks = m_queue->get_tasks();
             for (auto& t : tasks) {
-                if (t && (t->get_destination_filepath() == id || t->get_url() == id ||
-                          t->get_destination_filepath().find(id) != std::string::npos ||
-                          id.find(t->get_destination_filepath()) != std::string::npos)) {
+                if (is_matching_task(t, id)) {
                     t->set_antivirus_scan_enabled(!override_val);
                     json res;
                     res["status"] = "SUCCESS";
@@ -1379,6 +1400,8 @@ void LocalServer::init_default_routes() {
             res["antivirus_scan_enabled"] = s.antivirus_scan_enabled;
             res["antivirus_executable_path"] = s.antivirus_executable_path;
             res["file_types"] = s.file_types;
+            res["enable_small_file_bypass"] = s.enable_small_file_bypass;
+            res["min_capture_size_bytes"] = s.min_capture_size_bytes;
             res["show_start_download_dialog"] = s.show_start_download_dialog;
             res["category_folders"] = s.category_folders;
         } else {
@@ -1391,6 +1414,8 @@ void LocalServer::init_default_routes() {
             res["antivirus_scan_enabled"] = true;
             res["antivirus_executable_path"] = "C:\\Program Files\\Windows Defender\\MpCmdRun.exe";
             res["file_types"] = "ZIP RAR 7Z ISO TAR GZ EXE MSI MP4 MKV WEBM MP3 FLAC WAV PDF DMG DAT BIN APK CSV";
+            res["enable_small_file_bypass"] = true;
+            res["min_capture_size_bytes"] = 10 * 1024 * 1024;
             res["show_start_download_dialog"] = true;
             res["category_folders"] = {
                 {"Documents", "Documents"},
@@ -1801,6 +1826,12 @@ void LocalServer::stop() {
     if (m_listener_thread.joinable()) {
         m_listener_thread.join();
     }
+
+    // Wait for any in-flight client threads to complete before returning
+    std::unique_lock<std::mutex> lk(m_clients_mutex);
+    m_clients_cv.wait_for(lk, std::chrono::seconds(2), [this]() {
+        return m_active_clients.load() == 0;
+    });
 }
 
 void LocalServer::queue_intercept(const std::string& url, const std::string& filename, const std::string& cookies) {
@@ -1929,8 +1960,21 @@ void LocalServer::server_loop() {
 #endif
             socket_t client_socket = accept(s, reinterpret_cast<sockaddr*>(&client_addr), &client_len);
             if (IS_VALIDSOCKET(client_socket)) {
+                // Bug #35 Fix: Bound concurrent client threads to prevent unbounded thread exhaustion
+                if (m_active_clients.load() >= 32) {
+                    std::string busy_resp = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 11\r\nConnection: close\r\n\r\nServer Busy";
+                    send(client_socket, busy_resp.data(), static_cast<int>(busy_resp.size()), 0);
+                    CLOSESOCKET(client_socket);
+                    continue;
+                }
+                m_active_clients++;
                 std::thread([this, client_socket]() {
                     handle_client(static_cast<uintptr_t>(client_socket));
+                    {
+                        std::lock_guard<std::mutex> lk(m_clients_mutex);
+                        m_active_clients--;
+                    }
+                    m_clients_cv.notify_all();
                 }).detach();
             }
         }
@@ -1943,11 +1987,13 @@ void LocalServer::handle_client(uintptr_t client_socket) {
 #ifdef _WIN32
     DWORD timeout = 5000;
     setsockopt(cs, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+    setsockopt(cs, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
 #else
     struct timeval tv;
     tv.tv_sec = 5;
     tv.tv_usec = 0;
     setsockopt(cs, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(cs, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 #endif
 
     std::string raw_request;
@@ -2012,7 +2058,14 @@ void LocalServer::handle_client(uintptr_t client_socket) {
         HttpResponse res = dispatch_request(req);
         std::string raw_response = format_raw_response(res);
 
-        send(cs, raw_response.c_str(), static_cast<int>(raw_response.size()), 0);
+        size_t total_sent = 0;
+        const char* p = raw_response.data();
+        size_t len = raw_response.size();
+        while (total_sent < len) {
+            int sent = send(cs, p + total_sent, static_cast<int>(len - total_sent), 0);
+            if (sent <= 0) break;
+            total_sent += sent;
+        }
     }
 
     CLOSESOCKET(cs);

@@ -40,7 +40,7 @@ QString statusToString(DownloadStatus status) {
 }
 }
 
-SchedulerDialog::SchedulerDialog(const std::map<QString, std::shared_ptr<DownloadQueue>>& queues,
+SchedulerDialog::SchedulerDialog(std::map<QString, std::shared_ptr<DownloadQueue>>& queues,
                                  const QString& initialQueueName,
                                  QWidget* parent)
     : QDialog(parent), m_queues(queues) {
@@ -59,7 +59,16 @@ SchedulerDialog::SchedulerDialog(const std::map<QString, std::shared_ptr<Downloa
         "QGroupBox { color: #38bdf8; font-weight: bold; border: 1px solid #27272a; border-radius: 6px; margin-top: 12px; padding-top: 14px; }"
         "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }"
         "QLabel, QCheckBox { font-size: 12px; color: #e4e4e7; }"
-        "QTimeEdit, QSpinBox { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 4px; padding: 4px 8px; font-size: 12px; }"
+        "QTimeEdit, QSpinBox { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 4px; padding-left: 6px; padding-right: 20px; padding-top: 3px; padding-bottom: 3px; font-size: 12px; min-height: 20px; }"
+        "QTimeEdit:focus, QSpinBox:focus { border-color: #3b82f6; }"
+        "QTimeEdit::up-button, QSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 18px; height: 12px; border-left: 1px solid #3f3f46; border-bottom: 1px solid #3f3f46; border-top-right-radius: 3px; background: #2f2f35; }"
+        "QTimeEdit::up-button:hover, QSpinBox::up-button:hover { background: #3f3f46; }"
+        "QTimeEdit::up-button:pressed, QSpinBox::up-button:pressed { background: #18181b; }"
+        "QTimeEdit::up-arrow, QSpinBox::up-arrow { width: 0px; height: 0px; border-left: 3px solid transparent; border-right: 3px solid transparent; border-bottom: 4px solid #f4f4f5; }"
+        "QTimeEdit::down-button, QSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 18px; height: 12px; border-left: 1px solid #3f3f46; border-bottom-right-radius: 3px; background: #2f2f35; }"
+        "QTimeEdit::down-button:hover, QSpinBox::down-button:hover { background: #3f3f46; }"
+        "QTimeEdit::down-button:pressed, QSpinBox::down-button:pressed { background: #18181b; }"
+        "QTimeEdit::down-arrow, QSpinBox::down-arrow { width: 0px; height: 0px; border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 4px solid #f4f4f5; }"
         "QTableWidget { background: #18181b; color: #f4f4f5; border: 1px solid #27272a; gridline-color: #27272a; }"
         "QHeaderView::section { background: #202025; color: #a1a1aa; border: 1px solid #27272a; padding: 4px; font-weight: 600; font-size: 11px; }"
         "QPushButton { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 5px; padding: 6px 14px; font-size: 12px; font-weight: 500; }"
@@ -485,6 +494,19 @@ void SchedulerDialog::onDeleteQueueClicked() {
     if (ans != QMessageBox::Yes) return;
 
     QString deletedName = m_currentQueueName;
+    auto it = m_queues.find(deletedName);
+    if (it != m_queues.end() && it->second) {
+        it->second->stop();
+        auto mainIt = m_queues.find(QStringLiteral("Main Download Queue"));
+        if (mainIt != m_queues.end() && mainIt->second) {
+            for (auto& task : it->second->get_tasks()) {
+                if (task) {
+                    task->set_queue_name("Main Download Queue");
+                    mainIt->second->add_task(task);
+                }
+            }
+        }
+    }
     m_queues.erase(deletedName);
 
     // Remove from UI

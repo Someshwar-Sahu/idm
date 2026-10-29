@@ -106,8 +106,25 @@ void test_remote_status_telemetry() {
     assert(j_res["online"] == true);
     assert(j_res["task_count"] == 1);
     assert(j_res["tasks"][0]["url"] == "https://example.com/file1.zip");
+    assert(j_res.contains("total_speed_bps"));
+    assert(j_res["tasks"][0].contains("speed_bps"));
+    assert(j_res["tasks"][0].contains("progress_pct"));
+    assert(j_res["tasks"][0].contains("downloaded_bytes"));
+    assert(j_res["tasks"][0].contains("total_bytes"));
+    assert(j_res["tasks"][0].contains("eta"));
+
+    // Verify Windows backslash path escaping
+    auto task_win = make_shared<DownloadTask>("https://example.com/win.zip", "C:\\Users\\test\\Downloads\\win.zip");
+    queue.add_task(task_win);
+    HttpResponse res2 = server.dispatch_request(req);
+    json j_res2 = json::parse(res2.body);
+    assert(j_res2["task_count"] == 2);
+    string win_id = j_res2["tasks"][1]["id"];
+    assert(win_id.find('\\') == string::npos);
+    assert(win_id == "C:/Users/test/Downloads/win.zip");
+
     server.stop();
-    cout << "  -> Real-time remote telemetry JSON endpoint: PASSED" << endl;
+    cout << "  -> Real-time remote telemetry JSON endpoint & path normalization: PASSED" << endl;
 }
 
 void test_remote_task_submission() {

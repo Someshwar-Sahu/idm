@@ -133,7 +133,11 @@ void DownloadStatusDialog::onRefreshTick() {
     setWindowTitle(QStringLiteral("Downloading: ") + fileName);
 
     auto status = m_task->get_status();
-    if (status == DownloadStatus::Downloading) {
+    std::string statusMsg = m_task->get_status_message();
+    if (!statusMsg.empty() && status != DownloadStatus::Completed) {
+        m_statusLabel->setText(QStringLiteral("<font color='#38bdf8'><b>%1</b></font>").arg(QString::fromStdString(statusMsg)));
+        m_pauseResumeBtn->setEnabled(false);
+    } else if (status == DownloadStatus::Downloading) {
         m_statusLabel->setText(QStringLiteral("<font color='#34d399'>Downloading</font>"));
         m_pauseResumeBtn->setText(QStringLiteral("Pause"));
         m_pauseResumeBtn->setEnabled(true);
@@ -216,8 +220,10 @@ void DownloadStatusDialog::onRefreshTick() {
         m_completedPopupTriggered = true;
         m_timer->stop();
         close();
-        auto* compDlg = new DownloadCompleteDialog(m_task->get_destination_filepath(), total, parentWidget());
-        compDlg->show();
+        if (!m_task->is_mute_sound()) {
+            auto* compDlg = new DownloadCompleteDialog(m_task->get_destination_filepath(), total, parentWidget());
+            compDlg->show();
+        }
     }
 }
 
@@ -229,8 +235,10 @@ void DownloadStatusDialog::onOverrideSecurityClicked() {
     m_completedPopupTriggered = true;
     m_timer->stop();
     close();
-    auto* compDlg = new DownloadCompleteDialog(m_task->get_destination_filepath(), m_task->get_total_size(), parentWidget());
-    compDlg->show();
+    if (!m_task->is_mute_sound()) {
+        auto* compDlg = new DownloadCompleteDialog(m_task->get_destination_filepath(), m_task->get_total_size(), parentWidget());
+        compDlg->show();
+    }
 }
 
 void DownloadStatusDialog::onPauseResumeClicked() {

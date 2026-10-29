@@ -195,12 +195,17 @@ void test_destination_folder_and_zip_slip_security() {
     // Zip-Slip Traversal Guards
     assert(ArchiveVerifier::is_safe_extract_path("C:/dest", "subfolder/file.txt"));
     assert(ArchiveVerifier::is_safe_extract_path("C:/dest", "file.txt"));
+    assert(ArchiveVerifier::is_safe_extract_path("c:/dest", "SUBFOLDER/FILE.TXT")); // Case insensitivity
+    assert(ArchiveVerifier::is_safe_extract_path("C:/dest/", "file.txt")); // Trailing separator
+    assert(ArchiveVerifier::is_safe_extract_path("C:/dest", "."));
 
     // Traversal attempts MUST be blocked
     assert(!ArchiveVerifier::is_safe_extract_path("C:/dest", "../evil.exe"));
     assert(!ArchiveVerifier::is_safe_extract_path("C:/dest", "sub/../../evil.exe"));
     assert(!ArchiveVerifier::is_safe_extract_path("C:/dest", "/etc/passwd"));
     assert(!ArchiveVerifier::is_safe_extract_path("C:/dest", "C:/Windows/system32/cmd.exe"));
+    assert(!ArchiveVerifier::is_safe_extract_path("", "file.txt"));
+    assert(!ArchiveVerifier::is_safe_extract_path("C:/dest", ""));
 
     cout << "  -> Sanitized paths and Zip-Slip vulnerability prevention: PASSED" << endl;
 }

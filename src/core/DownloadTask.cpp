@@ -38,6 +38,7 @@ DownloadTask::DownloadTask(const string &url,
       m_cache_directory(cache_directory),
       m_num_threads(num_threads),
       m_max_bytes_per_sec(max_bytes_per_sec),
+      m_worker_bytes_per_sec((num_threads > 0 && max_bytes_per_sec > 0) ? (max_bytes_per_sec / num_threads) : max_bytes_per_sec),
       m_referer(referer),
       m_cookies(cookies) {
     if (!user_agent.empty()) {
@@ -64,6 +65,12 @@ DownloadTask::~DownloadTask() {
 
 void DownloadTask::set_speed_limit(uint64_t max_bytes_per_sec) {
     m_max_bytes_per_sec.store(max_bytes_per_sec);
+    int count = m_supports_ranges ? m_num_threads : 1;
+    if (count > 0 && max_bytes_per_sec > 0) {
+        m_worker_bytes_per_sec.store(max_bytes_per_sec / count);
+    } else {
+        m_worker_bytes_per_sec.store(max_bytes_per_sec);
+    }
 }
 
 uint64_t DownloadTask::get_speed_limit() const {
@@ -118,6 +125,7 @@ bool DownloadTask::has_sufficient_disk_space(uint64_t required_bytes) const {
 }
 
 void DownloadTask::set_http_context(const string &referer, const string &cookies, const string &user_agent) {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     m_referer = referer;
     m_cookies = cookies;
     if (!user_agent.empty()) {
@@ -125,23 +133,50 @@ void DownloadTask::set_http_context(const string &referer, const string &cookies
     }
 }
 
+void DownloadTask::set_auth_credentials(const string &username, const string &password, const string &auth_header) {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    m_username = username;
+    m_password = password;
+    m_auth_header = auth_header;
+}
+
+string DownloadTask::get_username() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    return m_username;
+}
+
+string DownloadTask::get_password() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    return m_password;
+}
+
+string DownloadTask::get_auth_header() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    return m_auth_header;
+}
+
 string DownloadTask::get_url() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_url;
 }
 
 string DownloadTask::get_referer() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_referer;
 }
 
 string DownloadTask::get_cookies() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_cookies;
 }
 
 string DownloadTask::get_user_agent() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_user_agent;
 }
 
 string DownloadTask::get_destination_filepath() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_destination_filepath;
 }
 
@@ -263,16 +298,17 @@ static string url_decode_rfc5987(const string &in) {
 }
 
 string DownloadTask::extract_filename_from_content_disposition(const string &header){
-    string lower_header = header;
+    string last_headers = get_last_response_headers(header);
+    string lower_header = last_headers;
     for(char &c: lower_header) c= static_cast<char> (tolower(static_cast<unsigned char> (c)));
 
     // Bug 14 Fix: Support modern RFC 5987 UTF-8 encoded filename*= (e.g. filename*=UTF-8''document.pdf)
     size_t star_pos = lower_header.find("filename*=");
     if (star_pos != string::npos) {
         size_t start = star_pos + 10;
-        size_t end = header.find_first_of(";\r\n", start);
-        if (end == string::npos) end = header.length();
-        string raw = header.substr(start, end - start);
+        size_t end = last_headers.find_first_of(";\r\n", start);
+        if (end == string::npos) end = last_headers.length();
+        string raw = last_headers.substr(start, end - start);
         if (raw.size() >= 2 && raw.front() == '"' && raw.back() == '"') {
             raw = raw.substr(1, raw.size() - 2);
         }
@@ -290,48 +326,125 @@ string DownloadTask::extract_filename_from_content_disposition(const string &hea
     if(pos == string::npos) return "";
 
     size_t start = pos + 9;
-    if(start >= header.length()) return "";
+    if(start >= last_headers.length()) return "";
 
-    if(header[start] == '"'){
+    if(last_headers[start] == '"'){
         start++;
-        size_t end = header.find('"', start);
+        size_t end = last_headers.find('"', start);
         if(end != string::npos){
-            return header.substr(start, end-start);
+            return last_headers.substr(start, end-start);
         }
     }
     else {
-        size_t end = header.find_first_of(";\r\n", start);
-        if(end == string::npos) end = header.length();
-        return header.substr(start, end - start);
+        size_t end = last_headers.find_first_of(";\r\n", start);
+        if(end == string::npos) end = last_headers.length();
+        return last_headers.substr(start, end - start);
     }
     return "";
 }
 
+string DownloadTask::get_last_response_headers(const string &all_headers) {
+    if (all_headers.empty()) return "";
+    size_t last_pos = string::npos;
+    size_t pos = 0;
+    while (true) {
+        size_t found = all_headers.find("HTTP/", pos);
+        if (found == string::npos) break;
+        if (found == 0 || all_headers[found - 1] == '\n' || all_headers[found - 1] == '\r') {
+            last_pos = found;
+        }
+        pos = found + 5;
+    }
+    if (last_pos != string::npos) {
+        return all_headers.substr(last_pos);
+    }
+    return all_headers;
+}
+
+string DownloadTask::get_header_value(const string &headers, const string &header_name) {
+    if (headers.empty() || header_name.empty()) return "";
+
+    string target = header_name;
+    for (char &c : target) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+    size_t pos = 0;
+    while (pos < headers.length()) {
+        size_t line_end = headers.find_first_of("\r\n", pos);
+        if (line_end == string::npos) line_end = headers.length();
+        string line = headers.substr(pos, line_end - pos);
+
+        size_t colon = line.find(':');
+        if (colon != string::npos) {
+            string key = line.substr(0, colon);
+            while (!key.empty() && (key.back() == ' ' || key.back() == '\t')) key.pop_back();
+            string lower_key = key;
+            for (char &c : lower_key) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+            if (lower_key == target) {
+                size_t val_start = colon + 1;
+                while (val_start < line.length() && (line[val_start] == ' ' || line[val_start] == '\t')) {
+                    val_start++;
+                }
+                string val = line.substr(val_start);
+                while (!val.empty() && (val.back() == ' ' || val.back() == '\t' || val.back() == '\r')) {
+                    val.pop_back();
+                }
+                return val;
+            }
+        }
+
+        pos = headers.find_first_not_of("\r\n", line_end);
+        if (pos == string::npos) break;
+    }
+    return "";
+}
+
+bool DownloadTask::etags_match(const string &e1, const string &e2) {
+    auto clean = [](string s) {
+        if (s.size() >= 2 && (s.substr(0, 2) == "W/" || s.substr(0, 2) == "w/")) {
+            s = s.substr(2);
+        }
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"') {
+            s = s.substr(1, s.size() - 2);
+        }
+        return s;
+    };
+    return clean(e1) == clean(e2);
+}
+
 bool DownloadTask::update_url(const string &new_url) {
     if (new_url.empty()) {
-        m_last_error = "Cannot update to empty URL";
+        set_last_error("Cannot update to empty URL");
         return false;
     }
 
     if (m_status == DownloadStatus::Downloading) {
-        m_last_error = "Cannot update URL while download is active. Pause the task first.";
+        set_last_error("Cannot update URL while download is active. Pause the task first.");
         return false;
+    }
+
+    string ua, ref, ck;
+    {
+        std::lock_guard<std::mutex> lock(m_string_mutex);
+        ua = m_user_agent;
+        ref = m_referer;
+        ck = m_cookies;
     }
 
     CURL *curl = curl_easy_init();
     if (!curl) {
-        m_last_error = "Failed to initialize libcurl handle for URL validation";
+        set_last_error("Failed to initialize libcurl handle for URL validation");
         return false;
     }
 
     string response_headers;
     curl_easy_setopt(curl, CURLOPT_URL, new_url.c_str());
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, m_user_agent.c_str());
-    if (!m_referer.empty()) {
-        curl_easy_setopt(curl, CURLOPT_REFERER, m_referer.c_str());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, ua.c_str());
+    if (!ref.empty()) {
+        curl_easy_setopt(curl, CURLOPT_REFERER, ref.c_str());
     }
-    if (!m_cookies.empty()) {
-        curl_easy_setopt(curl, CURLOPT_COOKIE, m_cookies.c_str());
+    if (!ck.empty()) {
+        curl_easy_setopt(curl, CURLOPT_COOKIE, ck.c_str());
     }
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
@@ -344,7 +457,7 @@ bool DownloadTask::update_url(const string &new_url) {
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        m_last_error = string("Validation of refreshed URL failed: ") + curl_easy_strerror(res);
+        set_last_error(string("Validation of refreshed URL failed: ") + curl_easy_strerror(res));
         curl_easy_cleanup(curl);
         return false;
     }
@@ -352,7 +465,7 @@ bool DownloadTask::update_url(const string &new_url) {
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code >= 400) {
-        m_last_error = "Server rejected refreshed URL with HTTP " + to_string(http_code);
+        set_last_error("Server rejected refreshed URL with HTTP " + to_string(http_code));
         curl_easy_cleanup(curl);
         return false;
     }
@@ -362,30 +475,37 @@ bool DownloadTask::update_url(const string &new_url) {
     curl_easy_cleanup(curl);
 
     if (m_total_size > 0 && cl > 0 && static_cast<uint64_t>(cl) != m_total_size) {
-        m_last_error = "Refreshed URL size mismatch: expected " + to_string(m_total_size) +
-                       " bytes, server returned " + to_string(cl) + " bytes";
+        set_last_error("Refreshed URL size mismatch: expected " + to_string(m_total_size) +
+                       " bytes, server returned " + to_string(cl) + " bytes");
         return false;
     }
 
-    m_url = new_url;
+    string sidecar;
+    {
+        std::lock_guard<std::mutex> lock(m_string_mutex);
+        m_url = new_url;
+        sidecar = m_sidecar_filepath;
+    }
 
-    if (m_chunk_manager && ResumeStore::exists(m_sidecar_filepath)) {
-        ResumeStore::save(m_sidecar_filepath, m_url, m_total_size, m_etag, *m_chunk_manager);
+    if (m_chunk_manager && ResumeStore::exists(sidecar)) {
+        ResumeStore::save(sidecar, new_url, m_total_size, m_etag, *m_chunk_manager, m_supports_ranges);
     }
 
     if (m_status == DownloadStatus::Failed) {
         m_status = DownloadStatus::Paused;
-        m_last_error.clear();
+        clear_last_error();
     }
 
     return true;
 }
 
 bool DownloadTask::probe_url() {
+    update_last_try_time();
     m_status = DownloadStatus::Probing;
+    m_supports_ranges = false;
     CURL *curl = curl_easy_init();
     if (!curl) {
-        m_last_error = "Failed to initialize libcurl handle for URL probing";
+        set_last_error("Failed to initialize libcurl handle for URL probing");
         m_status = DownloadStatus::Failed;
         return false;
     }
@@ -399,6 +519,17 @@ bool DownloadTask::probe_url() {
     if (!m_cookies.empty()) {
         curl_easy_setopt(curl, CURLOPT_COOKIE, m_cookies.c_str());
     }
+
+    struct curl_slist *probe_headers = nullptr;
+    if (!m_username.empty()) {
+        std::string userpwd = m_username + ":" + m_password;
+        curl_easy_setopt(curl, CURLOPT_USERPWD, userpwd.c_str());
+    }
+    if (!m_auth_header.empty()) {
+        probe_headers = curl_slist_append(probe_headers, m_auth_header.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, probe_headers);
+    }
+
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &response_headers);
@@ -416,13 +547,15 @@ bool DownloadTask::probe_url() {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 
     if (res != CURLE_OK) {
-        m_last_error = string("HTTP HEAD probe failed: ") + curl_easy_strerror(res);
+        set_last_error(string("HTTP HEAD probe failed: ") + curl_easy_strerror(res));
     } else if (http_code >= 400) {
-        m_last_error = "HTTP HEAD probe failed: Server returned HTTP " + to_string(http_code);
+        set_last_error("HTTP HEAD probe failed: Server returned HTTP " + to_string(http_code));
     } else {
+        string eff_headers = get_last_response_headers(response_headers);
         char *effective_url = nullptr;
         curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective_url);
         if (effective_url && strlen(effective_url) > 0) {
+            std::lock_guard<std::mutex> lock(m_string_mutex);
             m_url = effective_url;
         }
 
@@ -433,41 +566,50 @@ bool DownloadTask::probe_url() {
         }
 
         if (m_total_size == 0) {
-            size_t cl_pos = response_headers.find("Content-Length: ");
-            if (cl_pos == string::npos) cl_pos = response_headers.find("content-length: ");
-            if (cl_pos != string::npos) {
-                size_t end_line = response_headers.find("\r\n", cl_pos);
-                string cl_str = response_headers.substr(cl_pos + 16, end_line - (cl_pos + 16));
+            string cl_str = get_header_value(eff_headers, "Content-Length");
+            if (!cl_str.empty()) {
                 try {
                     m_total_size = std::stoull(cl_str);
                 } catch (...) {}
             }
         }
 
-        if (response_headers.find("Accept-Ranges: bytes") != string::npos || 
-            response_headers.find("accept-ranges: bytes") != string::npos) {
+        string ar_val = get_header_value(eff_headers, "Accept-Ranges");
+        for (char &c : ar_val) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        if (ar_val.find("bytes") != string::npos) {
             m_supports_ranges = true;
-        } else if (response_headers.find("Accept-Ranges: none") != string::npos || 
-                   response_headers.find("accept-ranges: none") != string::npos) {
+        } else if (ar_val.find("none") != string::npos) {
             m_supports_ranges = false;
         }
 
-        size_t etag_pos = response_headers.find("ETag: ");
-        if (etag_pos == string::npos) etag_pos = response_headers.find("etag: ");
-        if (etag_pos != string::npos) {
-            size_t end_line = response_headers.find("\r\n", etag_pos);
-            m_etag = response_headers.substr(etag_pos + 6, end_line - (etag_pos + 6));
+        string etag_val = get_header_value(eff_headers, "ETag");
+        if (!etag_val.empty()) {
+            m_etag = etag_val;
         }
     }
     curl_easy_cleanup(curl);
+    if (probe_headers) {
+        curl_slist_free_all(probe_headers);
+        probe_headers = nullptr;
+    }
 
     // Probing Range support: If Accept-Ranges: bytes was not explicitly advertised in HEAD,
     // probe with a 1-byte GET Range: 0-0. This verifies HTTP 206 Partial Content capability
     // for CDNs (Google, Cloudflare, Akamai, etc.) which support ranges but omit Accept-Ranges on HEAD.
+    string get_headers;
     if (!m_supports_ranges || m_total_size == 0) {
         CURL *get_curl = curl_easy_init();
         if (get_curl) {
-            string get_headers;
+            struct curl_slist *get_probe_headers = nullptr;
+            if (!m_username.empty()) {
+                std::string userpwd = m_username + ":" + m_password;
+                curl_easy_setopt(get_curl, CURLOPT_USERPWD, userpwd.c_str());
+            }
+            if (!m_auth_header.empty()) {
+                get_probe_headers = curl_slist_append(get_probe_headers, m_auth_header.c_str());
+                curl_easy_setopt(get_curl, CURLOPT_HTTPHEADER, get_probe_headers);
+            }
+
             curl_easy_setopt(get_curl, CURLOPT_URL, m_url.c_str());
             curl_easy_setopt(get_curl, CURLOPT_USERAGENT, m_user_agent.c_str());
             if (!m_referer.empty()) curl_easy_setopt(get_curl, CURLOPT_REFERER, m_referer.c_str());
@@ -485,18 +627,16 @@ bool DownloadTask::probe_url() {
             CURLcode get_res = curl_easy_perform(get_curl);
             long get_code = 0;
             curl_easy_getinfo(get_curl, CURLINFO_RESPONSE_CODE, &get_code);
+            string eff_get_headers = get_last_response_headers(get_headers);
             if (get_res == CURLE_OK && (get_code == 200 || get_code == 206)) {
                 if (get_code == 206) m_supports_ranges = true;
                 // Parse Content-Range: bytes 0-0/104857600
-                size_t cr_pos = get_headers.find("Content-Range: bytes ");
-                if (cr_pos == string::npos) cr_pos = get_headers.find("content-range: bytes ");
-                if (cr_pos != string::npos) {
-                    size_t slash = get_headers.find('/', cr_pos);
+                string cr_str = get_header_value(eff_get_headers, "Content-Range");
+                if (!cr_str.empty()) {
+                    size_t slash = cr_str.find('/');
                     if (slash != string::npos) {
-                        size_t cr_end = get_headers.find_first_of("\r\n", slash);
-                        string total_str = get_headers.substr(slash + 1, cr_end - (slash + 1));
                         try {
-                            uint64_t parsed_size = std::stoull(total_str);
+                            uint64_t parsed_size = std::stoull(cr_str.substr(slash + 1));
                             if (parsed_size > 0) m_total_size = parsed_size;
                         } catch (...) {}
                     }
@@ -505,58 +645,83 @@ bool DownloadTask::probe_url() {
                     curl_off_t cl = 0;
                     curl_easy_getinfo(get_curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &cl);
                     if (cl > 0) m_total_size = static_cast<uint64_t>(cl);
+                    if (m_total_size == 0) {
+                        string cl_str = get_header_value(eff_get_headers, "Content-Length");
+                        if (!cl_str.empty()) {
+                            try {
+                                m_total_size = std::stoull(cl_str);
+                            } catch (...) {}
+                        }
+                    }
+                }
+                if (m_etag.empty()) {
+                    string etag_str = get_header_value(eff_get_headers, "ETag");
+                    if (!etag_str.empty()) m_etag = etag_str;
                 }
                 char *eff_url = nullptr;
                 curl_easy_getinfo(get_curl, CURLINFO_EFFECTIVE_URL, &eff_url);
-                if (eff_url && strlen(eff_url) > 0) m_url = eff_url;
-                m_last_error.clear();
+                if (eff_url && strlen(eff_url) > 0) {
+                    std::lock_guard<std::mutex> lock(m_string_mutex);
+                    m_url = eff_url;
+                }
+                clear_last_error();
             }
             curl_easy_cleanup(get_curl);
+            if (get_probe_headers) {
+                curl_slist_free_all(get_probe_headers);
+                get_probe_headers = nullptr;
+            }
         }
     }
 
-    // Default range support to true if file size is known, unless the server explicitly returned Accept-Ranges: none
-    if (m_total_size > 0) {
-        if (response_headers.find("Accept-Ranges: none") == string::npos &&
-            response_headers.find("accept-ranges: none") == string::npos) {
-            m_supports_ranges = true;
-        }
-    }
+    string eff_headers = get_last_response_headers(response_headers);
+    string eff_get_headers = get_last_response_headers(get_headers);
 
     // Auto-resolve filename and extension from Content-Disposition and Content-Type headers
-    string headers_to_check = response_headers.empty() ? "" : response_headers;
-    if (headers_to_check.empty() && m_total_size > 0) {
-        // If response_headers was empty, fallback headers checked
+    // Prefer effective headers from HEAD, but seamlessly fall back to get_headers from GET probe
+    string cd_name = extract_filename_from_content_disposition(eff_headers);
+    if (cd_name.empty() && !eff_get_headers.empty()) {
+        cd_name = extract_filename_from_content_disposition(eff_get_headers);
     }
 
-    string cd_name = extract_filename_from_content_disposition(response_headers);
+    std::string current_dest;
+    {
+        std::lock_guard<std::mutex> lock(m_string_mutex);
+        current_dest = m_destination_filepath;
+    }
+
     if (!cd_name.empty()) {
         cd_name = sanitize_filename(cd_name);
         try {
-            std::filesystem::path cur_p(m_destination_filepath);
-            if (cur_p.has_parent_path()) {
-                m_destination_filepath = (cur_p.parent_path() / cd_name).string();
-            } else {
-                m_destination_filepath = cd_name;
-            }
-            m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
+            std::filesystem::path cur_p(current_dest);
+            std::string new_dest = cur_p.has_parent_path() ? (cur_p.parent_path() / cd_name).string() : cd_name;
+            std::string new_sidecar = ResumeStore::get_sidecar_filepath(new_dest, m_cache_directory);
+            std::lock_guard<std::mutex> lock(m_string_mutex);
+            m_destination_filepath = new_dest;
+            m_sidecar_filepath = new_sidecar;
         } catch (...) {
+            std::lock_guard<std::mutex> lock(m_string_mutex);
             m_destination_filepath = cd_name;
         }
     } else {
-        size_t ct_pos = response_headers.find("Content-Type: ");
-        if (ct_pos == string::npos) ct_pos = response_headers.find("content-type: ");
-        if (ct_pos != string::npos) {
-            size_t ct_end = response_headers.find_first_of(";\r\n", ct_pos + 14);
-            string ct = response_headers.substr(ct_pos + 14, ct_end - (ct_pos + 14));
+        string ct_val = get_header_value(eff_headers, "Content-Type");
+        if (ct_val.empty() && !eff_get_headers.empty()) {
+            ct_val = get_header_value(eff_get_headers, "Content-Type");
+        }
+        if (!ct_val.empty()) {
+            size_t semi = ct_val.find(';');
+            string ct = (semi != string::npos) ? ct_val.substr(0, semi) : ct_val;
             string ext = mime_to_extension(ct);
             if (!ext.empty()) {
                 try {
-                    std::filesystem::path cur_p(m_destination_filepath);
+                    std::filesystem::path cur_p(current_dest);
                     string cur_ext = cur_p.extension().string();
                     if (cur_ext.empty() || cur_ext == ".bin" || cur_ext == ".dat" || cur_ext == ".tmp") {
-                        m_destination_filepath = cur_p.replace_extension(ext).string();
-                        m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
+                        std::string new_dest = cur_p.replace_extension(ext).string();
+                        std::string new_sidecar = ResumeStore::get_sidecar_filepath(new_dest, m_cache_directory);
+                        std::lock_guard<std::mutex> lock(m_string_mutex);
+                        m_destination_filepath = new_dest;
+                        m_sidecar_filepath = new_sidecar;
                     }
                 } catch (...) {}
             }
@@ -565,6 +730,7 @@ bool DownloadTask::probe_url() {
 
     // Ensure m_destination_filepath is strictly sanitized and length-safe
     try {
+        std::lock_guard<std::mutex> lock(m_string_mutex);
         std::filesystem::path dest_p(m_destination_filepath);
         std::string safe_name = sanitize_filename(dest_p.filename().string());
         if (dest_p.has_parent_path()) {
@@ -575,8 +741,10 @@ bool DownloadTask::probe_url() {
     } catch (...) {}
 
     if (m_total_size == 0) {
-        if (http_code == 200 && (response_headers.find("Content-Length: 0") != string::npos || response_headers.find("content-length: 0") != string::npos)) {
-            // Bug 11 Fix: Legitimate 0-byte file download completed immediately
+        string combined_headers = response_headers + "\n" + get_headers;
+        if ((http_code == 200 || get_headers.find(" 200 ") != string::npos) &&
+            (combined_headers.find("Content-Length: 0") != string::npos || combined_headers.find("content-length: 0") != string::npos)) {
+            // Legitimate 0-byte file download completed immediately
             m_status = DownloadStatus::Completed;
             FileWriter::preallocate_file(m_destination_filepath, 0);
             return true;
@@ -592,6 +760,7 @@ bool DownloadTask::probe_url() {
 }
 
 bool DownloadTask::start(ProgressCallback callback) {
+    update_last_try_time();
     std::unique_lock<std::mutex> run_lock(m_run_mutex);
 
     if(m_antivirus_scan_enabled && !m_security_override){
@@ -620,7 +789,7 @@ bool DownloadTask::start(ProgressCallback callback) {
                 is_resuming = true;
                 m_total_size = saved_size;
                 m_etag = saved_etag;
-                m_supports_ranges = (saved_size > 0) ? true : saved_supports_ranges;
+                m_supports_ranges = saved_supports_ranges;
                 if (m_supports_ranges) {
                     m_chunk_manager->ensure_chunk_count(m_num_threads);
                 }
@@ -655,7 +824,32 @@ bool DownloadTask::start(ProgressCallback callback) {
                         curl_slist_free_all(val_headers_list);
                         curl_easy_cleanup(val_curl);
 
-                        if (vres == CURLE_OK && (vcode == 200 || vcode == 412)) {
+                        bool resource_changed = false;
+                        if (vres == CURLE_OK) {
+                            if (vcode == 412) {
+                                resource_changed = true;
+                            } else if (vcode == 200) {
+                                string eff_val_headers = get_last_response_headers(val_headers);
+                                string new_etag = get_header_value(eff_val_headers, "ETag");
+                                if (!new_etag.empty()) {
+                                    if (!etags_match(new_etag, m_etag)) {
+                                        resource_changed = true;
+                                    }
+                                } else {
+                                    string cl_str = get_header_value(eff_val_headers, "Content-Length");
+                                    if (!cl_str.empty()) {
+                                        try {
+                                            uint64_t new_size = std::stoull(cl_str);
+                                            if (new_size > 0 && new_size != m_total_size) {
+                                                resource_changed = true;
+                                            }
+                                        } catch (...) {}
+                                    }
+                                }
+                            }
+                        }
+
+                        if (resource_changed) {
                             cout << "[DownloadTask] Server resource modified (ETag mismatch). Redownloading fresh..." << endl;
                             is_resuming = false;
                             ResumeStore::remove(m_sidecar_filepath);
@@ -673,8 +867,18 @@ bool DownloadTask::start(ProgressCallback callback) {
             return false;
         }
 
+        // Fix Bug #1: Handle 0-byte files that completed immediately in probe_url()
+        if (m_status == DownloadStatus::Completed) {
+            m_progress_tracker = make_unique<ProgressTracker>(0, 0);
+            if (callback) {
+                callback(*m_progress_tracker, "Completed");
+            }
+            cout << "[DownloadTask] 0-byte download completed successfully!" << endl;
+            return true;
+        }
+
         if (m_total_size == 0) {
-            m_last_error = "Server returned invalid file size (0 bytes)";
+            set_last_error("Server returned invalid file size (0 bytes)");
             m_status = DownloadStatus::Failed;
             return false;
         }
@@ -685,9 +889,9 @@ bool DownloadTask::start(ProgressCallback callback) {
 
     if (!has_sufficient_disk_space(m_total_size)) {
         uint64_t available = get_available_disk_space(m_destination_filepath);
-        m_last_error = "Insufficient disk space: required " + to_string(m_total_size) +
-                       " bytes, available " + to_string(available) + " bytes";
-        cerr << "[DownloadTask Error] " << m_last_error << endl;
+        set_last_error("Insufficient disk space: required " + to_string(m_total_size) +
+                       " bytes, available " + to_string(available) + " bytes");
+        cerr << "[DownloadTask Error] " << get_last_error() << endl;
         m_status = DownloadStatus::Failed;
         return false;
     }
@@ -701,8 +905,11 @@ bool DownloadTask::start(ProgressCallback callback) {
     } catch (...) {}
 
     if(!is_resuming && FileWriter::file_exists(m_destination_filepath)){
-        m_destination_filepath = FileWriter::generate_unique_filepath(m_destination_filepath);
-        m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
+        std::string new_dest = FileWriter::generate_unique_filepath(m_destination_filepath);
+        std::string new_sidecar = ResumeStore::get_sidecar_filepath(new_dest, m_cache_directory);
+        std::lock_guard<std::mutex> lock(m_string_mutex);
+        m_destination_filepath = new_dest;
+        m_sidecar_filepath = new_sidecar;
     }
 
     // Only preallocate file if starting fresh. If resuming, preserve already downloaded bytes!
@@ -711,8 +918,8 @@ bool DownloadTask::start(ProgressCallback callback) {
     }
     m_file_writer = make_unique<FileWriter>();
     if (!m_file_writer->open(m_destination_filepath)) {
-        m_last_error = "Failed to create/open destination file on disk: " + m_destination_filepath;
-        cerr << "[DownloadTask Error] " << m_last_error << endl;
+        set_last_error("Failed to create/open destination file on disk: " + m_destination_filepath);
+        cerr << "[DownloadTask Error] " << get_last_error() << endl;
         m_status = DownloadStatus::Failed;
         return false;
     }
@@ -749,11 +956,10 @@ bool DownloadTask::start(ProgressCallback callback) {
                 ChunkWorker worker(m_url, chunk, *m_chunk_manager, *m_file_writer, worker_speed, m_referer, m_cookies, m_user_agent);
                 worker.set_supports_ranges(m_supports_ranges);
                 worker.set_pause_flag(&m_pause_requested);
+                worker.set_dynamic_speed_limit(&m_worker_bytes_per_sec);
+                worker.set_auth_credentials(m_username, m_password, m_auth_header);
 
-                bool worker_ok = worker.download();
-                if (!worker_ok && !m_pause_requested) {
-                    m_chunk_manager->mark_chunk_failed(chunk.id);
-                }
+                worker.download();
             }
         });
     }
@@ -761,7 +967,7 @@ bool DownloadTask::start(ProgressCallback callback) {
     bool was_paused = false;
     while (!m_pause_requested && !m_chunk_manager->is_complete()) {
         if (m_chunk_manager->has_failed()) {
-            m_last_error = "One or more chunks failed to download after maximum retries.";
+            set_last_error("One or more chunks failed to download after maximum retries.");
             break;
         }
         uint64_t downloaded = m_chunk_manager->get_total_downloaded_bytes();
@@ -800,11 +1006,16 @@ bool DownloadTask::start(ProgressCallback callback) {
         ResumeStore::remove(m_sidecar_filepath);
 
         if(m_antivirus_scan_enabled && !m_security_override){
+            set_status_message("🛡️ Scanning with Windows Defender...");
+            if (callback) {
+                callback(*m_progress_tracker, "Scanning with Windows Defender...");
+            }
             AntivirusScanner::apply_mark_of_the_web(m_destination_filepath, m_url);
 
             FileScanResult scan_res = AntivirusScanner::scan_file(m_destination_filepath);
+            set_status_message("");
             if (scan_res.verdict == FileScanVerdict::Infected) {
-                m_last_error = "Security Warning: Threat detected (" + (scan_res.threat_name.empty() ? "Virus:DOS/EICAR_Test_File" : scan_res.threat_name) + ")";
+                set_last_error("Security Warning: Threat detected (" + (scan_res.threat_name.empty() ? "Virus:DOS/EICAR_Test_File" : scan_res.threat_name) + ")");
                 m_status = DownloadStatus::Failed;
                 cout << "[DownloadTask Security Alert] Threat detected in downloaded file: " << scan_res.threat_name << endl;
                 if (callback) {
@@ -814,6 +1025,7 @@ bool DownloadTask::start(ProgressCallback callback) {
             }
         }
 
+        set_status_message("");
         m_status = DownloadStatus::Completed;
         if (callback) {
             m_progress_tracker->update(m_total_size);
@@ -829,15 +1041,18 @@ bool DownloadTask::start(ProgressCallback callback) {
 }
 
 void DownloadTask::set_cache_directory(const string &cache_directory){
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     m_cache_directory = cache_directory;
     m_sidecar_filepath = ResumeStore::get_sidecar_filepath(m_destination_filepath, m_cache_directory);
 }
 
 string DownloadTask::get_cache_directory() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_cache_directory;
 }
 
 string DownloadTask::get_sidecar_filepath() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_sidecar_filepath;
 }
 
@@ -862,12 +1077,27 @@ void DownloadTask::cancel() {
 
 void DownloadTask::clear_cache_and_partial_file() {
     pause();
-    std::error_code ec;
-    if (!m_destination_filepath.empty()) {
-        std::filesystem::remove(m_destination_filepath, ec);
+    // Bug #14 Fix: Synchronize with m_run_mutex and destroy thread pool so active workers join
+    // before closing file handles or deleting partial files from disk.
+    std::unique_lock<std::mutex> run_lock(m_run_mutex);
+    if (m_thread_pool) {
+        m_thread_pool.reset();
     }
-    if (!m_sidecar_filepath.empty()) {
-        ResumeStore::remove(m_sidecar_filepath);
+    if (m_file_writer) {
+        m_file_writer->close();
+    }
+    std::error_code ec;
+    std::string dest, sidecar;
+    {
+        std::lock_guard<std::mutex> slock(m_string_mutex);
+        dest = m_destination_filepath;
+        sidecar = m_sidecar_filepath;
+    }
+    if (!dest.empty()) {
+        std::filesystem::remove(dest, ec);
+    }
+    if (!sidecar.empty()) {
+        ResumeStore::remove(sidecar);
     }
     m_chunk_manager.reset();
     m_progress_tracker.reset();
@@ -878,8 +1108,39 @@ DownloadStatus DownloadTask::get_status() const {
     return m_status.load();
 }
 
+string DownloadTask::get_status_message() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    return m_status_message;
+}
+
+void DownloadTask::set_status_message(const string &msg) {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    m_status_message = msg;
+}
+
 string DownloadTask::get_last_error() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
     return m_last_error;
+}
+
+void DownloadTask::set_last_error(const string &err) {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    m_last_error = err;
+}
+
+void DownloadTask::clear_last_error() {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    m_last_error.clear();
+}
+
+string DownloadTask::get_queue_name() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    return m_queue_name;
+}
+
+void DownloadTask::set_queue_name(const string &name) {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    m_queue_name = name;
 }
 
 bool DownloadTask::is_antivirus_scan_enabled() const {
@@ -938,16 +1199,47 @@ std::vector<Chunk> DownloadTask::get_chunks() const {
     return {};
 }
 
-void DownloadTask::override_security_and_complete() {
+void DownloadTask::override_security_and_complete(bool whitelist_permanently) {
     m_security_override = true;
-    std::string fhash = AntivirusScanner::calculate_file_sha256(m_destination_filepath);
-    if (!fhash.empty()) {
-        AntivirusScanner::add_hash_to_whitelist(fhash, "User override");
-    }
-    std::string domain = AntivirusScanner::extract_domain_from_url(m_url);
-    if (!domain.empty()) {
-        AntivirusScanner::add_domain_to_whitelist(domain, "User override");
+    if (whitelist_permanently) {
+        std::string fhash = AntivirusScanner::calculate_file_sha256(m_destination_filepath);
+        if (!fhash.empty()) {
+            AntivirusScanner::add_hash_to_whitelist(fhash, "User override");
+        }
+        std::string domain = AntivirusScanner::extract_domain_from_url(m_url);
+        if (!domain.empty()) {
+            AntivirusScanner::add_domain_to_whitelist(domain, "User override");
+        }
     }
     m_status = DownloadStatus::Completed;
-    m_last_error.clear();
+    clear_last_error();
 }
+
+bool DownloadTask::is_destination_file_present() const {
+    auto now = std::chrono::steady_clock::now();
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    if (m_last_file_check_time.time_since_epoch().count() != 0 &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - m_last_file_check_time).count() < 2000) {
+        return m_file_present_cached.load();
+    }
+    m_last_file_check_time = now;
+    if (m_destination_filepath.empty()) {
+        m_file_present_cached.store(false);
+        return false;
+    }
+    std::error_code ec;
+    bool exists = std::filesystem::exists(m_destination_filepath, ec);
+    m_file_present_cached.store(exists);
+    return exists;
+}
+
+std::chrono::system_clock::time_point DownloadTask::get_last_try_time() const {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    return m_last_try_time;
+}
+
+void DownloadTask::update_last_try_time() {
+    std::lock_guard<std::mutex> lock(m_string_mutex);
+    m_last_try_time = std::chrono::system_clock::now();
+}
+

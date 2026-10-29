@@ -301,6 +301,108 @@ void sha1_final(SHA1Context& ctx, uint8_t digest[20]) {
     }
 }
 
+// =========================================================================
+// FIPS 180-2 SHA-256 Implementation (Self-Contained)
+// =========================================================================
+inline uint32_t sha256_rotr(uint32_t x, uint32_t n) { return (x >> n) | (x << (32 - n)); }
+inline uint32_t sha256_ch(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (~x & z); }
+inline uint32_t sha256_maj(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (x & z) ^ (y & z); }
+inline uint32_t sha256_sig0(uint32_t x) { return sha256_rotr(x, 2) ^ sha256_rotr(x, 13) ^ sha256_rotr(x, 22); }
+inline uint32_t sha256_sig1(uint32_t x) { return sha256_rotr(x, 6) ^ sha256_rotr(x, 11) ^ sha256_rotr(x, 25); }
+inline uint32_t sha256_theta0(uint32_t x) { return sha256_rotr(x, 7) ^ sha256_rotr(x, 18) ^ (x >> 3); }
+inline uint32_t sha256_theta1(uint32_t x) { return sha256_rotr(x, 17) ^ sha256_rotr(x, 19) ^ (x >> 10); }
+
+static const uint32_t SHA256_K[64] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
+
+struct SHA256Context {
+    uint32_t state[8];
+    uint64_t count;
+    uint8_t buffer[64];
+};
+
+inline void sha256_init(SHA256Context& ctx) {
+    ctx.state[0] = 0x6a09e667;
+    ctx.state[1] = 0xbb67ae85;
+    ctx.state[2] = 0x3c6ef372;
+    ctx.state[3] = 0xa54ff53a;
+    ctx.state[4] = 0x510e527f;
+    ctx.state[5] = 0x9b05688c;
+    ctx.state[6] = 0x1f83d9ab;
+    ctx.state[7] = 0x5be0cd19;
+    ctx.count = 0;
+}
+
+inline void sha256_transform(SHA256Context& ctx, const uint8_t data[64]) {
+    uint32_t a = ctx.state[0], b = ctx.state[1], c = ctx.state[2], d = ctx.state[3];
+    uint32_t e = ctx.state[4], f = ctx.state[5], g = ctx.state[6], h = ctx.state[7];
+    uint32_t w[64];
+    for (int i = 0; i < 16; ++i) {
+        w[i] = (static_cast<uint32_t>(data[i * 4]) << 24) |
+               (static_cast<uint32_t>(data[i * 4 + 1]) << 16) |
+               (static_cast<uint32_t>(data[i * 4 + 2]) << 8) |
+               (static_cast<uint32_t>(data[i * 4 + 3]));
+    }
+    for (int i = 16; i < 64; ++i) {
+        w[i] = sha256_theta1(w[i - 2]) + w[i - 7] + sha256_theta0(w[i - 15]) + w[i - 16];
+    }
+    for (int i = 0; i < 64; ++i) {
+        uint32_t t1 = h + sha256_sig1(e) + sha256_ch(e, f, g) + SHA256_K[i] + w[i];
+        uint32_t t2 = sha256_sig0(a) + sha256_maj(a, b, c);
+        h = g; g = f; f = e; e = d + t1;
+        d = c; c = b; b = a; a = t1 + t2;
+    }
+    ctx.state[0] += a; ctx.state[1] += b; ctx.state[2] += c; ctx.state[3] += d;
+    ctx.state[4] += e; ctx.state[5] += f; ctx.state[6] += g; ctx.state[7] += h;
+}
+
+inline void sha256_update(SHA256Context& ctx, const uint8_t* data, size_t len) {
+    size_t i = 0;
+    size_t buf_idx = ctx.count % 64;
+    ctx.count += len;
+    if (buf_idx > 0) {
+        size_t needed = 64 - buf_idx;
+        if (len >= needed) {
+            std::memcpy(&ctx.buffer[buf_idx], data, needed);
+            sha256_transform(ctx, ctx.buffer);
+            i += needed;
+            buf_idx = 0;
+        }
+    }
+    for (; i + 64 <= len; i += 64) {
+        sha256_transform(ctx, &data[i]);
+    }
+    if (i < len) {
+        std::memcpy(&ctx.buffer[buf_idx], &data[i], len - i);
+    }
+}
+
+inline void sha256_final(SHA256Context& ctx, uint8_t digest[32]) {
+    uint64_t total_bits = ctx.count * 8;
+    size_t pad_len = (ctx.count % 64 < 56) ? (56 - (ctx.count % 64)) : (120 - (ctx.count % 64));
+    uint8_t pad[128] = { 0x80 };
+    sha256_update(ctx, pad, pad_len);
+    uint8_t bits[8];
+    for (int i = 0; i < 8; ++i) {
+        bits[i] = static_cast<uint8_t>((total_bits >> (56 - 8 * i)) & 0xFF);
+    }
+    sha256_update(ctx, bits, 8);
+    for (int i = 0; i < 8; ++i) {
+        digest[i * 4] = static_cast<uint8_t>((ctx.state[i] >> 24) & 0xFF);
+        digest[i * 4 + 1] = static_cast<uint8_t>((ctx.state[i] >> 16) & 0xFF);
+        digest[i * 4 + 2] = static_cast<uint8_t>((ctx.state[i] >> 8) & 0xFF);
+        digest[i * 4 + 3] = static_cast<uint8_t>(ctx.state[i] & 0xFF);
+    }
+}
+
 string to_hex_string(const uint8_t* data, size_t len) {
     ostringstream oss;
     oss << hex << setfill('0');
@@ -481,6 +583,45 @@ string ArchiveVerifier::calculate_file_sha256(const string& filepath) {
     return AntivirusScanner::calculate_file_sha256(filepath);
 }
 
+MultiHashResult ArchiveVerifier::calculate_file_all_hashes(const string& filepath) {
+    MultiHashResult result;
+    if (filepath.empty()) return result;
+    ifstream file(filepath, ios::binary);
+    if (!file.is_open()) return result;
+
+    MD5Context md5_ctx;
+    md5_init(md5_ctx);
+
+    SHA1Context sha1_ctx;
+    sha1_init(sha1_ctx);
+
+    SHA256Context sha256_ctx;
+    sha256_init(sha256_ctx);
+
+    vector<uint8_t> buffer(64 * 1024);
+    while (file.read(reinterpret_cast<char*>(buffer.data()), buffer.size()) || file.gcount() > 0) {
+        size_t bytes = static_cast<size_t>(file.gcount());
+        if (bytes == 0) break;
+        md5_update(md5_ctx, buffer.data(), bytes);
+        sha1_update(sha1_ctx, buffer.data(), bytes);
+        sha256_update(sha256_ctx, buffer.data(), bytes);
+    }
+
+    uint8_t md5_dig[16];
+    md5_final(md5_ctx, md5_dig);
+    result.md5 = to_hex_string(md5_dig, 16);
+
+    uint8_t sha1_dig[20];
+    sha1_final(sha1_ctx, sha1_dig);
+    result.sha1 = to_hex_string(sha1_dig, 20);
+
+    uint8_t sha256_dig[32];
+    sha256_final(sha256_ctx, sha256_dig);
+    result.sha256 = to_hex_string(sha256_dig, 32);
+
+    return result;
+}
+
 // =========================================================================
 // Hash Extraction & Verification
 // =========================================================================
@@ -612,7 +753,7 @@ string ArchiveVerifier::generate_destination_folder(const string& archive_path,
 }
 
 bool ArchiveVerifier::is_safe_extract_path(const string& base_dest_dir, const string& relative_entry_path) {
-    if (relative_entry_path.empty()) return false;
+    if (base_dest_dir.empty() || relative_entry_path.empty()) return false;
 
     // Reject absolute paths
     if (relative_entry_path[0] == '/' || relative_entry_path[0] == '\\' ||
@@ -623,16 +764,38 @@ bool ArchiveVerifier::is_safe_extract_path(const string& base_dest_dir, const st
     // Reject Zip-Slip traversal sequences
     string norm = relative_entry_path;
     replace(norm.begin(), norm.end(), '\\', '/');
-    if (norm.find("../") != string::npos || norm.find("/..") != string::npos || norm == "..") {
+    if (norm.find("../") != string::npos || norm.find("/..") != string::npos || norm == ".." || norm.find("..\\") != string::npos) {
         return false;
     }
 
     error_code ec;
     filesystem::path base = filesystem::weakly_canonical(base_dest_dir, ec);
-    filesystem::path target = filesystem::weakly_canonical(filesystem::path(base_dest_dir) / relative_entry_path, ec);
+    filesystem::path target = filesystem::weakly_canonical(base / filesystem::path(relative_entry_path), ec);
+
+    base = base.lexically_normal();
+    target = target.lexically_normal();
 
     string base_str = base.string();
     string target_str = target.string();
+
+    replace(base_str.begin(), base_str.end(), '\\', '/');
+    replace(target_str.begin(), target_str.end(), '\\', '/');
+
+#ifdef _WIN32
+    // Windows filesystem is case-insensitive
+    for (char& c : base_str) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    for (char& c : target_str) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+#endif
+
+    // Ensure base directory has trailing separator so prefix match doesn't match similar prefix directory names
+    if (!base_str.empty() && base_str.back() != '/') {
+        base_str += '/';
+    }
+
+    if (target_str == base_str.substr(0, base_str.size() - 1)) {
+        return true;
+    }
+
     return target_str.rfind(base_str, 0) == 0;
 }
 
@@ -740,15 +903,32 @@ string ArchiveVerifier::read_system_clipboard() {
 #ifdef _WIN32
     if (!OpenClipboard(nullptr)) return "";
 
-    HANDLE hData = GetClipboardData(CF_TEXT);
-    if (!hData) {
-        CloseClipboard();
-        return "";
+    string text;
+    if (IsClipboardFormatAvailable(CF_UNICODETEXT)) {
+        HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+        if (hData) {
+            wchar_t* pszText = static_cast<wchar_t*>(GlobalLock(hData));
+            if (pszText) {
+                int size_needed = WideCharToMultiByte(CP_UTF8, 0, pszText, -1, nullptr, 0, nullptr, nullptr);
+                if (size_needed > 0) {
+                    string str(size_needed - 1, 0);
+                    WideCharToMultiByte(CP_UTF8, 0, pszText, -1, &str[0], size_needed, nullptr, nullptr);
+                    text = str;
+                }
+                GlobalUnlock(hData);
+            }
+        }
+    } else if (IsClipboardFormatAvailable(CF_TEXT)) {
+        HANDLE hData = GetClipboardData(CF_TEXT);
+        if (hData) {
+            char* pszText = static_cast<char*>(GlobalLock(hData));
+            if (pszText) {
+                text = string(pszText);
+                GlobalUnlock(hData);
+            }
+        }
     }
 
-    char* pszText = static_cast<char*>(GlobalLock(hData));
-    string text = pszText ? string(pszText) : "";
-    GlobalUnlock(hData);
     CloseClipboard();
     return text;
 #else
@@ -811,22 +991,59 @@ bool ArchiveVerifier::run_system_command(const string& cmd, string& output) {
     }
 
     char buf[1024];
-    DWORD bytesRead = 0;
     output.clear();
-    while (ReadFile(hStdOutRead, buf, sizeof(buf) - 1, &bytesRead, nullptr) && bytesRead > 0) {
-        buf[bytesRead] = '\0';
-        output += buf;
+    DWORD start_tick = GetTickCount();
+    bool timed_out = false;
+    const DWORD timeout_ms = 30000;
+
+    while (true) {
+        DWORD bytes_avail = 0;
+        if (!PeekNamedPipe(hStdOutRead, NULL, 0, NULL, &bytes_avail, NULL)) {
+            break; // Child exited and pipe closed
+        }
+
+        if (bytes_avail > 0) {
+            DWORD bytes_read = 0;
+            DWORD to_read = (bytes_avail < sizeof(buf) - 1) ? bytes_avail : (sizeof(buf) - 1);
+            if (ReadFile(hStdOutRead, buf, to_read, &bytes_read, nullptr) && bytes_read > 0) {
+                buf[bytes_read] = '\0';
+                output.append(buf, bytes_read);
+            }
+        } else {
+            DWORD wait_res = WaitForSingleObject(pi.hProcess, 50);
+            if (wait_res == WAIT_OBJECT_0) {
+                // Drain any residual bytes in pipe before terminating loop
+                while (PeekNamedPipe(hStdOutRead, NULL, 0, NULL, &bytes_avail, NULL) && bytes_avail > 0) {
+                    DWORD bytes_read = 0;
+                    DWORD to_read = (bytes_avail < sizeof(buf) - 1) ? bytes_avail : (sizeof(buf) - 1);
+                    if (ReadFile(hStdOutRead, buf, to_read, &bytes_read, nullptr) && bytes_read > 0) {
+                        output.append(buf, bytes_read);
+                    } else {
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (GetTickCount() - start_tick > timeout_ms) {
+            timed_out = true;
+            TerminateProcess(pi.hProcess, 1);
+            break;
+        }
     }
 
-    WaitForSingleObject(pi.hProcess, 30000); // 30 sec timeout
-    DWORD exit_code = 0;
-    GetExitCodeProcess(pi.hProcess, &exit_code);
+    if (hStdOutRead) CloseHandle(hStdOutRead);
+
+    DWORD exit_code = 1;
+    if (!timed_out) {
+        GetExitCodeProcess(pi.hProcess, &exit_code);
+    }
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-    if (hStdOutRead) CloseHandle(hStdOutRead);
 
-    return (exit_code == 0);
+    return (!timed_out && exit_code == 0);
 #else
     array<char, 128> buffer;
     output.clear();

@@ -367,7 +367,7 @@ int main() {
     {
         LocalServer server;
         assert(server.get_host() == "127.0.0.1");
-        assert(server.get_port() == 9090);
+        assert(server.get_port() == 8080);
         assert(server.is_running() == false);
 
         server.register_route("GET", "/api/status", [](const HttpRequest&) -> HttpResponse {
@@ -637,6 +637,40 @@ int main() {
         assert(queue.get_task_count() == 1); // Confirmed and in queue!
 
         cout << "  -> Long-polling event stream, pending intercepts, and confirmation gate: PASSED" << endl;
+    }
+
+    // =========================================================================
+    // 10. MULTI-THREADED CLIENT CONCURRENCY & CLEAN SHUTDOWN (Positive)
+    // =========================================================================
+    cout << "\n[10/10] Testing Multi-Threaded Client Concurrency & Clean Shutdown..." << endl;
+    {
+        LocalServer server;
+        assert(server.start("127.0.0.1", 0) == true);
+        int live_port = server.get_port();
+        assert(live_port > 0);
+
+        const int num_clients = 16;
+        std::vector<std::thread> client_threads;
+        std::atomic<int> success_count{0};
+
+        for (int i = 0; i < num_clients; ++i) {
+            client_threads.emplace_back([live_port, &success_count]() {
+                string http_req = "GET /api/tasks HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n";
+                string resp = send_http_request(live_port, http_req);
+                if (resp.find("HTTP/1.1 200 OK") != string::npos) {
+                    success_count++;
+                }
+            });
+        }
+
+        for (auto& th : client_threads) {
+            if (th.joinable()) th.join();
+        }
+
+        assert(success_count.load() == num_clients);
+        server.stop();
+        assert(server.is_running() == false);
+        cout << "  -> 16 concurrent TCP client requests and clean thread-safe shutdown: PASSED" << endl;
     }
 
     cout << "\n==========================================================" << endl;

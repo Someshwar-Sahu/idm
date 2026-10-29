@@ -30,17 +30,22 @@ void ThreadPool::enqueue(function<void()> task) {
 void ThreadPool::stop() {
     bool expected = false;
     if (m_stop.compare_exchange_strong(expected, true)) {
-        m_cv.notify_all();
+        {
+            unique_lock<mutex> lock(m_queue_mutex);
+            m_cv.notify_all();
+        }
         for (thread &worker : m_workers) {
             if (worker.joinable()) {
                 worker.join();
             }
         }
+        unique_lock<mutex> lock(m_queue_mutex);
         m_workers.clear();
     }
 }
 
 size_t ThreadPool::size() const {
+    unique_lock<mutex> lock(m_queue_mutex);
     return m_workers.size();
 }
 
@@ -49,12 +54,17 @@ void ThreadPool::worker_loop() {
         function<void()> task;
         {
             unique_lock<mutex> lock(m_queue_mutex);
-            m_cv.wait(lock, [this]() {
-                return m_stop || !m_tasks.empty();
+            m_cv.wait_for(lock, chrono::milliseconds(50), [this]() {
+                return m_stop.load() || !m_tasks.empty();
             });
 
             if (m_stop && m_tasks.empty()) {
+                m_cv.notify_all();
                 return;
+            }
+
+            if (m_tasks.empty()) {
+                continue;
             }
 
             task = move(m_tasks.front());

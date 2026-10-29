@@ -161,17 +161,29 @@ void test_download_task_context_injection() {
     Vault vault;
     SiteCredential c;
     c.domain = "mega.nz";
+    c.username = "test_user";
+    c.password = "secret_pass";
+    c.auth_header = "Bearer token_xyz";
     c.cookies = "cf_clearance=cf123; user_session=mega99";
     vault.save_credential(c);
 
     DownloadTask task("https://mega.nz/file/sample#key", "sample.zip");
     assert(task.get_cookies().empty());
+    assert(task.get_username().empty());
+    assert(task.get_password().empty());
+    assert(task.get_auth_header().empty());
 
     bool injected = vault.inject_into_task(task);
     assert(injected);
     assert(task.get_cookies() == "cf_clearance=cf123; user_session=mega99");
+    assert(task.get_username() == "test_user");
+    assert(task.get_password() == "secret_pass");
+    assert(task.get_auth_header() == "Bearer token_xyz");
 
-    cout << "  -> Seamless injection of cookies into DownloadTask: PASSED" << endl;
+    // Bug #24 test: Host spoofing via userinfo (user:pass@host)
+    assert(Vault::extract_domain_from_url("https://google.com:pass@attacker.com/malware.exe") == "attacker.com");
+
+    cout << "  -> Seamless injection of cookies, auth credentials & anti-spoofing into DownloadTask: PASSED" << endl;
 }
 
 void test_encrypted_vault_disk_persistence() {
@@ -249,6 +261,53 @@ void test_vault_master_password_and_lock() {
     cout << "  -> Master password locking and unauthorized access guards: PASSED" << endl;
 }
 
+void test_locked_vault_persistence_and_reload() {
+    cout << "\n[9/9] Testing Master Password Encrypted Disk Persistence & Reload..." << endl;
+    const string vault_locked_file = "test_vault_locked_storage.json";
+    filesystem::remove(vault_locked_file);
+
+    {
+        Vault v1;
+        SiteCredential c;
+        c.domain = "encrypted-service.com";
+        c.username = "sec_agent";
+        c.password = "agent_pass_007";
+        c.cookies = "token=auth_secure_99";
+        v1.save_credential(c);
+
+        v1.set_master_password("VaultMasterSecret2026");
+        assert(v1.save_to_file(vault_locked_file));
+    }
+
+    // Reload into a new instance: must be locked upon loading
+    {
+        Vault v2;
+        assert(v2.load_from_file(vault_locked_file));
+        assert(v2.is_locked());
+        assert(v2.count() == 0);
+        assert(v2.list_domains().empty());
+        assert(!v2.get_credential("encrypted-service.com").has_value());
+
+        // Wrong password fails
+        assert(!v2.unlock("WrongPassword"));
+        assert(v2.is_locked());
+
+        // Correct password unlocks and restores credentials
+        assert(v2.unlock("VaultMasterSecret2026"));
+        assert(!v2.is_locked());
+        assert(v2.count() == 1);
+        assert(v2.list_domains().size() == 1);
+        auto cred = v2.get_credential("encrypted-service.com");
+        assert(cred.has_value());
+        assert(cred->username == "sec_agent");
+        assert(cred->password == "agent_pass_007");
+        assert(cred->cookies == "token=auth_secure_99");
+    }
+
+    filesystem::remove(vault_locked_file);
+    cout << "  -> Master password file persistence, initial lock on load, and restore after unlock: PASSED" << endl;
+}
+
 int main() {
     cout << "==========================================================" << endl;
     cout << "  Comprehensive Unit Test: Site Logins Vault (Task 27)    " << endl;
@@ -262,6 +321,7 @@ int main() {
     test_download_task_context_injection();
     test_encrypted_vault_disk_persistence();
     test_vault_master_password_and_lock();
+    test_locked_vault_persistence_and_reload();
 
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF SITE LOGINS VAULT & COOKIES VERIFIED!   " << endl;

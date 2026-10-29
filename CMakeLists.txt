@@ -12,7 +12,19 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_TLS_VERIFY OFF)
+set(CMAKE_TLS_VERIFY ON)
+if(WIN32 AND NOT DEFINED CMAKE_TLS_CAINFO)
+    foreach(cert_path 
+        "C:/Program Files/Git/mingw64/etc/ssl/certs/ca-bundle.crt"
+        "C:/Program Files/Git/usr/ssl/certs/ca-bundle.crt"
+    )
+        if(EXISTS "${cert_path}")
+            set(CMAKE_TLS_CAINFO "${cert_path}" CACHE FILEPATH "Path to CA certificate bundle")
+            break()
+        endif()
+    endforeach()
+endif()
+
 
 if(WIN32)
     set(PLATFORM_LIBS ole32 uuid shlwapi ws2_32 iphlpapi winmm powrprof shell32 crypt32 user32 comdlg32)
@@ -68,6 +80,7 @@ set(CORE_SOURCES
     src/core/ThreadPool.cpp
     src/security/AntivirusScanner.cpp
     src/config/SettingsManager.cpp
+    src/net/ChannelBonding.cpp
 )
 
 # ---------------------------------------------------------
@@ -98,13 +111,11 @@ add_executable(idm_app
     src/queue/DownloadQueue.cpp
     src/ipc/LocalServer.cpp
     src/net/RemoteDashboard.cpp
-    src/net/ChannelBonding.cpp
     src/net/NetworkMonitor.cpp
     src/net/PowerMonitor.cpp
     src/media/StreamPreviewer.cpp
     src/media/MediaExtractor.cpp
     src/security/Vault.cpp
-    src/security/AntivirusScanner.cpp
     src/tools/ArchiveVerifier.cpp
 )
 
@@ -137,8 +148,8 @@ add_executable(test_chunk_manager test/test_chunk_manager.cpp src/core/ChunkMana
 
 add_executable(test_file_writer test/test_file_writer.cpp src/core/FileWriter.cpp src/core/ThreadPool.cpp)
 
-add_executable(test_chunk_worker test/test_chunk_worker.cpp src/core/ChunkWorker.cpp src/core/ChunkManager.cpp src/core/FileWriter.cpp)
-target_link_libraries(test_chunk_worker PRIVATE ${CURL_LIBRARIES})
+add_executable(test_chunk_worker test/test_chunk_worker.cpp src/core/ChunkWorker.cpp src/core/ChunkManager.cpp src/core/FileWriter.cpp src/net/ChannelBonding.cpp)
+target_link_libraries(test_chunk_worker PRIVATE ${CURL_LIBRARIES} ${PLATFORM_LIBS})
 
 add_executable(test_resume_store test/test_resume_store.cpp src/core/ResumeStore.cpp src/core/ChunkManager.cpp)
 target_link_libraries(test_resume_store PRIVATE nlohmann_json::nlohmann_json)

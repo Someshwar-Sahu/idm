@@ -67,6 +67,120 @@ vector<uint8_t> xor_cipher(const vector<uint8_t>& data, const string& key) {
     return out;
 }
 
+namespace sha256_internal {
+    inline uint32_t rotr(uint32_t x, uint32_t n) { return (x >> n) | (x << (32 - n)); }
+    inline uint32_t ch(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (~x & z); }
+    inline uint32_t maj(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (x & z) ^ (y & z); }
+    inline uint32_t sig0(uint32_t x) { return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22); }
+    inline uint32_t sig1(uint32_t x) { return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25); }
+    inline uint32_t theta0(uint32_t x) { return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3); }
+    inline uint32_t theta1(uint32_t x) { return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10); }
+    static const uint32_t K[64] = {
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    };
+    struct Context {
+        uint32_t state[8];
+        uint64_t count;
+        uint8_t buffer[64];
+    };
+    inline void init(Context &ctx) {
+        ctx.state[0] = 0x6a09e667; ctx.state[1] = 0xbb67ae85; ctx.state[2] = 0x3c6ef372; ctx.state[3] = 0xa54ff53a;
+        ctx.state[4] = 0x510e527f; ctx.state[5] = 0x9b05688c; ctx.state[6] = 0x1f83d9ab; ctx.state[7] = 0x5be0cd19;
+        ctx.count = 0;
+    }
+    inline void transform(Context &ctx, const uint8_t data[64]) {
+        uint32_t a = ctx.state[0], b = ctx.state[1], c = ctx.state[2], d = ctx.state[3];
+        uint32_t e = ctx.state[4], f = ctx.state[5], g = ctx.state[6], h = ctx.state[7];
+        uint32_t w[64];
+        for (int i = 0; i < 16; ++i) {
+            w[i] = (static_cast<uint32_t>(data[i * 4]) << 24) |
+                   (static_cast<uint32_t>(data[i * 4 + 1]) << 16) |
+                   (static_cast<uint32_t>(data[i * 4 + 2]) << 8) |
+                   (static_cast<uint32_t>(data[i * 4 + 3]));
+        }
+        for (int i = 16; i < 64; ++i) {
+            w[i] = theta1(w[i - 2]) + w[i - 7] + theta0(w[i - 15]) + w[i - 16];
+        }
+        for (int i = 0; i < 64; ++i) {
+            uint32_t t1 = h + sig1(e) + ch(e, f, g) + K[i] + w[i];
+            uint32_t t2 = sig0(a) + maj(a, b, c);
+            h = g; g = f; f = e; e = d + t1;
+            d = c; c = b; b = a; a = t1 + t2;
+        }
+        ctx.state[0] += a; ctx.state[1] += b; ctx.state[2] += c; ctx.state[3] += d;
+        ctx.state[4] += e; ctx.state[5] += f; ctx.state[6] += g; ctx.state[7] += h;
+    }
+    inline void update(Context &ctx, const uint8_t *data, size_t len) {
+        size_t idx = (ctx.count >> 3) & 0x3F;
+        ctx.count += (static_cast<uint64_t>(len) << 3);
+        size_t partLen = 64 - idx;
+        size_t i = 0;
+        if (len >= partLen) {
+            memcpy(&ctx.buffer[idx], data, partLen);
+            transform(ctx, ctx.buffer);
+            for (i = partLen; i + 63 < len; i += 64) {
+                transform(ctx, &data[i]);
+            }
+            idx = 0;
+        }
+        if (len > i) {
+            memcpy(&ctx.buffer[idx], &data[i], len - i);
+        }
+    }
+    inline void final(Context &ctx, uint8_t digest[32]) {
+        static const uint8_t padding[64] = { 0x80 };
+        uint8_t bits[8];
+        for (int i = 0; i < 8; ++i) {
+            bits[7 - i] = static_cast<uint8_t>((ctx.count >> (i * 8)) & 0xFF);
+        }
+        size_t idx = (ctx.count >> 3) & 0x3F;
+        size_t padLen = (idx < 56) ? (56 - idx) : (120 - idx);
+        update(ctx, padding, padLen);
+        update(ctx, bits, 8);
+        for (int i = 0; i < 8; ++i) {
+            digest[i * 4]     = static_cast<uint8_t>((ctx.state[i] >> 24) & 0xFF);
+            digest[i * 4 + 1] = static_cast<uint8_t>((ctx.state[i] >> 16) & 0xFF);
+            digest[i * 4 + 2] = static_cast<uint8_t>((ctx.state[i] >> 8) & 0xFF);
+            digest[i * 4 + 3] = static_cast<uint8_t>(ctx.state[i] & 0xFF);
+        }
+    }
+}
+
+string compute_sha256_hash(const string& input) {
+#ifdef _WIN32
+    HCRYPTPROV hProv = 0;
+    HCRYPTHASH hHash = 0;
+    if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
+        if (CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash)) {
+            CryptHashData(hHash, reinterpret_cast<const BYTE*>(input.data()), static_cast<DWORD>(input.size()), 0);
+            BYTE hash_bytes[32];
+            DWORD hash_len = sizeof(hash_bytes);
+            if (CryptGetHashParam(hHash, HP_HASHVAL, hash_bytes, &hash_len, 0)) {
+                CryptDestroyHash(hHash);
+                CryptReleaseContext(hProv, 0);
+                return bytes_to_hex(hash_bytes, hash_len);
+            }
+            CryptDestroyHash(hHash);
+        }
+        CryptReleaseContext(hProv, 0);
+    }
+#endif
+    // Portable SHA-256 fallback for non-Windows or if CryptoAPI is unavailable
+    sha256_internal::Context ctx;
+    sha256_internal::init(ctx);
+    sha256_internal::update(ctx, reinterpret_cast<const uint8_t*>(input.data()), input.size());
+    uint8_t digest[32];
+    sha256_internal::final(ctx, digest);
+    return bytes_to_hex(digest, 32);
+}
+
 } // namespace
 
 // =========================================================================
@@ -186,6 +300,7 @@ bool Vault::remove_credential(const string& domain) {
 
 vector<string> Vault::list_domains() const {
     lock_guard<mutex> lock(m_mutex);
+    if (m_is_locked) return {};
     vector<string> domains;
     for (const auto& pair : m_credentials) {
         domains.push_back(pair.first);
@@ -196,6 +311,7 @@ vector<string> Vault::list_domains() const {
 
 size_t Vault::count() const {
     lock_guard<mutex> lock(m_mutex);
+    if (m_is_locked) return 0;
     return m_credentials.size();
 }
 
@@ -220,6 +336,12 @@ string Vault::extract_domain_from_url(const string& url) {
     size_t slash_pos = s.find('/');
     if (slash_pos != string::npos) {
         s = s.substr(0, slash_pos);
+    }
+
+    // Bug #24 Fix: Strip user:pass@ userinfo before looking for port or domain
+    size_t at_pos = s.rfind('@');
+    if (at_pos != string::npos) {
+        s = s.substr(at_pos + 1);
     }
 
     size_t colon_pos = s.find(':');
@@ -282,6 +404,10 @@ bool Vault::inject_into_task(DownloadTask& task) const {
     }
 
     task.set_http_context(task.get_referer(), task_cookies, task.get_user_agent());
+
+    // Bug #20 Fix: Apply stored username, password, and Authorization header to the task
+    task.set_auth_credentials(cred->username, cred->password, cred->auth_header);
+
     return true;
 }
 
@@ -331,12 +457,6 @@ bool Vault::load_from_file(const string& filepath) {
         json root = json::parse(fin);
         m_master_password_hash = root.value("master_hash", "");
 
-        if (!m_master_password_hash.empty()) {
-            m_is_locked = true; // Requires unlock
-            m_credentials.clear();
-            return true;
-        }
-
         m_credentials.clear();
         if (root.contains("credentials") && root["credentials"].is_array()) {
             for (const auto& item : root["credentials"]) {
@@ -355,7 +475,12 @@ bool Vault::load_from_file(const string& filepath) {
                 }
             }
         }
-        m_is_locked = false;
+
+        if (!m_master_password_hash.empty()) {
+            m_is_locked = true; // Requires unlock before credentials can be accessed
+        } else {
+            m_is_locked = false;
+        }
         return true;
     } catch (...) {
         return false;
@@ -374,10 +499,8 @@ bool Vault::set_master_password(const string& password) {
         return true;
     }
 
-    // Derive SHA-256 hash
-    vector<uint8_t> p_bytes(password.begin(), password.end());
-    string hex_hash = bytes_to_hex(p_bytes.data(), p_bytes.size());
-    m_master_password_hash = hex_hash;
+    // Bug #19 Fix: Compute cryptographic SHA-256 hash instead of plaintext ASCII hex
+    m_master_password_hash = compute_sha256_hash(password);
     return true;
 }
 
@@ -388,8 +511,7 @@ bool Vault::unlock(const string& password) {
         return true;
     }
 
-    vector<uint8_t> p_bytes(password.begin(), password.end());
-    string hex_hash = bytes_to_hex(p_bytes.data(), p_bytes.size());
+    string hex_hash = compute_sha256_hash(password);
     if (hex_hash == m_master_password_hash) {
         m_is_locked = false;
         return true;

@@ -1,4 +1,5 @@
 #include "ChunkWorker.h"
+#include "../net/ChannelBonding.h"
 #include <iostream>
 #include <thread>
 #include<chrono>
@@ -50,6 +51,15 @@ size_t ChunkWorker::write_callback(char *ptr, size_t size, size_t nmemb, void *u
     }
     WriteContext *ctx = static_cast<WriteContext*>(userdata);
 
+    // Bug #15 Fix: Thread-safe dynamic speed limiting applied directly on the worker's own thread
+    if (ctx->dynamic_speed_limit != nullptr && ctx->curl != nullptr) {
+        uint64_t target_speed = ctx->dynamic_speed_limit->load();
+        if (target_speed != ctx->last_applied_speed_limit) {
+            ctx->last_applied_speed_limit = target_speed;
+            curl_easy_setopt(ctx->curl, CURLOPT_MAX_RECV_SPEED_LARGE, static_cast<curl_off_t>(target_speed));
+        }
+    }
+
     // Abort curl immediately if user requested pause
     if (ctx->pause_requested && ctx->pause_requested->load()) {
         ctx->was_paused = true;
@@ -60,6 +70,11 @@ size_t ChunkWorker::write_callback(char *ptr, size_t size, size_t nmemb, void *u
     if (ctx->curl != nullptr) {
         long http_code = 0;
         curl_easy_getinfo(ctx->curl, CURLINFO_RESPONSE_CODE, &http_code);
+        if (ctx->is_range_request && http_code == 200) {
+            // Server ignored Range header and returned HTTP 200 OK (streaming entire file from byte 0).
+            // Abort immediately to prevent writing byte 0 at a non-zero offset!
+            return 0;
+        }
         if (http_code >= 400 || (http_code != 200 && http_code != 206 && http_code != 0)) {
             // Discard error body payload without writing to disk or advancing progress
             return total_bytes;
@@ -162,6 +177,20 @@ bool ChunkWorker::download() {
             curl_easy_setopt(m_curl, CURLOPT_COOKIE, m_cookies.c_str());
         }
 
+        struct curl_slist *custom_headers = nullptr;
+        if (!m_username.empty()) {
+            std::string userpwd = m_username + ":" + m_password;
+            curl_easy_setopt(m_curl, CURLOPT_USERPWD, userpwd.c_str());
+        }
+        if (!m_auth_header.empty()) {
+            custom_headers = curl_slist_append(custom_headers, m_auth_header.c_str());
+            curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, custom_headers);
+        }
+        struct SlistGuard {
+            curl_slist *s;
+            ~SlistGuard() { if (s) curl_slist_free_all(s); }
+        } headers_guard{custom_headers};
+
         if (m_max_bytes_per_sec > 0) {
             curl_easy_setopt(m_curl, CURLOPT_MAX_RECV_SPEED_LARGE, static_cast<curl_off_t>(m_max_bytes_per_sec));
         }
@@ -173,11 +202,14 @@ bool ChunkWorker::download() {
                                           m_chunk.end_byte == total_size - 1);
 
         // Bug 3 Fix: If server does not support ranges, single chunk must restart from 0
+        bool is_range_request = false;
         if (!m_supports_ranges) {
             m_chunk.bytes_downloaded = 0;
             m_chunk_manager.update_chunk_progress(m_chunk.id, 0);
             attempt_start_bytes = 0;
+            curl_easy_setopt(m_curl, CURLOPT_RANGE, nullptr);
         } else if (!is_full_file_single_chunk) {
+            is_range_request = true;
             uint64_t req_start = m_chunk.start_byte + m_chunk.bytes_downloaded;
             if (req_start > m_chunk.end_byte) {
                 m_chunk_manager.mark_chunk_done(m_chunk.id);
@@ -187,6 +219,8 @@ bool ChunkWorker::download() {
             range_ss << req_start << "-" << m_chunk.end_byte;
             string range_str = range_ss.str();
             curl_easy_setopt(m_curl, CURLOPT_RANGE, range_str.c_str());
+        } else {
+            curl_easy_setopt(m_curl, CURLOPT_RANGE, nullptr);
         }
 
         WriteContext ctx;
@@ -198,12 +232,35 @@ bool ChunkWorker::download() {
         ctx.bytes_written = (!m_supports_ranges) ? 0 : m_chunk.bytes_downloaded;
         ctx.curl = m_curl;
         ctx.pause_requested = m_pause_requested;
+        ctx.is_range_request = is_range_request;
+        ctx.dynamic_speed_limit = m_speed_limit_ptr;
+        ctx.last_applied_speed_limit = m_max_bytes_per_sec;
 
         curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, write_callback);
         curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &ctx);
         curl_easy_setopt(m_curl, CURLOPT_FAILONERROR, 0L);
 
+        auto bonding = m_channel_bonding ? m_channel_bonding : s_default_channel_bonding;
+        string bound_interface;
+        if (bonding) {
+            bound_interface = bonding->get_interface_for_chunk(m_chunk.id);
+            if (!bound_interface.empty()) {
+                curl_easy_setopt(m_curl, CURLOPT_INTERFACE, bound_interface.c_str());
+            }
+        }
+
         CURLcode res = curl_easy_perform(m_curl);
+
+        if (bonding && !bound_interface.empty()) {
+            if (res == CURLE_OK) {
+                bonding->report_adapter_success(bound_interface);
+                uint64_t bytes_transferred = (ctx.bytes_written > attempt_start_bytes) 
+                    ? (ctx.bytes_written - attempt_start_bytes) : 0;
+                bonding->record_transfer(bound_interface, bytes_transferred);
+            } else if (res == CURLE_INTERFACE_FAILED || res == CURLE_COULDNT_CONNECT) {
+                bonding->report_adapter_failure(bound_interface);
+            }
+        }
 
         // Clean pause check right after perform
         if (ctx.was_paused || (m_pause_requested && m_pause_requested->load())) {
@@ -238,7 +295,8 @@ bool ChunkWorker::download() {
 
         // Verify that all bytes for this chunk have actually been written and response was successful
         bool is_single_stream = !m_supports_ranges || is_full_file_single_chunk;
-        if ((http_code == 206 || (http_code == 200 && is_single_stream) || (http_code >= 200 && http_code < 300)) && ctx.bytes_written >= expected_total_bytes) {
+        bool status_ok = is_single_stream ? (http_code == 200 || http_code == 206) : (http_code == 206);
+        if (status_ok && ctx.bytes_written >= expected_total_bytes) {
             m_chunk_manager.mark_chunk_done(m_chunk.id);
             return true;
         }

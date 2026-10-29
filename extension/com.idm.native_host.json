@@ -1,7 +1,7 @@
 {
   "name": "com.idm.native_host",
   "description": "IDM Native Messaging Bridge Host",
-  "path": "E:\\Projects\\idm\\build\\idm_native_host.exe",
+  "path": "idm_native_host.exe",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://bjgkbgeokfiebnpmenpcojhlehlapjih/",

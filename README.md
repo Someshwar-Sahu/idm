@@ -147,13 +147,16 @@ The application is structured into a modular, multi-tier architecture with clean
 
 | Subsystem | Source Location | Engineering Responsibility |
 | :--- | :--- | :--- |
-| **🌐 Browser Bridge** | [`src/native_host/`](src/native_host/) | Manifest V3 Native Messaging Host bridging browser events to the desktop application. |
-| **🔌 IPC Server** | [`src/ipc/`](src/ipc/) | Local domain socket server handling asynchronous JSON-RPC commands and event dispatching. |
-| **🖥️ Native Qt 6 GUI** | [`src/gui_qt/`](src/gui_qt/) | Pure C++ desktop interface with segmented progress bars, system tray alerts, and category sorting. |
-| **⚡ Acceleration Core** | [`src/core/`](src/core/) | Multithreaded chunk worker pool with real-time dynamic work-stealing and slow-chunk splitting. |
-| **🛡️ Resilience Engine** | [`src/core/`](src/core/) | Non-destructive sidecar state persistence (`.idm`) enabling seamless pause and resume across network drops. |
-| **⏱️ Queue Scheduler** | [`src/queue/`](src/queue/) | FIFO queue manager with concurrency limits, calendar scheduling, and post-queue power triggers. |
-| **🔐 Credential Vault** | [`src/security/`](src/security/) | Encrypted credential store managing authenticated servers (HTTP Basic, Digest, Bearer). |
+| **⚡ Acceleration Core** | [`src/core/`](src/core/) | Multithreaded chunk worker pool with real-time dynamic work-stealing, slow-chunk bisection, and sparse disk I/O. |
+| **🖥️ Native Qt 6 GUI** | [`src/gui_qt/`](src/gui_qt/) | Pure C++ desktop interface with custom segmented chunk progress widget, system tray integration, and modal dialogs. |
+| **🌐 Browser Bridge** | [`src/native_host/`](src/native_host/) | Manifest V3 Native Messaging Host bridging browser events to the desktop application over stdin/stdout. |
+| **🔌 IPC Server** | [`src/ipc/`](src/ipc/) | Local asynchronous REST API server (`127.0.0.1:8080`) handling JSON-RPC commands and event dispatching. |
+| **🎬 Media Processing** | [`src/media/`](src/media/) | Stream link extraction (YouTube, Vimeo, MP4, HLS) and live HTTP streaming previewer for partial downloads. |
+| **📡 Networking & QoS** | [`src/net/`](src/net/) | Multi-adapter channel bonding, real-time ping/latency monitoring, Smart Auto-QoS throttling, and power state awareness. |
+| **⏱️ Queue Scheduler** | [`src/queue/`](src/queue/) | FIFO queue manager with concurrency limits, calendar scheduling, and OS-native action center notifications. |
+| **🛡️ Security & Vault** | [`src/security/`](src/security/) | Defender CLI / AMSI malware scanning, ZoneId=3 MOTW tagging, quarantine isolation, and AES-256 encrypted credential vault. |
+| **⚙️ Config Management** | [`src/config/`](src/config/) | User settings persistence (`settings.json`), automatic category file type mapping, and path routing. |
+| **🔍 Tools & Verification** | [`src/tools/`](src/tools/) | Pre-extraction CRC32 and header integrity verification for ZIP/RAR/7z archives. |
 
 ---
 
@@ -210,22 +213,29 @@ idm/
 ├── .github/
 │   └── workflows/
 │       └── build_all_platforms.yml # CI/CD for Windows, macOS, and Linux
+├── docs/                           # Technical documentation, diagrams, and flowcharts
+│   ├── design_specification.md     # Full engineering architecture specification
+│   ├── architecture.svg            # Multi-tier system architecture diagram
+│   └── work_stealing.svg           # Dynamic chunk work-stealing flowchart
 ├── src/
 │   ├── config/                     # SettingsManager & settings.json persistence
-│   ├── core/                       # DownloadTask, ChunkWorker, Work-stealing
-│   ├── gui_qt/                     # Pure Qt 6 Native GUI Dialogs & Views
-│   ├── ipc/                        # Local IPC Socket Server
-│   ├── native_host/                # Chrome/Edge Native Messaging Host
-│   ├── net/                        # NetworkMonitor, PowerMonitor, Smart QoS
-│   ├── queue/                      # DownloadQueue & QueueScheduler
-│   └── security/                   # Encrypted Credential Vault & Scanner
-├── extension/                      # Chrome / Edge Browser Extension
+│   ├── core/                       # DownloadTask, ChunkManager, ChunkWorker, FileWriter, ResumeStore
+│   ├── gui_qt/                     # Pure Qt 6 Native GUI Views, Models, and Dialogs
+│   ├── ipc/                        # Asynchronous Local REST API Server (port 8080)
+│   ├── media/                      # Media stream extractor & live media preview proxy
+│   ├── native_host/                # Chrome/Edge Native Messaging Host binary
+│   ├── net/                        # Channel bonding, latency monitor, Smart QoS, power monitor
+│   ├── queue/                      # DownloadQueue scheduler & native action center notifications
+│   ├── security/                   # Defender/AMSI antivirus scanner & AES-256 encrypted vault
+│   └── tools/                      # ArchiveVerifier (ZIP/RAR/7z integrity validation)
+├── test/                           # 22 automated unit test suites (100% PASS)
+├── extension/                      # Chrome / Edge Manifest V3 Browser Extension
 ├── installer.iss                   # Inno Setup Windows installer script
 ├── package.ps1                     # Windows packaging script
 ├── package_linux.sh                # Linux CPack .deb packaging script
 ├── package_mac.sh                  # macOS macdeployqt .dmg packaging script
 ├── CMakeLists.txt                  # Universal CMake build definitions
-└── README.md                       # Project documentation
+└── README.md                       # Main project documentation
 ```
 
 ---

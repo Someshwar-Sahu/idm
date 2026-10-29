@@ -271,10 +271,125 @@ int main() {
     filesystem::remove_all(TEST_CAT_DIR);
     cout << "  -> Category directory auto-creation & duplicate collision auto-renaming: PASSED" << endl;
 
+    // =========================================================================
+    // 12. BUG #1 FIX: 0-BYTE FILE HANDLING
+    // =========================================================================
+    cout << "\n[12/12] Testing 0-Byte File Download Handling (Bug #1 Fix)..." << endl;
+    const string ZERO_BYTE_DEST = "zero_byte_test.bin";
+    remove(ZERO_BYTE_DEST.c_str());
+    DownloadTask task_zero("https://httpbin.org/bytes/0", ZERO_BYTE_DEST, 1);
+    task_zero.m_total_size = 0;
+    task_zero.m_status = DownloadStatus::Completed;
+    FileWriter::preallocate_file(ZERO_BYTE_DEST, 0);
+    assert(task_zero.start() == true);
+    assert(task_zero.get_status() == DownloadStatus::Completed);
+    assert(task_zero.get_progress_pct() == 100.0);
+    assert(filesystem::exists(ZERO_BYTE_DEST) == true);
+    remove(ZERO_BYTE_DEST.c_str());
+    cout << "  -> 0-Byte file start() preserves Completed status and 100% progress: PASSED" << endl;
+
+    // =========================================================================
+    // 13. BUG #2 FIX: RANGE-SUPPORT FALLBACK & RESUME RESTORATION
+    // =========================================================================
+    cout << "\n[13/13] Testing Range-Support Fallback & Resumption Logic (Bug #2 Fix)..." << endl;
+    const string RANGE_TEST_DEST = "range_test.bin";
+    remove(RANGE_TEST_DEST.c_str());
+    string range_sidecar = ResumeStore::get_sidecar_filepath(RANGE_TEST_DEST);
+    ResumeStore::remove(range_sidecar);
+
+    ChunkManager cm_range;
+    cm_range.init(1000, 1);
+    // Save sidecar with supports_ranges = false
+    bool saved_ok = ResumeStore::save(range_sidecar, "https://example.com/no_range.iso", 1000, "etag123", cm_range, false);
+    assert(saved_ok == true);
+
+    // Verify sidecar correctly saved supports_ranges as false
+    string s_url, s_etag;
+    uint64_t s_size = 0;
+    bool s_ranges = true;
+    assert(ResumeStore::load(range_sidecar, s_url, s_size, s_etag, cm_range, s_ranges) == true);
+    assert(s_ranges == false);
+
+    // Verify task probe resets m_supports_ranges to false
+    DownloadTask task_range_resume("http://127.0.0.1:9999/dummy", RANGE_TEST_DEST, 4);
+    task_range_resume.m_supports_ranges = true;
+    task_range_resume.probe_url();
+    assert(task_range_resume.supports_ranges() == false);
+
+    remove(RANGE_TEST_DEST.c_str());
+    ResumeStore::remove(range_sidecar);
+    cout << "  -> Range-support fallback and sidecar restoration: PASSED" << endl;
+
+    // =========================================================================
+    // 14. BUG #4 FIX: FALLBACK GET PROBE HEADERS PRESERVATION
+    // =========================================================================
+    cout << "\n[14/14] Testing Fallback GET Probe Headers for Filename & MIME (Bug #4 Fix)..." << endl;
+    string mock_get_headers = "HTTP/1.1 206 Partial Content\r\n"
+                              "Content-Range: bytes 0-0/1000\r\n"
+                              "Content-Disposition: attachment; filename=\"fallback_document.pdf\"\r\n"
+                              "Content-Type: application/pdf\r\n"
+                              "ETag: \"etag_fallback_999\"\r\n\r\n";
+
+    string resolved_name = DownloadTask::extract_filename_from_content_disposition(mock_get_headers);
+    assert(resolved_name == "fallback_document.pdf");
+    cout << "  -> Fallback GET probe Content-Disposition filename extraction: PASSED" << endl;
+
+    // =========================================================================
+    // 15. BUGS #5 & #6 FIX: REDIRECT HEADER ISOLATION & CASE-INSENSITIVE LOOKUP
+    // =========================================================================
+    cout << "\n[15/15] Testing Redirect Header Concatenation & Case-Insensitive Lookup (Bugs #5 & #6 Fix)..." << endl;
+    string multi_hop_headers = 
+        "HTTP/1.1 302 Found\r\n"
+        "Location: https://cdn.example.com/movie.mp4\r\n"
+        "Content-Length: 154\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "ETag: \"stale-302-etag\"\r\n"
+        "\r\n"
+        "HTTP/1.1 200 OK\r\n"
+        "content-length:  104857600\r\n"
+        "CONTENT-TYPE: video/mp4\r\n"
+        "accept-ranges: bytes\r\n"
+        "etag: \"final-mp4-etag\"\r\n"
+        "content-disposition: attachment; filename=\"my_movie.mp4\"\r\n\r\n";
+
+    string final_headers = DownloadTask::get_last_response_headers(multi_hop_headers);
+    assert(final_headers.find("HTTP/1.1 200 OK") != string::npos);
+    assert(final_headers.find("302 Found") == string::npos);
+
+    string cl_val = DownloadTask::get_header_value(final_headers, "Content-Length");
+    assert(cl_val == "104857600");
+
+    string ct_val = DownloadTask::get_header_value(final_headers, "content-type");
+    assert(ct_val == "video/mp4");
+
+    string etag_val = DownloadTask::get_header_value(final_headers, "ETAG");
+    assert(etag_val == "\"final-mp4-etag\"");
+
+    string ar_val = DownloadTask::get_header_value(final_headers, "Accept-Ranges");
+    assert(ar_val == "bytes");
+
+    string movie_name = DownloadTask::extract_filename_from_content_disposition(multi_hop_headers);
+    assert(movie_name == "my_movie.mp4");
+
+    cout << "  -> Multi-hop redirect header isolation & case-insensitive parsing: PASSED" << endl;
+
+    // =========================================================================
+    // 16. BUG #7 FIX: WEAK ETAG RESUMPTION & CONDITIONAL VALIDATION
+    // =========================================================================
+    cout << "\n[16/16] Testing Weak ETag Resumption Validation (Bug #7 Fix)..." << endl;
+    assert(DownloadTask::etags_match("\"abc123xyz\"", "\"abc123xyz\"") == true);
+    assert(DownloadTask::etags_match("W/\"abc123xyz\"", "\"abc123xyz\"") == true);
+    assert(DownloadTask::etags_match("\"abc123xyz\"", "W/\"abc123xyz\"") == true);
+    assert(DownloadTask::etags_match("abc123xyz", "\"abc123xyz\"") == true);
+    assert(DownloadTask::etags_match("W/\"abc123xyz\"", "abc123xyz") == true);
+    assert(DownloadTask::etags_match("\"different_etag\"", "\"abc123xyz\"") == false);
+    assert(DownloadTask::etags_match("W/\"different_etag\"", "W/\"abc123xyz\"") == false);
+    cout << "  -> Weak and quoted ETag matching & mismatch detection: PASSED" << endl;
+
     curl_global_cleanup();
 
     cout << "\n==========================================================" << endl;
-    cout << "  [PASSED] 100% OF DOWNLOADTASK & TASKS 1 - 8B VERIFIED!  " << endl;
+    cout << "  [PASSED] 100% OF DOWNLOADTASK, BUGS #1-#7 VERIFIED!     " << endl;
     cout << "==========================================================" << endl;
 
     return 0;

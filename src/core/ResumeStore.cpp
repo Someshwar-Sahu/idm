@@ -5,27 +5,24 @@
 #include <iostream>
 #include <filesystem>
 #include <sstream>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 using namespace std;
 using json = nlohmann::json;
 
 string ResumeStore::get_sidecar_filepath(const string &destination_filepath, const string &cache_directory){
-    namespace fs = std::filesystem;
-    string effective_cache = cache_directory;
-    if (effective_cache.empty()) {
-#ifdef _WIN32
-        const char* localAppData = getenv("LOCALAPPDATA");
-        if (localAppData && strlen(localAppData) > 0) {
-            effective_cache = (fs::path(localAppData) / "IDM" / "cache").string();
-        } else {
-            effective_cache = (fs::temp_directory_path() / "IDM_Cache").string();
-        }
-#else
-        effective_cache = (fs::temp_directory_path() / "IDM_Cache").string();
-#endif
+    if (cache_directory.empty()) {
+        return destination_filepath + ".progress.json";
     }
+    string eff_cache = get_effective_cache_dir(cache_directory);
+    namespace fs = std::filesystem;
     try{
-        fs::path cache_path(effective_cache);
+        fs::path cache_path(eff_cache);
         std::error_code ec;
         fs::create_directories(cache_path, ec);
 
@@ -89,9 +86,25 @@ bool ResumeStore::save(const string &sidecar_filepath,
             file<<j.dump(4);
             file.close();
 
+#ifdef _WIN32
+            if (!MoveFileExA(temp_filepath.c_str(), sidecar_filepath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+                std::error_code rm_ec;
+                std::filesystem::remove(sidecar_filepath, rm_ec);
+                std::error_code ren_ec;
+                std::filesystem::rename(temp_filepath, sidecar_filepath, ren_ec);
+                return !ren_ec;
+            }
+            return true;
+#else
             std::error_code ec;
             std::filesystem::rename(temp_filepath, sidecar_filepath, ec);
+            if (ec) {
+                std::error_code rm_ec;
+                std::filesystem::remove(sidecar_filepath, rm_ec);
+                std::filesystem::rename(temp_filepath, sidecar_filepath, ec);
+            }
             return !ec;
+#endif
         } catch (const std::exception &e){
             cerr<<"[ResumeStore Error] Failed to save sidecar JSON: "<<e.what()<<endl;
             return false;
@@ -163,7 +176,11 @@ bool ResumeStore::exists(const string &sidecar_filepath){
 bool ResumeStore::remove(const string &sidecar_filepath){
     if (sidecar_filepath.empty()) return false;
     std::error_code ec;
-    return std::filesystem::remove(sidecar_filepath, ec);
+    if (!std::filesystem::exists(sidecar_filepath, ec)) {
+        return true;
+    }
+    std::filesystem::remove(sidecar_filepath, ec);
+    return !ec;
 }
 
 string ResumeStore::get_effective_cache_dir(const string &cache_directory) {

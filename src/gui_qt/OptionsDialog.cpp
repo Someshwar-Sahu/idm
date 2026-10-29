@@ -8,7 +8,9 @@
 #include "OptionsDialog.h"
 #include "../native_host/NativeHost.h"
 #include "../core/ResumeStore.h"
+#include "../security/AntivirusScanner.h"
 #include <filesystem>
+#include <fstream>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -19,6 +21,8 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QTimer>
+#include <QHeaderView>
+#include <QInputDialog>
 #include <sstream>
 #include <iomanip>
 
@@ -41,7 +45,7 @@ QString formatBytes(uint64_t bytes) {
 OptionsDialog::OptionsDialog(SettingsManager* settings, QWidget* parent)
     : QDialog(parent), m_settings(settings) {
     setWindowTitle(QStringLiteral("Configuration"));
-    resize(580, 480);
+    resize(600, 520);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     setStyleSheet(QStringLiteral(
@@ -52,8 +56,20 @@ OptionsDialog::OptionsDialog(SettingsManager* settings, QWidget* parent)
         "QGroupBox { color: #38bdf8; font-weight: bold; border: 1px solid #27272a; border-radius: 6px; margin-top: 14px; padding-top: 16px; }"
         "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }"
         "QLabel, QCheckBox { font-size: 12px; color: #e4e4e7; }"
-        "QLineEdit, QComboBox, QSpinBox { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 4px; padding: 5px 8px; font-size: 12px; }"
-        "QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border-color: #3b82f6; }"
+        "QLineEdit, QComboBox { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 4px; padding: 5px 8px; font-size: 12px; }"
+        "QLineEdit:focus, QComboBox:focus { border-color: #3b82f6; }"
+        "QSpinBox { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 4px; padding-left: 6px; padding-right: 20px; padding-top: 3px; padding-bottom: 3px; font-size: 12px; min-height: 20px; }"
+        "QSpinBox:focus { border-color: #3b82f6; }"
+        "QSpinBox::up-button { subcontrol-origin: border; subcontrol-position: top right; width: 18px; height: 12px; border-left: 1px solid #3f3f46; border-bottom: 1px solid #3f3f46; border-top-right-radius: 3px; background: #2f2f35; }"
+        "QSpinBox::up-button:hover { background: #3f3f46; }"
+        "QSpinBox::up-button:pressed { background: #18181b; }"
+        "QSpinBox::up-arrow { width: 0px; height: 0px; border-left: 3px solid transparent; border-right: 3px solid transparent; border-bottom: 4px solid #f4f4f5; }"
+        "QSpinBox::down-button { subcontrol-origin: border; subcontrol-position: bottom right; width: 18px; height: 12px; border-left: 1px solid #3f3f46; border-bottom-right-radius: 3px; background: #2f2f35; }"
+        "QSpinBox::down-button:hover { background: #3f3f46; }"
+        "QSpinBox::down-button:pressed { background: #18181b; }"
+        "QSpinBox::down-arrow { width: 0px; height: 0px; border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 4px solid #f4f4f5; }"
+        "QTableWidget { background: #18181b; color: #f4f4f5; border: 1px solid #27272a; gridline-color: #27272a; border-radius: 4px; }"
+        "QHeaderView::section { background: #202025; color: #a1a1aa; border: 1px solid #27272a; padding: 4px; font-weight: 600; font-size: 11px; }"
         "QPushButton { background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46; border-radius: 5px; padding: 6px 16px; font-size: 12px; font-weight: 500; }"
         "QPushButton:hover { background: #3f3f46; border-color: #60a5fa; }"
         "QPushButton:pressed { background: #18181b; }"
@@ -100,6 +116,13 @@ void OptionsDialog::setupUi() {
     m_clipboardMonitorCheck = new QCheckBox(QStringLiteral("Automatically detect downloadable links from clipboard"), clipGroup);
     clipLayout->addWidget(m_clipboardMonitorCheck);
     generalLayout->addWidget(clipGroup);
+
+    auto* promptGroup = new QGroupBox(QStringLiteral("Prompts & Notifications"), tabGeneral);
+    auto* promptLayout = new QVBoxLayout(promptGroup);
+    m_showStartDialogCheck = new QCheckBox(QStringLiteral("Show 'Start Download' dialog before downloading"), promptGroup);
+    promptLayout->addWidget(m_showStartDialogCheck);
+    generalLayout->addWidget(promptGroup);
+
     generalLayout->addStretch(1);
 
     m_tabWidget->addTab(tabGeneral, QStringLiteral("General"));
@@ -283,24 +306,36 @@ void OptionsDialog::setupUi() {
     m_tabWidget->addTab(tabConn, QStringLiteral("Connection"));
 
     // ==========================================
-    // Tab 5: Downloads & Security
+    // Tab 5: Downloads
     // ==========================================
     auto* tabDownloads = new QWidget(this);
     auto* dlLayout = new QVBoxLayout(tabDownloads);
     dlLayout->setSpacing(12);
 
-    auto* promptGroup = new QGroupBox(QStringLiteral("Confirmation Dialogs"), tabDownloads);
-    auto* promptLayout = new QVBoxLayout(promptGroup);
-    m_showStartDialogCheck = new QCheckBox(QStringLiteral("Show 'Start Download' dialog before downloading"), promptGroup);
-    promptLayout->addWidget(m_showStartDialogCheck);
-    dlLayout->addWidget(promptGroup);
+    auto* dlOptionsGroup = new QGroupBox(QStringLiteral("Download Automation & Options"), tabDownloads);
+    auto* dlOptionsLayout = new QVBoxLayout(dlOptionsGroup);
+    dlOptionsLayout->addWidget(new QLabel(QStringLiteral("Default actions and settings for download tasks:"), dlOptionsGroup));
+    auto* autoOpenLabel = new QLabel(QStringLiteral("• Downloads automatically sort into category folders\n• Incomplete tasks automatically save checkpoint state on pause/exit\n• File integrity verified via multi-chunk resume store"), dlOptionsGroup);
+    autoOpenLabel->setStyleSheet(QStringLiteral("color: #a1a1aa; line-height: 1.4;"));
+    dlOptionsLayout->addWidget(autoOpenLabel);
+    dlLayout->addWidget(dlOptionsGroup);
+    dlLayout->addStretch(1);
 
-    auto* avGroup = new QGroupBox(QStringLiteral("Antivirus Scanning"), tabDownloads);
+    m_tabWidget->addTab(tabDownloads, QStringLiteral("Downloads"));
+
+    // ==========================================
+    // Tab 6: Security & Whitelist
+    // ==========================================
+    auto* tabSecurity = new QWidget(this);
+    auto* secLayout = new QVBoxLayout(tabSecurity);
+    secLayout->setSpacing(12);
+
+    auto* avGroup = new QGroupBox(QStringLiteral("Antivirus Scanning"), tabSecurity);
     auto* avGrid = new QGridLayout(avGroup);
     avGrid->setHorizontalSpacing(10);
     avGrid->setVerticalSpacing(10);
 
-    m_antivirusScanCheck = new QCheckBox(QStringLiteral("Perform antivirus scan on completed downloads"), avGroup);
+    m_antivirusScanCheck = new QCheckBox(QStringLiteral("Perform antivirus scan on completed downloads (Windows Defender / Custom)"), avGroup);
     avGrid->addWidget(m_antivirusScanCheck, 0, 0, 1, 3);
 
     avGrid->addWidget(new QLabel(QStringLiteral("Scanner program:"), avGroup), 1, 0);
@@ -311,10 +346,35 @@ void OptionsDialog::setupUi() {
     connect(m_browseAntivirusBtn, &QPushButton::clicked, this, &OptionsDialog::onBrowseAntivirus);
     avGrid->addWidget(m_browseAntivirusBtn, 1, 2);
 
-    dlLayout->addWidget(avGroup);
-    dlLayout->addStretch(1);
+    secLayout->addWidget(avGroup);
 
-    m_tabWidget->addTab(tabDownloads, QStringLiteral("Downloads"));
+    auto* wlGroup = new QGroupBox(QStringLiteral("SmartScreen & Antivirus Whitelist Manager"), tabSecurity);
+    auto* wlLayout = new QVBoxLayout(wlGroup);
+    wlLayout->setSpacing(8);
+
+    m_whitelistTable = new QTableWidget(0, 2, wlGroup);
+    m_whitelistTable->setHorizontalHeaderLabels({QStringLiteral("Type"), QStringLiteral("Trusted Entry / Domain / SHA-256")});
+    m_whitelistTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_whitelistTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    m_whitelistTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_whitelistTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_whitelistTable->verticalHeader()->setVisible(false);
+    wlLayout->addWidget(m_whitelistTable);
+
+    auto* wlBtnLayout = new QHBoxLayout();
+    m_addWhitelistBtn = new QPushButton(QStringLiteral("Add Domain..."), wlGroup);
+    connect(m_addWhitelistBtn, &QPushButton::clicked, this, &OptionsDialog::onAddWhitelistDomain);
+    wlBtnLayout->addWidget(m_addWhitelistBtn);
+
+    m_removeWhitelistBtn = new QPushButton(QStringLiteral("Remove Selected"), wlGroup);
+    connect(m_removeWhitelistBtn, &QPushButton::clicked, this, &OptionsDialog::onRemoveWhitelistEntry);
+    wlBtnLayout->addWidget(m_removeWhitelistBtn);
+    wlBtnLayout->addStretch(1);
+
+    wlLayout->addLayout(wlBtnLayout);
+    secLayout->addWidget(wlGroup);
+
+    m_tabWidget->addTab(tabSecurity, QStringLiteral("Security"));
 
     mainLayout->addWidget(m_tabWidget);
 
@@ -382,6 +442,7 @@ void OptionsDialog::loadSettings() {
     m_showStartDialogCheck->setChecked(s.show_start_download_dialog);
     m_antivirusScanCheck->setChecked(s.antivirus_scan_enabled);
     m_antivirusPathEdit->setText(QString::fromStdString(s.antivirus_executable_path));
+    refreshWhitelistTable();
 }
 
 void OptionsDialog::saveSettings() {
@@ -453,10 +514,24 @@ void OptionsDialog::saveSettings() {
     char curExePath[MAX_PATH];
     if (GetModuleFileNameA(NULL, curExePath, MAX_PATH) > 0) {
         std::filesystem::path exeDir = std::filesystem::path(curExePath).parent_path();
-        if (std::filesystem::exists(exeDir / "com.idm.native_host.json")) {
-            manifestPath = exeDir / "com.idm.native_host.json";
-        } else if (std::filesystem::exists(exeDir.parent_path() / "extension" / "com.idm.native_host.json")) {
-            manifestPath = exeDir.parent_path() / "extension" / "com.idm.native_host.json";
+        std::filesystem::path nativeHostExe = exeDir / "idm_native_host.exe";
+        if (!std::filesystem::exists(nativeHostExe)) {
+            nativeHostExe = exeDir / "idm_native_host";
+        }
+
+        std::vector<std::string> allowedOrigins = {
+            "chrome-extension://bjgkbgeokfiebnpmenpcojhlehlapjih/",
+            "chrome-extension://nnnaaifgjldomglhfdjfoeajfkigkld/"
+        };
+        std::string manifestContent = idm::NativeHost::generate_native_manifest(
+            nativeHostExe.string(), allowedOrigins, idm::BrowserType::Chrome
+        );
+
+        manifestPath = exeDir / "com.idm.native_host.json";
+        std::ofstream mf(manifestPath);
+        if (mf.is_open()) {
+            mf << manifestContent;
+            mf.close();
         }
     }
 
@@ -476,6 +551,12 @@ void OptionsDialog::saveSettings() {
         idm::NativeHost::install_native_host_registry(idm::BrowserType::Firefox, manifestPath.string());
     } else {
         idm::NativeHost::uninstall_native_host_registry(idm::BrowserType::Firefox);
+    }
+
+    if (s.integrate_brave && !manifestPath.empty()) {
+        idm::NativeHost::install_native_host_registry(idm::BrowserType::Brave, manifestPath.string());
+    } else {
+        idm::NativeHost::uninstall_native_host_registry(idm::BrowserType::Brave);
     }
 #endif
 }
@@ -521,3 +602,75 @@ void OptionsDialog::onOkClicked() {
     emit settingsApplied();
     accept();
 }
+
+void OptionsDialog::refreshWhitelistTable() {
+    if (!m_whitelistTable) return;
+    m_whitelistTable->setRowCount(0);
+
+    auto domains = AntivirusScanner::get_whitelisted_domains();
+    auto hashes = AntivirusScanner::get_whitelisted_hashes();
+
+    int row = 0;
+    for (const auto& [domain, reason] : domains) {
+        m_whitelistTable->insertRow(row);
+        auto* typeItem = new QTableWidgetItem(QStringLiteral("🌐 Domain"));
+        typeItem->setFlags(typeItem->flags() & ~Qt::ItemIsEditable);
+        auto* valItem = new QTableWidgetItem(QString::fromStdString(domain));
+        valItem->setFlags(valItem->flags() & ~Qt::ItemIsEditable);
+        m_whitelistTable->setItem(row, 0, typeItem);
+        m_whitelistTable->setItem(row, 1, valItem);
+        row++;
+    }
+
+    for (const auto& [hash, reason] : hashes) {
+        m_whitelistTable->insertRow(row);
+        auto* typeItem = new QTableWidgetItem(QStringLiteral("🔑 SHA-256"));
+        typeItem->setFlags(typeItem->flags() & ~Qt::ItemIsEditable);
+        auto* valItem = new QTableWidgetItem(QString::fromStdString(hash));
+        valItem->setFlags(valItem->flags() & ~Qt::ItemIsEditable);
+        m_whitelistTable->setItem(row, 0, typeItem);
+        m_whitelistTable->setItem(row, 1, valItem);
+        row++;
+    }
+}
+
+void OptionsDialog::onAddWhitelistDomain() {
+    bool ok = false;
+    QString domain = QInputDialog::getText(
+        this,
+        QStringLiteral("Add Trusted Domain"),
+        QStringLiteral("Enter domain name to trust (e.g., drive.google.com):"),
+        QLineEdit::Normal,
+        QString(),
+        &ok
+    );
+    if (!ok || domain.trimmed().isEmpty()) return;
+
+    QString clean = domain.trimmed();
+    if (clean.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)) clean = clean.mid(7);
+    if (clean.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) clean = clean.mid(8);
+    int slashIdx = clean.indexOf('/');
+    if (slashIdx != -1) clean = clean.left(slashIdx);
+
+    AntivirusScanner::add_domain_to_whitelist(clean.toStdString(), "User-trusted domain");
+    AntivirusScanner::save_whitelist();
+    refreshWhitelistTable();
+}
+
+void OptionsDialog::onRemoveWhitelistEntry() {
+    if (!m_whitelistTable) return;
+    int curRow = m_whitelistTable->currentRow();
+    if (curRow < 0) {
+        QMessageBox::information(this, QStringLiteral("Select Entry"), QStringLiteral("Please select a whitelist entry from the table to remove."));
+        return;
+    }
+
+    auto* valItem = m_whitelistTable->item(curRow, 1);
+    if (!valItem) return;
+
+    QString entry = valItem->text();
+    AntivirusScanner::remove_from_whitelist(entry.toStdString());
+    AntivirusScanner::save_whitelist();
+    refreshWhitelistTable();
+}
+

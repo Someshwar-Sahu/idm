@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstdint>
+#include <map>
 
 enum class SecurityScanStatus{
     Safe,
@@ -58,6 +59,9 @@ public:
     static bool is_domain_whitelisted(const std::string &domain_or_url);
     static bool remove_from_whitelist(const std::string &entry);
     static void clear_whitelist();
+    static std::map<std::string, std::string> get_whitelisted_domains();
+    static std::map<std::string, std::string> get_whitelisted_hashes();
+    static bool has_whitelisted_hashes();
     static bool load_whitelist(const std::string &json_filepath ="");
     static bool save_whitelist(const std::string &json_filepath = "");
 

@@ -34,6 +34,12 @@ struct ChecksumResult {
     std::string details;
 };
 
+struct MultiHashResult {
+    std::string md5;
+    std::string sha1;
+    std::string sha256;
+};
+
 struct ExtractionOptions {
     bool create_subfolder{true};       // Extract into <dest_dir>/<archive_stem>/
     bool overwrite_existing{true};      // Overwrite target files
@@ -65,6 +71,7 @@ public:
     static std::string calculate_file_sha1(const std::string& filepath);
     static std::string calculate_buffer_sha1(const uint8_t* data, size_t size);
     static std::string calculate_file_sha256(const std::string& filepath);
+    static MultiHashResult calculate_file_all_hashes(const std::string& filepath);
 
     // 3. Hash Extraction & Verification
     static HashAlgorithm detect_hash_algorithm(const std::string& hash_str);

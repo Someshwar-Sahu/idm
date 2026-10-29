@@ -17,6 +17,50 @@
 
 using namespace std;
 
+namespace {
+string escape_xml(const string &in) {
+    string out;
+    out.reserve(static_cast<size_t>(in.size() * 1.2));
+    for (char c : in) {
+        switch (c) {
+            case '&': out += "&amp;"; break;
+            case '<': out += "&lt;"; break;
+            case '>': out += "&gt;"; break;
+            case '"': out += "&quot;"; break;
+            case '\'': out += "&apos;"; break;
+            default: out += c; break;
+        }
+    }
+    return out;
+}
+
+string escape_shell_arg(const string &in) {
+    string out;
+    for (char c : in) {
+        if (c == '"' || c == '`' || c == '$' || c == '\\' || c == '\'') out += '\\';
+        out += c;
+    }
+    return out;
+}
+
+string base64_encode(const string &in) {
+    static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    string out;
+    int val = 0, valb = -6;
+    for (unsigned char c : in) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            out.push_back(b64[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) out.push_back(b64[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (out.size() % 4) out.push_back('=');
+    return out;
+}
+} // namespace
+
 NotificationManager::NotificationManager() = default;
 
 bool NotificationManager::show_download_complete(const NotificationPayload &payload){
@@ -103,10 +147,10 @@ bool NotificationManager::open_file(const std::string &filepath, bool dry_run){
     HINSTANCE res = ShellExecuteA(NULL, "open", filepath.c_str(), NULL, NULL, SW_SHOWNORMAL);
     return reinterpret_cast<intptr_t>(res) > 32;
 #elif defined(__APPLE__)
-    string cmd = "open \"" + filepath + "\"";
+    string cmd = "open \"" + escape_shell_arg(filepath) + "\"";
     return (system(cmd.c_str()) == 0);
 #elif defined(__linux__)
-    string cmd = "xdg-open \"" + filepath + "\"";
+    string cmd = "xdg-open \"" + escape_shell_arg(filepath) + "\"";
     return (system(cmd.c_str()) ==0);
 #endif
     return false;
@@ -120,26 +164,37 @@ bool NotificationManager::open_folder_and_select_file(const std::string &filepat
     filesystem::path p(filepath);
     p.make_preferred(); // Converts forward slashes to backslashes
 
-    string cmd;
+    string params;
     if(filesystem::exists(p)){
         // File exists -> launch explorer and highlight file
-        cmd = "explorer.exe /select,\"" + p.string() + "\"";
+        params = "/select,\"" + p.string() + "\"";
     } else if (p.has_parent_path() && filesystem::exists(p.parent_path())){
         // Parent folder exists -> open folder directly
-        cmd = "explorer.exe \"" + p.parent_path().string() + "\"";
+        params = "\"" + p.parent_path().string() + "\"";
     } else {
-        cmd = "explorer.exe .";
+        params = ".";
     }
 
-    UINT res = WinExec(cmd.c_str(), SW_SHOWNORMAL);
-    return res > 31;
+    // Bug #21 Fix: Use ShellExecuteA with explorer.exe instead of WinExec shell string
+    HINSTANCE res = ShellExecuteA(NULL, "open", "explorer.exe", params.c_str(), NULL, SW_SHOWNORMAL);
+    return reinterpret_cast<intptr_t>(res) > 32;
 #elif defined(__APPLE__)
-    string cmd = "open -R \"" + filepath + "\"";
+    string clean_path;
+    for (char c : filepath) {
+        if (c == '"' || c == '`' || c == '$' || c == '\\') clean_path += '\\';
+        clean_path += c;
+    }
+    string cmd = "open -R \"" + clean_path + "\"";
     return (system(cmd.c_str()) == 0);
 #elif defined(__linux__)
     try {
         string parent_dir = filesystem::path(filepath).parent_path().string();
-        string cmd = "xdg-open \"" + parent_dir + "\"";
+        string clean_dir;
+        for (char c : parent_dir) {
+            if (c == '"' || c == '`' || c == '$' || c == '\\') clean_dir += '\\';
+            clean_dir += c;
+        }
+        string cmd = "xdg-open \"" + clean_dir + "\"";
         return (system(cmd.c_str()) == 0);
     } catch (...) {
         return false;
@@ -178,13 +233,13 @@ string NotificationManager::build_windows_toast_xml(const NotificationPayload &p
     ss << "<toast activationType='protocol'>\n"
        << "  <visual>\n"
        << "    <binding template='ToastGeneric'>\n"
-       << "      <text>" << payload.title << "</text>\n"
-       << "      <text>" << payload.message << "</text>\n"
+       << "      <text>" << escape_xml(payload.title) << "</text>\n"
+       << "      <text>" << escape_xml(payload.message) << "</text>\n"
        << "    </binding>\n"
        << "  </visual>\n"
        << "  <actions>\n"
-       << "    <action content='Open File' arguments='action=open_file&amp;path=" << payload.filepath << "' activationType='foreground'/>\n"
-       << "    <action content='Open Folder' arguments='action=open_folder&amp;path=" << payload.filepath << "' activationType='foreground'/>\n"
+       << "    <action content='Open File' arguments='action=open_file&amp;path=" << escape_xml(payload.filepath) << "' activationType='foreground'/>\n"
+       << "    <action content='Open Folder' arguments='action=open_folder&amp;path=" << escape_xml(payload.filepath) << "' activationType='foreground'/>\n"
        << "  </actions>\n"
        << "</toast>";
     return ss.str();
@@ -199,18 +254,19 @@ bool NotificationManager::dispatch_native_toast(const NotificationPayload &paylo
         PlaySoundA("SystemNotification", NULL, SND_ALIAS | SND_ASYNC);
     }
 
-    string safe_title = payload.title;
-    string safe_msg = payload.message;
-    for(char &c : safe_title) if (c == '"' || c == '\'') c = ' ';
-    for(char &c : safe_msg) if (c == '"' || c == '\'') c = ' ';
+    // Bug #21 Fix: Base64 encode title and message to completely eliminate command injection in PowerShell
+    string b64_title = base64_encode(payload.title);
+    string b64_msg = base64_encode(payload.message);
 
     ostringstream ps_cmd;
     ps_cmd << "powershell -Command \""
            << "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; "
            << "$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); "
            << "$textNodes = $template.GetElementsByTagName('text'); "
-           << "$textNodes.Item(0).AppendChild($template.CreateTextNode('" << safe_title << "')) > $null; "
-           << "$textNodes.Item(1).AppendChild($template.CreateTextNode('" << safe_msg << "')) > $null; "
+           << "$t = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" << b64_title << "')); "
+           << "$m = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('" << b64_msg << "')); "
+           << "$textNodes.Item(0).AppendChild($template.CreateTextNode($t)) > $null; "
+           << "$textNodes.Item(1).AppendChild($template.CreateTextNode($m)) > $null; "
            << "$toast = [Windows.UI.Notifications.ToastNotification]::new($template); "
            << "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Internet Download Manager').Show($toast);\"";
 
@@ -224,10 +280,14 @@ bool NotificationManager::dispatch_native_toast(const NotificationPayload &paylo
     }
     return false;
 #elif defined(__APPLE__)
-    std::string cmd = "osascript -e 'display notification \"" + payload.message + "\" with title \"" + payload.title + "\"'";
+    std::string clean_title = escape_shell_arg(payload.title);
+    std::string clean_msg = escape_shell_arg(payload.message);
+    std::string cmd = "osascript -e 'display notification \"" + clean_msg + "\" with title \"" + clean_title + "\"'";
     return (system(cmd.c_str()) == 0);
 #elif defined(__linux__)
-    std::string cmd = "notify-send \"" + payload.title + "\" \"" + payload.message + "\"";
+    std::string clean_title = escape_shell_arg(payload.title);
+    std::string clean_msg = escape_shell_arg(payload.message);
+    std::string cmd = "notify-send \"" + clean_title + "\" \"" + clean_msg + "\"";
     return (system(cmd.c_str()) == 0);
 #endif
     return true;

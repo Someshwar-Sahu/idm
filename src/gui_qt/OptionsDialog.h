@@ -29,11 +29,14 @@ private slots:
     void onSpeedModeChanged(int index);
     void onApplyClicked();
     void onOkClicked();
+    void onAddWhitelistDomain();
+    void onRemoveWhitelistEntry();
 
 private:
     void setupUi();
     void loadSettings();
     void saveSettings();
+    void refreshWhitelistTable();
 
     SettingsManager* m_settings{nullptr};
 
@@ -46,6 +49,7 @@ private:
     QCheckBox* m_integrateFirefoxCheck{nullptr};
     QCheckBox* m_integrateBraveCheck{nullptr};
     QCheckBox* m_clipboardMonitorCheck{nullptr};
+    QCheckBox* m_showStartDialogCheck{nullptr};
 
     // Tab 2: File Types
     QLineEdit* m_fileTypesEdit{nullptr};
@@ -67,11 +71,16 @@ private:
     QSpinBox* m_manualSpeedLimitSpin{nullptr};
     QLabel* m_speedUnitLabel{nullptr};
 
-    // Tab 5: Downloads & Security
-    QCheckBox* m_showStartDialogCheck{nullptr};
+    // Tab 5: Downloads
+    QCheckBox* m_autoStartCompletedCheck{nullptr};
+
+    // Tab 6: Security & Whitelist
     QCheckBox* m_antivirusScanCheck{nullptr};
     QLineEdit* m_antivirusPathEdit{nullptr};
     QPushButton* m_browseAntivirusBtn{nullptr};
+    QTableWidget* m_whitelistTable{nullptr};
+    QPushButton* m_addWhitelistBtn{nullptr};
+    QPushButton* m_removeWhitelistBtn{nullptr};
 
     // Action Buttons
     QPushButton* m_okBtn{nullptr};

@@ -18,7 +18,7 @@
 #include <shobjidl.h>
 
 static const GUID CLSID_AttachmentServices_Const = { 0x4125dd96, 0xe03a, 0x4103, { 0x8f, 0x70, 0xe0, 0x59, 0x7d, 0x80, 0x3b, 0x9c }};
-static const GUID IID_IAttachmentExecute_Const = { 0x73db0241, 0xc033, 0x47a6, { 0x97, 0xe6, 0x75, 0x12, 0x29, 0x6b, 0xcf, 0x6e } };
+static const GUID IID_IAttachmentExecute_Const = { 0x73db1241, 0x1e85, 0x4581, { 0x8e, 0x4f, 0xa8, 0x1e, 0x1d, 0x0f, 0x8c, 0x57 } };
 static const GUID IDM_CLIENT_GUID = { 0x3d3170a4, 0x217d, 0x48e1, { 0x8e, 0x45, 0x2b, 0x43, 0x3b, 0x6d, 0x1a, 0x9f } };
 
 static std::wstring to_wide_string(const std::string &str) {
@@ -53,10 +53,22 @@ LinkReputationResult AntivirusScanner::check_url_reputation(const std::string &u
         result.details = "Domain whitelisted by user (" + domain + ")";
         return result;
     }
-    // Bug 23 Fix: Bypass SmartScreen check for local / private / loopback IP ranges and intranet domains
+    // Bug #23 Fix: Strictly validate RFC 1918 172.16.0.0/12 and private IP ranges
+    auto is_private_172 = [](const std::string& ip) {
+        if (ip.rfind("172.", 0) != 0) return false;
+        size_t dot1 = 3;
+        size_t dot2 = ip.find('.', dot1 + 1);
+        if (dot2 == std::string::npos) return false;
+        try {
+            int second_octet = std::stoi(ip.substr(dot1 + 1, dot2 - (dot1 + 1)));
+            return (second_octet >= 16 && second_octet <= 31);
+        } catch (...) {
+            return false;
+        }
+    };
     if (domain == "localhost" || domain == "127.0.0.1" || 
         domain.rfind("192.168.", 0) == 0 || domain.rfind("10.", 0) == 0 ||
-        (domain.rfind("172.", 0) == 0) || domain.find(".local") != std::string::npos) {
+        is_private_172(domain) || domain.find(".local") != std::string::npos) {
         result.status = SecurityScanStatus::Safe;
         result.is_safe = true;
         result.prompt_recommended = false;
@@ -115,21 +127,17 @@ LinkReputationResult AntivirusScanner::check_url_reputation(const std::string &u
     result.win32_hresult = static_cast<uint32_t>(policy_hr);
 
     if(SUCCEEDED(policy_hr)){
-        if(policy_hr == S_OK){
-            result.status = SecurityScanStatus::Safe;
-            result.is_safe= true;
-            result.prompt_recommended = false;
-            result.details = "Allowed by Windows SmartScreen Policy";
-        } else{
-            result.status = SecurityScanStatus::Untrusted;
-            result.is_safe = true;
-            result.prompt_recommended = true;
-            result.details = "Untrusted source - User confirmation recomended";
-        }
+        result.status = SecurityScanStatus::Safe;
+        result.is_safe = true;
+        result.prompt_recommended = false;
+        result.details = (policy_hr == S_OK)
+            ? "Allowed by Windows SmartScreen Policy"
+            : "Allowed by Windows SmartScreen Policy (Standard Internet Zone)";
     } else {
         result.status = SecurityScanStatus::Blocked;
         result.is_safe = false;
-        result.details = "Blocked by Windows Defender SmartScan / Attachment Policy";
+        result.prompt_recommended = true;
+        result.details = "Blocked by Windows Defender SmartScreen / Attachment Policy";
     }
     return result;
 #else
@@ -279,19 +287,55 @@ static bool run_command_capture_output(const std::string &command, std::string &
         return false;
     }
 
+    // Bug #25 Fix: Non-blocking PeekNamedPipe reading loop prevents pipe buffer deadlock
+    DWORD start_tick = GetTickCount();
     char buffer[4096];
-    DWORD bytes_read = 0;
-    while(ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytes_read, nullptr) && bytes_read > 0){
-        buffer[bytes_read] = '\0';
-        out_stdout.append(buffer, bytes_read);
+    bool timed_out = false;
+
+    while (true) {
+        DWORD bytes_avail = 0;
+        if (!PeekNamedPipe(hReadPipe, NULL, 0, NULL, &bytes_avail, NULL)) {
+            break; // Child exited and pipe closed
+        }
+
+        if (bytes_avail > 0) {
+            DWORD bytes_read = 0;
+            DWORD to_read = (bytes_avail < sizeof(buffer) - 1) ? bytes_avail : (sizeof(buffer) - 1);
+            if (ReadFile(hReadPipe, buffer, to_read, &bytes_read, nullptr) && bytes_read > 0) {
+                buffer[bytes_read] = '\0';
+                out_stdout.append(buffer, bytes_read);
+            }
+        } else {
+            DWORD wait_res = WaitForSingleObject(pi.hProcess, 50);
+            if (wait_res == WAIT_OBJECT_0) {
+                // Drain any residual bytes in pipe before terminating loop
+                while (PeekNamedPipe(hReadPipe, NULL, 0, NULL, &bytes_avail, NULL) && bytes_avail > 0) {
+                    DWORD bytes_read = 0;
+                    DWORD to_read = (bytes_avail < sizeof(buffer) - 1) ? bytes_avail : (sizeof(buffer) - 1);
+                    if (ReadFile(hReadPipe, buffer, to_read, &bytes_read, nullptr) && bytes_read > 0) {
+                        out_stdout.append(buffer, bytes_read);
+                    } else {
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+        if (GetTickCount() - start_tick > timeout_ms) {
+            timed_out = true;
+            TerminateProcess(pi.hProcess, 1);
+            out_exit_code = -1;
+            break;
+        }
     }
     CloseHandle(hReadPipe);
 
-    WaitForSingleObject(pi.hProcess, timeout_ms);
-
-    DWORD exit_code = 0;
-    GetExitCodeProcess(pi.hProcess, &exit_code);
-    out_exit_code = static_cast<int>(exit_code);
+    if (!timed_out) {
+        DWORD exit_code = 0;
+        GetExitCodeProcess(pi.hProcess, &exit_code);
+        out_exit_code = static_cast<int>(exit_code);
+    }
 
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
@@ -407,12 +451,14 @@ FileScanResult AntivirusScanner::scan_file(const std::string &filepath, const st
     }
 
     // Step 1: Whitelist check
-    std::string file_hash = calculate_file_sha256(filepath);
-    if(!file_hash.empty() && is_hash_whitelisted(file_hash)){
-        result.verdict = FileScanVerdict::Clean;
-        result.threat_name = "";
-        result.raw_output = "[Whitelist Override] File SHA-256 (" + file_hash + ") is user-whitelisted. Threat overridden.";
-        return result;
+    if (has_whitelisted_hashes()) {
+        std::string file_hash = calculate_file_sha256(filepath);
+        if(!file_hash.empty() && is_hash_whitelisted(file_hash)){
+            result.verdict = FileScanVerdict::Clean;
+            result.threat_name = "";
+            result.raw_output = "[Whitelist Override] File SHA-256 (" + file_hash + ") is user-whitelisted. Threat overridden.";
+            return result;
+        }
     }
 
     // Step 2: In-memory pattern inspection (heuristic EICAR & AMSI buffer scan)
@@ -491,6 +537,14 @@ FileScanResult AntivirusScanner::scan_file(const std::string &filepath, const st
         if(!parsed.empty()){
             result.verdict = FileScanVerdict::Infected;
             result.threat_name = parsed;
+            if (has_whitelisted_hashes()) {
+                std::string file_hash = calculate_file_sha256(filepath);
+                if(!file_hash.empty() && is_hash_whitelisted(file_hash)){
+                    result.verdict = FileScanVerdict::Clean;
+                    result.threat_name = "";
+                    result.raw_output += "\n[Whitelist Override] File SHA-256 (" + file_hash + ") is user-whitelisted. Threat overridden.";
+                }
+            }
         } else if(stdout_output.find("CmdTool: Failed") != std::string::npos ||
                   stdout_output.find("0x80508023") != std::string::npos ||
                   stdout_output.find("was skipped") != std::string::npos ||
@@ -501,12 +555,6 @@ FileScanResult AntivirusScanner::scan_file(const std::string &filepath, const st
         } else {
             result.verdict = FileScanVerdict::Clean;
             result.threat_name = "";
-        }
-
-        if(!file_hash.empty() && is_hash_whitelisted(file_hash)){
-            result.verdict = FileScanVerdict::Clean;
-            result.threat_name = "";
-            result.raw_output += "\n[Whitelist Override] File SHA-256 (" + file_hash + ") is user-whitelisted. Threat overridden.";
         }
     } else {
         result.verdict = FileScanVerdict::Clean;
@@ -639,6 +687,11 @@ std::string AntivirusScanner::extract_domain_from_url(const std::string &url){
     if(slash_pos != std::string::npos ){
         clean = clean.substr(0, slash_pos);
     }
+    // Bug #24 Fix: Strip user:pass@ userinfo before looking for port or domain
+    size_t at_pos = clean.rfind('@');
+    if(at_pos != std::string::npos){
+        clean = clean.substr(at_pos + 1);
+    }
     size_t colon_pos = clean.find(':');
     if(colon_pos != std::string::npos){
         clean = clean.substr(0, colon_pos);
@@ -665,8 +718,12 @@ static std::string to_lower_str(std::string s){
 
 bool AntivirusScanner::add_hash_to_whitelist(const std::string &sha256_hash, const std::string &reason){
     if(sha256_hash.empty()) return false;
-    std::lock_guard<std::mutex> lock(s_whitelist.mtx);
-    s_whitelist.hashes[to_lower_str(sha256_hash)] = reason;
+    {
+        std::lock_guard<std::mutex> lock(s_whitelist.mtx);
+        s_whitelist.hashes[to_lower_str(sha256_hash)] = reason;
+    }
+    // Bug #22 Fix: Automatically persist whitelist modifications to disk
+    save_whitelist();
     return true;
 }
 
@@ -674,8 +731,12 @@ bool AntivirusScanner::add_domain_to_whitelist(const std::string &domain, const 
     if(domain.empty()) return false;
     std::string clean = extract_domain_from_url(domain);
     if(clean.empty()) return false;
-    std::lock_guard<std::mutex> lock(s_whitelist.mtx);
-    s_whitelist.domains[to_lower_str(clean)] = reason;
+    {
+        std::lock_guard<std::mutex> lock(s_whitelist.mtx);
+        s_whitelist.domains[to_lower_str(clean)] = reason;
+    }
+    // Bug #22 Fix: Automatically persist whitelist modifications to disk
+    save_whitelist();
     return true;
 }
 
@@ -709,6 +770,21 @@ void AntivirusScanner::clear_whitelist(){
     std::lock_guard<std::mutex> lock(s_whitelist.mtx);
     s_whitelist.hashes.clear();
     s_whitelist.domains.clear();
+}
+
+std::map<std::string, std::string> AntivirusScanner::get_whitelisted_domains() {
+    std::lock_guard<std::mutex> lock(s_whitelist.mtx);
+    return std::map<std::string, std::string>(s_whitelist.domains.begin(), s_whitelist.domains.end());
+}
+
+std::map<std::string, std::string> AntivirusScanner::get_whitelisted_hashes() {
+    std::lock_guard<std::mutex> lock(s_whitelist.mtx);
+    return std::map<std::string, std::string>(s_whitelist.hashes.begin(), s_whitelist.hashes.end());
+}
+
+bool AntivirusScanner::has_whitelisted_hashes() {
+    std::lock_guard<std::mutex> lock(s_whitelist.mtx);
+    return !s_whitelist.hashes.empty();
 }
 
 bool AntivirusScanner::load_whitelist(const std::string &json_filepath){

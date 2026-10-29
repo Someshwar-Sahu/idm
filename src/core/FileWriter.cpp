@@ -191,29 +191,51 @@ bool FileWriter::write_at_offset(uint64_t offset, const void* data, size_t lengt
 
 #ifdef _WIN32
     HANDLE hFile = static_cast<HANDLE>(m_file_handle);
+    const char *buf = static_cast<const char*>(data);
+    size_t total_written = 0;
 
-    OVERLAPPED ov = {0};
-    ov.Offset = static_cast<DWORD>(offset & 0xFFFFFFFF);
-    ov.OffsetHigh = static_cast<DWORD>((offset >> 32) & 0xFFFFFFFF);
+    while (total_written < length) {
+        uint64_t current_offset = offset + total_written;
+        DWORD to_write = static_cast<DWORD>(std::min<size_t>(length - total_written, 0x40000000UL));
 
-    DWORD bytesWritten = 0;
-    BOOL result = WriteFile(
-        hFile,
-        data,
-        static_cast<DWORD>(length),
-        &bytesWritten,
-        &ov
-    );
-    return (result != FALSE) && (bytesWritten == length);
+        OVERLAPPED ov = {0};
+        ov.Offset = static_cast<DWORD>(current_offset & 0xFFFFFFFF);
+        ov.OffsetHigh = static_cast<DWORD>((current_offset >> 32) & 0xFFFFFFFF);
+
+        DWORD written = 0;
+        BOOL result = WriteFile(
+            hFile,
+            buf + total_written,
+            to_write,
+            &written,
+            &ov
+        );
+        if (!result || written == 0) {
+            return false;
+        }
+        total_written += written;
+    }
+    return true;
 
 #else 
-    ssize_t bytesWritten = pwrite(
-        m_file_descriptor,
-        data,
-        length,
-        static_cast<off_t>(offset)
-    );
-    return bytesWritten == static_cast<ssize_t>(length);
+    const char *buf = static_cast<const char*>(data);
+    size_t total_written = 0;
+
+    while (total_written < length) {
+        ssize_t written = pwrite(
+            m_file_descriptor,
+            buf + total_written,
+            length - total_written,
+            static_cast<off_t>(offset + total_written)
+        );
+        if (written < 0) {
+            if (errno == EINTR) continue;
+            return false;
+        }
+        if (written == 0) return false;
+        total_written += static_cast<size_t>(written);
+    }
+    return true;
 #endif
 }
 

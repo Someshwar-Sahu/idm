@@ -92,7 +92,7 @@ private:
 
     std::atomic<bool> m_running{false};
     std::thread m_worker_thread;
-    mutable std::mutex m_mutex;
+    mutable std::recursive_mutex m_mutex;
 
     PowerStateCallback m_callback{nullptr};
     SystemPowerProvider m_mock_provider{nullptr};

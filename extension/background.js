@@ -9,14 +9,46 @@ const DEFAULT_FILE_TYPES = [
   "dmg", "dat", "bin", "apk", "csv", "tsv", "img"
 ];
 
+// Helper: Sync settings from IDM REST server
+async function syncSettingsFromIDM() {
+  try {
+    const res = await fetch("http://127.0.0.1:8080/api/settings", { signal: AbortSignal.timeout(1500) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === "SUCCESS") {
+        const updates = {};
+        if (data.enable_browser_interception !== undefined) {
+          updates.enabled = data.enable_browser_interception;
+        }
+        if (data.file_types) {
+          const types = data.file_types.split(/[\s,]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+          updates.fileTypes = types.join(",");
+        }
+        if (data.min_capture_size_bytes !== undefined) {
+          updates.minCaptureSize = data.min_capture_size_bytes;
+        }
+        if (data.enable_small_file_bypass !== undefined) {
+          updates.enableSmallFileBypass = data.enable_small_file_bypass;
+        }
+        await chrome.storage.local.set(updates);
+      }
+    }
+  } catch (e) {
+    // IDM core offline or not started; fallback to stored configuration
+  }
+}
+
 // Helper: Ensure storage settings
 function ensureSettings() {
-  chrome.storage.local.get(["enabled", "fileTypes"], (data) => {
+  chrome.storage.local.get(["enabled", "fileTypes", "minCaptureSize", "enableSmallFileBypass"], (data) => {
     const updates = {};
     if (data.enabled === undefined) updates.enabled = true;
     if (!data.fileTypes) updates.fileTypes = DEFAULT_FILE_TYPES.join(",");
+    if (data.minCaptureSize === undefined) updates.minCaptureSize = 10 * 1024 * 1024;
+    if (data.enableSmallFileBypass === undefined) updates.enableSmallFileBypass = true;
     if (Object.keys(updates).length > 0) chrome.storage.local.set(updates);
   });
+  syncSettingsFromIDM();
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -37,6 +69,12 @@ chrome.runtime.onStartup.addListener(() => {
   ensureSettings();
 });
 
+if (chrome.tabs && chrome.tabs.onActivated) {
+  chrome.tabs.onActivated.addListener(() => {
+    syncSettingsFromIDM();
+  });
+}
+
 // Helper: Identify current browser
 function getBrowserTag() {
   const ua = navigator.userAgent;
@@ -48,23 +86,31 @@ function getBrowserTag() {
 }
 
 // In-page link click listener from content.js
-chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "INTERCEPT_URL" && msg.url) {
-    console.log("[IDM Extension] In-page link caught:", msg.url);
-    const cookies = await getCookiesForUrl(msg.url);
-    const payload = {
-      url: msg.url,
-      filename: "",
-      cookies: cookies,
-      user_agent: navigator.userAgent,
-      browser: getBrowserTag(),
-      referer: msg.referer || sender?.tab?.url || "",
-      page_title: msg.page_title || sender?.tab?.title || "Page Download",
-      total_size: 0,
-      user_force_override: true
-    };
-    sendToNativeHost(payload);
-    sendResponse({ success: true });
+    (async () => {
+      try {
+        console.log("[IDM Extension] In-page link caught:", msg.url);
+        const cookies = await getCookiesForUrl(msg.url);
+        const payload = {
+          url: msg.url,
+          filename: "",
+          cookies: cookies,
+          user_agent: navigator.userAgent,
+          browser: getBrowserTag(),
+          referer: msg.referer || sender?.tab?.url || "",
+          page_title: msg.page_title || sender?.tab?.title || "Page Download",
+          total_size: 0,
+          user_force_override: true
+        };
+        sendToNativeHost(payload);
+        sendResponse({ success: true });
+      } catch (err) {
+        console.error("[IDM Extension] Error handling in-page intercept:", err);
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true; // Required by MV3 to keep sendResponse valid asynchronously
   }
 });
 
@@ -119,11 +165,16 @@ chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
 
 async function handleDeterminingFilename(downloadItem, suggest) {
   try {
-    const { enabled, fileTypes } = await chrome.storage.local.get(["enabled", "fileTypes"]);
+    const { enabled, fileTypes, minCaptureSize, enableSmallFileBypass } = await chrome.storage.local.get([
+      "enabled", "fileTypes", "minCaptureSize", "enableSmallFileBypass"
+    ]);
     if (enabled === false) {
       suggest();
       return;
     }
+
+    const minSizeLimit = (minCaptureSize !== undefined) ? minCaptureSize : (10 * 1024 * 1024);
+    const smallBypassEnabled = (enableSmallFileBypass !== undefined) ? enableSmallFileBypass : true;
 
     const url = downloadItem.finalUrl || downloadItem.url;
     if (!url || url.startsWith("blob:") || url.startsWith("data:")) {
@@ -132,7 +183,6 @@ async function handleDeterminingFilename(downloadItem, suggest) {
     }
 
     // 1. Resolve file size (inspect downloadItem.totalBytes, URL query parameters, or fast HEAD)
-    const TEN_MB_BYTES = 10 * 1024 * 1024;
     let fileSize = (downloadItem.totalBytes && downloadItem.totalBytes > 0) ? downloadItem.totalBytes : 0;
 
     // Check if URL specifies bytes parameter e.g. __down?bytes=1048576 or /bytes/1048576
@@ -155,23 +205,43 @@ async function handleDeterminingFilename(downloadItem, suggest) {
       }
     }
 
-    // 2. Small File Bypass: If verified < 10 MB, ALWAYS let browser download natively
-    if (fileSize > 0 && fileSize < TEN_MB_BYTES) {
-      console.log(`[IDM Extension] Small file bypass (${fileSize} bytes < 10 MB). Letting browser download natively:`, url);
+    // 2. Small File Bypass: If verified < minSizeLimit, let browser download natively
+    if (smallBypassEnabled && fileSize > 0 && fileSize < minSizeLimit) {
+      console.log(`[IDM Extension] Small file bypass (${fileSize} bytes < ${minSizeLimit} bytes). Letting browser download natively:`, url);
       suggest();
       return;
     }
 
     // 3. Extension filter check
-    const userTypes = fileTypes ? fileTypes.split(",").map(s => s.trim().toLowerCase()).filter(Boolean) : [];
-    const allowed = Array.from(new Set([...DEFAULT_FILE_TYPES, ...userTypes]));
+    function extractExtension(filename, urlStr) {
+      let target = "";
+      if (filename) {
+        target = filename;
+      } else if (urlStr) {
+        try {
+          const parsed = new URL(urlStr);
+          target = parsed.pathname;
+        } catch {
+          target = urlStr.split("?")[0].split("#")[0];
+        }
+      }
+      target = target.replace(/\/+$/, "");
+      const lastSlash = Math.max(target.lastIndexOf("/"), target.lastIndexOf("\\"));
+      const basename = lastSlash !== -1 ? target.slice(lastSlash + 1) : target;
+      const lastDot = basename.lastIndexOf(".");
+      if (lastDot !== -1 && lastDot < basename.length - 1) {
+        return basename.slice(lastDot + 1).toLowerCase();
+      }
+      return "";
+    }
 
-    const candidateName = downloadItem.filename || url;
-    const extMatch = candidateName.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
-    const ext = extMatch ? extMatch[1].toLowerCase() : "";
+    const userTypes = fileTypes ? fileTypes.split(/[\s,]+/).map(s => s.trim().toLowerCase()).filter(Boolean) : [];
+    const allowed = userTypes.length > 0 ? userTypes : DEFAULT_FILE_TYPES;
+
+    const ext = extractExtension(downloadItem.filename, url);
 
     const isWhitelistedExt = ext && (allowed.includes(ext) || allowed.includes("*"));
-    const isLargeByteDownload = fileSize >= TEN_MB_BYTES;
+    const isLargeByteDownload = fileSize >= minSizeLimit;
 
     // If extension is not whitelisted and size is not a verified large download, bypass
     if (!isWhitelistedExt && !isLargeByteDownload) {

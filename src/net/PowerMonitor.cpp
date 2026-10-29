@@ -104,32 +104,32 @@ BatteryPolicy PowerMonitor::get_battery_policy() const {
 }
 
 void PowerMonitor::set_critical_battery_threshold(int percent) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_critical_battery_threshold = percent;
 }
 
 int PowerMonitor::get_critical_battery_threshold() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return m_critical_battery_threshold;
 }
 
 void PowerMonitor::set_high_cpu_threshold(double percent) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_high_cpu_threshold = percent;
 }
 
 double PowerMonitor::get_high_cpu_threshold() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return m_high_cpu_threshold;
 }
 
 void PowerMonitor::set_check_interval(uint32_t interval_ms) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_check_interval_ms = interval_ms;
 }
 
 uint32_t PowerMonitor::get_check_interval() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return m_check_interval_ms;
 }
 
@@ -144,7 +144,7 @@ uint32_t PowerMonitor::get_recommended_worker_threads(uint32_t base_threads) con
     // 2. High CPU / Thermal Throttling Guard (e.g. >= 85%): limit to 4 threads
     double high_cpu_limit = 85.0;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard<std::recursive_mutex> lock(m_mutex);
         high_cpu_limit = m_high_cpu_threshold;
     }
     if (m_cpu_load_percent.load() >= high_cpu_limit) {
@@ -174,7 +174,7 @@ void PowerMonitor::evaluate_power_sample(const PowerStatus &sample) {
 
     int crit_thresh = 15;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard<std::recursive_mutex> lock(m_mutex);
         crit_thresh = m_critical_battery_threshold;
     }
 
@@ -191,7 +191,7 @@ void PowerMonitor::evaluate_power_sample(const PowerStatus &sample) {
 
     PowerStateCallback cb = nullptr;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard<std::recursive_mutex> lock(m_mutex);
         cb = m_callback;
     }
 
@@ -201,12 +201,12 @@ void PowerMonitor::evaluate_power_sample(const PowerStatus &sample) {
 }
 
 void PowerMonitor::set_on_power_state_changed_callback(PowerStateCallback callback) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_callback = callback;
 }
 
 void PowerMonitor::set_mock_power_provider(SystemPowerProvider provider) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_mock_provider = provider;
 }
 
@@ -219,7 +219,7 @@ double PowerMonitor::query_native_cpu_load() {
         uint64_t user = file_time_to_uint64(userTime);
         uint64_t total = kernel + user;
 
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard<std::recursive_mutex> lock(m_mutex);
         if (m_prev_total_time > 0 && total > m_prev_total_time) {
             uint64_t total_delta = total - m_prev_total_time;
             uint64_t idle_delta = (idle > m_prev_idle_time) ? (idle - m_prev_idle_time) : 0;
@@ -244,7 +244,7 @@ double PowerMonitor::query_native_cpu_load() {
         uint64_t idle = cpu_info.cpu_ticks[CPU_STATE_IDLE];
         uint64_t total = user + system + idle;
 
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard<std::recursive_mutex> lock(m_mutex);
         if (m_prev_total_time > 0 && total > m_prev_total_time) {
             uint64_t total_delta = total - m_prev_total_time;
             uint64_t idle_delta = (idle > m_prev_idle_time) ? (idle - m_prev_idle_time) : 0;
@@ -285,7 +285,7 @@ PowerStatus PowerMonitor::query_native_power_status() {
 
         int crit_thresh = 15;
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
+            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             crit_thresh = m_critical_battery_threshold;
         }
         status.is_critical = (status.battery_percent >= 0 && status.battery_percent <= crit_thresh);
@@ -333,20 +333,23 @@ PowerStatus PowerMonitor::query_native_power_status() {
 void PowerMonitor::monitor_loop() {
     while (m_running.load()) {
         PowerStatus status;
+        SystemPowerProvider provider = nullptr;
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (m_mock_provider) {
-                status = m_mock_provider();
-            } else {
-                status = query_native_power_status();
-            }
+            std::lock_guard<std::recursive_mutex> lock(m_mutex);
+            provider = m_mock_provider;
+        }
+
+        if (provider) {
+            status = provider();
+        } else {
+            status = query_native_power_status();
         }
 
         evaluate_power_sample(status);
 
         uint32_t interval = 1000;
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
+            std::lock_guard<std::recursive_mutex> lock(m_mutex);
             interval = m_check_interval_ms;
         }
 

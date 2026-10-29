@@ -268,6 +268,51 @@ int main() {
     assert(disk_fail_res == false);
     assert(mgr_closed_fw.get_all_chunks()[0].retry_count == 1);
     cout << "  -> Disk Write Failure Handling: PASSED" << endl;
+
+    // =========================================================================
+    // 6. BUG #3 FIX: 200 OK ON RANGE REQUEST GUARD
+    // =========================================================================
+    cout << "\n[6/6] Testing Range Request HTTP 200 Guard (Bug #3 Fix)..." << endl;
+    CURL *curl_200 = curl_easy_init();
+    assert(curl_200 != nullptr);
+    curl_easy_setopt(curl_200, CURLOPT_URL, "https://httpbin.org/status/200");
+    curl_easy_setopt(curl_200, CURLOPT_NOBODY, 1L);
+    curl_easy_setopt(curl_200, CURLOPT_TIMEOUT, 10L);
+    CURLcode code_res = curl_easy_perform(curl_200);
+    long check_code = 0;
+    curl_easy_getinfo(curl_200, CURLINFO_RESPONSE_CODE, &check_code);
+    if (code_res == CURLE_OK && check_code == 200) {
+        FileWriter fw_bug3;
+        fw_bug3.open(TEST_FILE);
+        ChunkManager mgr_bug3(FILE_SIZE, 2);
+        mgr_bug3.get_next_pending_chunk(); // chunk 0
+
+        ChunkWorker::WriteContext ctx_range;
+        ctx_range.file_writer = &fw_bug3;
+        ctx_range.chunk_manager = &mgr_bug3;
+        ctx_range.chunk_id = 1;
+        ctx_range.current_offset = 2048; // Non-zero offset (chunk 1)
+        ctx_range.end_byte = 4095;
+        ctx_range.bytes_written = 0;
+        ctx_range.curl = curl_200;
+        ctx_range.is_range_request = true; // Range request
+
+        char dummy_data[64] = "Hello World";
+        // When is_range_request is true and response is 200 OK, write_callback MUST abort (return 0)
+        size_t written_range = ChunkWorker::write_callback(dummy_data, 1, sizeof(dummy_data), &ctx_range);
+        assert(written_range == 0);
+        cout << "  -> write_callback aborted HTTP 200 on range request: PASSED" << endl;
+
+        // When is_range_request is false (single stream starting at 0), HTTP 200 MUST be accepted
+        ctx_range.is_range_request = false;
+        ctx_range.current_offset = 0;
+        size_t written_single = ChunkWorker::write_callback(dummy_data, 1, sizeof(dummy_data), &ctx_range);
+        assert(written_single == sizeof(dummy_data));
+        cout << "  -> write_callback accepted HTTP 200 on single-stream request: PASSED" << endl;
+
+        fw_bug3.close();
+    }
+    curl_easy_cleanup(curl_200);
   }
 
   // Clean up temporary binary test file
@@ -276,7 +321,7 @@ int main() {
 
   cout << "\n=========================================================="
        << endl;
-  cout << "  [PASSED] 100% OF CHUNKWORKER FUNCTIONS VERIFIED!        " << endl;
+  cout << "  [PASSED] 100% OF CHUNKWORKER & BUG #3 VERIFIED!         " << endl;
   cout << "==========================================================" << endl;
 
   return 0;

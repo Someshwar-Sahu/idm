@@ -60,49 +60,64 @@ string NativeHost::payload_to_json(const InterceptedDownloadPayload &payload) {
     return j.dump();
 }
 
-bool NativeHost::read_message_from_stdin(InterceptedDownloadPayload &out_payload){
-#ifdef _WIN32
-    _setmode(_fileno(stdin), _O_BINARY);
-#endif
-
+bool NativeHost::read_message(istream &in, InterceptedDownloadPayload &out_payload) {
     uint32_t message_length = 0;
-    cin.read(reinterpret_cast<char*>(&message_length), 4);
-
-    if(!cin || cin.gcount() < 4){
-        return false;
+    char* len_ptr = reinterpret_cast<char*>(&message_length);
+    size_t len_read = 0;
+    while (len_read < 4) {
+        in.read(len_ptr + len_read, static_cast<streamsize>(4 - len_read));
+        streamsize count = in.gcount();
+        if (count <= 0) {
+            return false;
+        }
+        len_read += static_cast<size_t>(count);
     }
 
-    if(message_length == 0 || message_length > 10 * 1024 * 1024){
-        cerr<<"[NativeHost Error] Invalid message length header: "<<message_length<<endl;
+    if (message_length == 0 || message_length > 10 * 1024 * 1024) {
+        cerr << "[NativeHost Error] Invalid message length header: " << message_length << endl;
         return false;
     }
 
     string json_buffer(message_length, '\0');
-    cin.read(&json_buffer[0], message_length);
-
-    if(!cin || static_cast<uint32_t>(cin.gcount()) < message_length){
-        return false;
+    size_t total_read = 0;
+    while (total_read < message_length) {
+        in.read(&json_buffer[total_read], static_cast<streamsize>(message_length - total_read));
+        streamsize count = in.gcount();
+        if (count <= 0) {
+            return false;
+        }
+        total_read += static_cast<size_t>(count);
     }
 
     return json_to_payload(json_buffer, out_payload);
 }
 
-bool NativeHost::write_response_to_stdout(bool success, const string &message){
+bool NativeHost::read_message_from_stdin(InterceptedDownloadPayload &out_payload) {
 #ifdef _WIN32
-    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stdin), _O_BINARY);
 #endif
+    return read_message(cin, out_payload);
+}
 
+bool NativeHost::write_response(ostream &out, bool success, const string &message) {
     json j;
     j["success"] = success;
     j["message"] = message;
     string json_str = j.dump();
 
     uint32_t message_length = static_cast<uint32_t>(json_str.size());
-    cout.write(reinterpret_cast<const char*>(&message_length), 4);
-    cout.write(json_str.data(), message_length);
-    cout.flush();
+    out.write(reinterpret_cast<const char*>(&message_length), 4);
+    out.write(json_str.data(), message_length);
+    out.flush();
 
-    return cout.good();
+    return out.good();
+}
+
+bool NativeHost::write_response_to_stdout(bool success, const string &message) {
+#ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
+    return write_response(cout, success, message);
 }
 
 string NativeHost::generate_native_manifest(const string& executable_path,
@@ -131,6 +146,8 @@ string NativeHost::get_registry_key_path(BrowserType browser) {
             return "Software\\Microsoft\\Edge\\NativeMessagingHosts\\com.idm.native_host";
         case BrowserType::Firefox:
             return "Software\\Mozilla\\NativeMessagingHosts\\com.idm.native_host";
+        case BrowserType::Brave:
+            return "Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\com.idm.native_host";
     }
     return "";
 }
@@ -195,9 +212,17 @@ bool NativeHost::forward_payload_to_server(const InterceptedDownloadPayload& pay
         WSACleanup();
         return false;
     }
+    DWORD timeout_ms = 5000;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms));
 #else
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return false;
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 #endif
 
     sockaddr_in server_addr;
@@ -226,7 +251,20 @@ bool NativeHost::forward_payload_to_server(const InterceptedDownloadPayload& pay
         << json_body;
 
     string req_str = oss.str();
-    send(sock, req_str.c_str(), static_cast<int>(req_str.length()), 0);
+    size_t total_sent = 0;
+    while (total_sent < req_str.length()) {
+        int sent = send(sock, req_str.c_str() + total_sent, static_cast<int>(req_str.length() - total_sent), 0);
+        if (sent <= 0) {
+#ifdef _WIN32
+            closesocket(sock);
+            WSACleanup();
+#else
+            close(sock);
+#endif
+            return false;
+        }
+        total_sent += sent;
+    }
 
     char buf[1024];
     string response;

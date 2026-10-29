@@ -88,8 +88,10 @@ public:
     MediaExtractor(const std::string& ytdlp_path = "", const std::string& ffmpeg_path = "");
     ~MediaExtractor();
 
-    // URL Detection
+    // URL Detection & Shell Safety
     static bool is_supported_media_url(const std::string& url);
+    static bool is_safe_shell_string(const std::string& str);
+    static bool is_safe_url(const std::string& url);
 
     // Executable paths & environment
     std::string get_ytdlp_path() const;

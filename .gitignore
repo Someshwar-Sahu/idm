@@ -1,7 +1,3 @@
-download-manager-full-design.md
-remediation_4_phases.md
-full_application_roadmap.md
-
 # Ignore CMake build directories and artifacts
 build/
 dist/
@@ -26,7 +22,14 @@ lib/
 *.idm
 *.progress.json
 
-# Ignore local snapshot archives
+# Runtime and generated local configuration
+security_whitelist.json
+settings.json
+tasks.json
+vault.dat
 *.zip
 aqtinstall.log
-settings.json
+
+# Temporary audit delivery bundles
+part*.txt
+all_code.txt

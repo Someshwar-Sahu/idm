@@ -20,7 +20,7 @@ class SchedulerDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit SchedulerDialog(const std::map<QString, std::shared_ptr<DownloadQueue>>& queues,
+    explicit SchedulerDialog(std::map<QString, std::shared_ptr<DownloadQueue>>& queues,
                             const QString& initialQueueName = QString(),
                             QWidget* parent = nullptr);
     ~SchedulerDialog() override = default;
@@ -55,7 +55,7 @@ private:
     void saveQueueSettings(const QString& queueName);
     void refreshFileList(const QString& queueName);
 
-    std::map<QString, std::shared_ptr<DownloadQueue>> m_queues;
+    std::map<QString, std::shared_ptr<DownloadQueue>>& m_queues;
     QString m_currentQueueName;
 
     // UI Widgets

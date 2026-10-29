@@ -273,6 +273,61 @@ void test_tool_detection_and_edge_cases() {
     cout << "  -> Tool status diagnostics, corrupt JSON, and invalid URL guards: PASSED" << endl;
 }
 
+void test_shell_injection_and_safety_guards() {
+    cout << "\n[9/9] Testing Bug #38 & #39 Shell Injection, Path Escaping & Cancellation Safety..." << endl;
+
+    // 1. is_safe_shell_string tests
+    assert(MediaExtractor::is_safe_shell_string("video.mp4"));
+    assert(MediaExtractor::is_safe_shell_string("C:\\Downloads\\video.mp4"));
+    assert(MediaExtractor::is_safe_shell_string("downloads/subfolder/clip.mkv"));
+    assert(MediaExtractor::is_safe_shell_string("bestvideo+bestaudio/best"));
+
+    // Shell metacharacters rejected
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4; calc.exe"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4 & calc.exe"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4 | calc.exe"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4`calc.exe`"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4$PATH"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4\""));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4'"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4<input"));
+    assert(!MediaExtractor::is_safe_shell_string("video.mp4>output"));
+    assert(!MediaExtractor::is_safe_shell_string("--exec calc.exe")); // Flag injection
+    assert(!MediaExtractor::is_safe_shell_string(""));
+
+    // 2. is_safe_url tests
+    assert(MediaExtractor::is_safe_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+    assert(MediaExtractor::is_safe_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s"));
+    assert(!MediaExtractor::is_safe_url("https://www.youtube.com/watch?v=123; calc.exe"));
+    assert(!MediaExtractor::is_safe_url("https://www.youtube.com/watch?v=123\" --exec \"calc.exe\""));
+    assert(!MediaExtractor::is_safe_url("https://www.youtube.com/watch=123&calc.exe")); // & without query ?
+    assert(!MediaExtractor::is_safe_url("https://www.youtube.com/watch?v=123|cmd"));
+    assert(!MediaExtractor::is_safe_url("https://www.youtube.com/watch?v=123\ncalc.exe"));
+    assert(!MediaExtractor::is_safe_url("--exec calc.exe"));
+
+    // 3. is_supported_media_url rejecting injection
+    assert(!MediaExtractor::is_supported_media_url("https://www.youtube.com/watch?v=123; calc.exe"));
+    assert(!MediaExtractor::is_supported_media_url("https://www.youtube.com/watch?v=123\" --exec calc.exe"));
+    assert(MediaExtractor::is_supported_media_url("https://www.youtube.com/watch?v=123&t=20s"));
+
+    // 4. extract_media rejecting dangerous parameters
+    MediaExtractor extractor("yt-dlp", "ffmpeg");
+    bool bad_path = extractor.extract_media("https://youtube.com/watch?v=123", "out.mp4; calc.exe", MediaQualityPreset::FHD_1080p);
+    assert(!bad_path);
+    assert(!extractor.get_last_error().empty());
+
+    bool bad_fmt = extractor.extract_media("https://youtube.com/watch?v=123", "out.mp4", MediaQualityPreset::FHD_1080p, nullptr, "--exec calc.exe");
+    assert(!bad_fmt);
+    assert(!extractor.get_last_error().empty());
+
+    // 5. fetch_metadata rejecting dangerous URL
+    MediaMetadata meta = extractor.fetch_metadata("https://youtube.com/watch?v=123; calc.exe");
+    assert(!meta.is_valid);
+    assert(!extractor.get_last_error().empty());
+
+    cout << "  -> Shell injection guards, path validation, and flag sanitization: PASSED" << endl;
+}
+
 int main() {
     cout << "==========================================================" << endl;
     cout << "  Comprehensive Unit Test: MediaExtractor (Task 23)       " << endl;
@@ -286,6 +341,7 @@ int main() {
     test_end_to_end_mock_extraction();
     test_cancellation_and_failure_guards();
     test_tool_detection_and_edge_cases();
+    test_shell_injection_and_safety_guards();
 
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF UNIVERSAL MEDIA EXTRACTOR VERIFIED!    " << endl;

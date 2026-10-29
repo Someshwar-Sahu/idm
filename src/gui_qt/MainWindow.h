@@ -11,12 +11,14 @@
 #include <QTimer>
 #include <map>
 #include <memory>
+#include <atomic>
 
 #include "DownloadTableModel.h"
 #include "ProgressBarDelegate.h"
 #include "../queue/DownloadQueue.h"
 #include "../net/NetworkMonitor.h"
 #include "../net/PowerMonitor.h"
+#include "../net/ChannelBonding.h"
 #include "../security/Vault.h"
 
 class SettingsManager;
@@ -60,6 +62,7 @@ public slots:
     void show_tray_notification(const QString& title, const QString& message);
     void restore_or_launch_window();
     void onDownloadIntercepted(const QString& url, const QString& filename, const QString& cookies, const QString& referer, const QString& userAgent, quint64 totalSize = 0);
+    void onExitApp();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -109,6 +112,8 @@ private:
     void createTableView();
     void createStatusBar();
     void createTrayIcon();
+    void saveTasksToJson();
+    void loadTasksFromJson();
     std::shared_ptr<DownloadQueue> findQueueForTask(const std::shared_ptr<DownloadTask>& task) const;
 
     DownloadQueue* m_queue{nullptr};
@@ -132,10 +137,13 @@ private:
     // Intelligence Engines
     std::unique_ptr<NetworkMonitor> m_networkMonitor;
     std::unique_ptr<PowerMonitor> m_powerMonitor;
+    std::shared_ptr<ChannelBonding> m_channelBonding;
     idm::Vault m_vault;
 
     // Active Category / Queue Filter
     QString m_selectedCategory{"All Downloads"};
     bool m_isQueueFilter{false};
+    double m_qos_baseline_speed{0.0};
+    std::atomic<bool> m_isExiting{false};
 };
 

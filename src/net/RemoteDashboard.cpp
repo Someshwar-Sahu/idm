@@ -161,10 +161,22 @@ void RemoteDashboard::attach_to_server(LocalServer& server, DownloadQueue* queue
             for (const auto& t : tasks) {
                 if (!t) continue;
                 json item;
-                item["id"] = t->get_destination_filepath();
+                string id = t->get_destination_filepath();
+                replace(id.begin(), id.end(), '\\', '/');
+                item["id"] = id;
                 item["url"] = t->get_url();
                 item["filename"] = DownloadTask::extract_filename_from_url(t->get_url());
                 item["status"] = static_cast<int>(t->get_status());
+
+                double speed = t->get_speed_bps();
+                if (speed > 0) total_speed += static_cast<uint64_t>(speed);
+
+                item["speed_bps"] = speed;
+                item["progress_pct"] = t->get_progress_pct();
+                item["downloaded_bytes"] = t->get_downloaded_size();
+                item["total_bytes"] = t->get_total_size();
+                item["eta"] = t->get_eta();
+
                 tasks_arr.push_back(item);
             }
         }
@@ -225,7 +237,25 @@ void RemoteDashboard::attach_to_server(LocalServer& server, DownloadQueue* queue
             m_queue->start();
             return HttpResponse::json_response(200, {{"status", "resumed_all"}});
         } else if (action == "cancel" && !target_id.empty()) {
-            m_queue->remove_task(target_id);
+            string norm_target = target_id;
+            replace(norm_target.begin(), norm_target.end(), '\\', '/');
+            auto tasks = m_queue->get_tasks();
+            bool found = false;
+            for (const auto& t : tasks) {
+                if (!t) continue;
+                string t_path = t->get_destination_filepath();
+                string t_norm = t_path;
+                replace(t_norm.begin(), t_norm.end(), '\\', '/');
+                if (t_norm == norm_target || t_path == target_id || t->get_url() == target_id ||
+                    DownloadTask::extract_filename_from_url(t->get_url()) == target_id) {
+                    m_queue->remove_task(t_path);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                m_queue->remove_task(target_id);
+            }
             return HttpResponse::json_response(200, {{"status", "cancelled"}, {"id", target_id}});
         }
 
@@ -355,7 +385,10 @@ string RemoteDashboard::get_embedded_dashboard_html() {
 <body>
   <div class="header">
     <div class="title">⚡ IDM Remote</div>
-    <div id="statusBadge" class="badge">Connected</div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <span id="speedBadge" style="font-size: 12px; color: var(--primary); font-weight: 600;">0 B/s</span>
+      <div id="statusBadge" class="badge">Connected</div>
+    </div>
   </div>
 
   <div id="taskList">
@@ -368,28 +401,54 @@ string RemoteDashboard::get_embedded_dashboard_html() {
   </div>
 
   <script>
+    function formatSpeed(bps) {
+      if (!bps || bps <= 0) return '0 B/s';
+      if (bps >= 1048576) return (bps / 1048576).toFixed(1) + ' MB/s';
+      if (bps >= 1024) return (bps / 1024).toFixed(1) + ' KB/s';
+      return Math.round(bps) + ' B/s';
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes <= 0) return '0 B';
+      if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
+      if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+      if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return bytes + ' B';
+    }
+
     async function updateDashboard() {
       try {
         const res = await fetch('/api/remote/status');
         if (!res.ok) throw new Error();
         const data = await res.json();
         const list = document.getElementById('taskList');
+        document.getElementById('speedBadge').textContent = formatSpeed(data.total_speed_bps || 0);
+
         if (data.tasks.length === 0) {
           list.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 30px;">No active downloads</div>';
           return;
         }
-        list.innerHTML = data.tasks.map(t => `
+        list.innerHTML = data.tasks.map(t => {
+          const pct = Math.min(100, Math.max(0, t.progress_pct || 0)).toFixed(1);
+          const spd = formatSpeed(t.speed_bps || 0);
+          const dl = formatBytes(t.downloaded_bytes || 0);
+          const tot = formatBytes(t.total_bytes || 0);
+          return `
           <div class="card">
             <div class="task-title">${t.filename || 'Download'}</div>
             <div class="task-url">${t.url}</div>
             <div class="progress-bar-bg">
-              <div class="progress-bar-fill" style="width: 50%"></div>
+              <div class="progress-bar-fill" style="width: ${pct}%"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+              <span>${pct}% (${dl} / ${tot})</span>
+              <span>${spd}</span>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
               <button class="btn-action" onclick="remoteAction('cancel', '${t.id}')">Cancel</button>
             </div>
           </div>
-        `).join('');
+        `;}).join('');
       } catch (e) {
         document.getElementById('statusBadge').textContent = 'Disconnected';
         document.getElementById('statusBadge').style.background = '#da3633';

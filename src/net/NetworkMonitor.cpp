@@ -8,6 +8,7 @@
 #endif
 #include <windows.h>
 #include <tlhelp32.h>
+#include <wlanapi.h>
 #elif defined(__APPLE__)
 #include <libproc.h>
 #include <sys/proc_info.h>
@@ -187,6 +188,68 @@ std::string NetworkMonitor::scan_for_active_games() {
     return "";
 }
 
+#ifdef _WIN32
+static std::string get_windows_active_wifi_ssid() {
+    HMODULE hWlan = LoadLibraryA("wlanapi.dll");
+    if (!hWlan) return "";
+
+    typedef DWORD (WINAPI *pfnWlanOpenHandle)(DWORD, PVOID, PDWORD, PHANDLE);
+    typedef DWORD (WINAPI *pfnWlanCloseHandle)(HANDLE, PVOID);
+    typedef DWORD (WINAPI *pfnWlanEnumInterfaces)(HANDLE, PVOID, PWLAN_INTERFACE_INFO_LIST*);
+    typedef DWORD (WINAPI *pfnWlanQueryInterface)(HANDLE, const GUID*, WLAN_INTF_OPCODE, PVOID, PDWORD, PVOID*, PWLAN_OPCODE_VALUE_TYPE);
+    typedef VOID (WINAPI *pfnWlanFreeMemory)(PVOID);
+
+    auto pWlanOpenHandle = (pfnWlanOpenHandle)GetProcAddress(hWlan, "WlanOpenHandle");
+    auto pWlanCloseHandle = (pfnWlanCloseHandle)GetProcAddress(hWlan, "WlanCloseHandle");
+    auto pWlanEnumInterfaces = (pfnWlanEnumInterfaces)GetProcAddress(hWlan, "WlanEnumInterfaces");
+    auto pWlanQueryInterface = (pfnWlanQueryInterface)GetProcAddress(hWlan, "WlanQueryInterface");
+    auto pWlanFreeMemory = (pfnWlanFreeMemory)GetProcAddress(hWlan, "WlanFreeMemory");
+
+    if (!pWlanOpenHandle || !pWlanCloseHandle || !pWlanEnumInterfaces || !pWlanQueryInterface || !pWlanFreeMemory) {
+        FreeLibrary(hWlan);
+        return "";
+    }
+
+    HANDLE hClient = nullptr;
+    DWORD dwCurVersion = 0;
+    DWORD res = pWlanOpenHandle(2, nullptr, &dwCurVersion, &hClient);
+    if (res != ERROR_SUCCESS || !hClient) {
+        FreeLibrary(hWlan);
+        return "";
+    }
+
+    PWLAN_INTERFACE_INFO_LIST pIfList = nullptr;
+    res = pWlanEnumInterfaces(hClient, nullptr, &pIfList);
+    std::string ssid_out;
+
+    if (res == ERROR_SUCCESS && pIfList) {
+        for (DWORD i = 0; i < pIfList->dwNumberOfItems; ++i) {
+            WLAN_INTERFACE_INFO* pIfInfo = &pIfList->InterfaceInfo[i];
+            if (pIfInfo->isState == wlan_interface_state_connected) {
+                DWORD dataSize = 0;
+                PWLAN_CONNECTION_ATTRIBUTES pConn = nullptr;
+                WLAN_OPCODE_VALUE_TYPE opCode = wlan_opcode_value_type_invalid;
+
+                if (pWlanQueryInterface(hClient, &pIfInfo->InterfaceGuid, wlan_intf_opcode_current_connection,
+                                        nullptr, &dataSize, (PVOID*)&pConn, &opCode) == ERROR_SUCCESS && pConn) {
+                    DOT11_SSID dot11Ssid = pConn->wlanAssociationAttributes.dot11Ssid;
+                    if (dot11Ssid.uSSIDLength > 0 && dot11Ssid.uSSIDLength <= 32) {
+                        ssid_out.assign(reinterpret_cast<char*>(dot11Ssid.ucSSID), dot11Ssid.uSSIDLength);
+                    }
+                    pWlanFreeMemory(pConn);
+                    if (!ssid_out.empty()) break;
+                }
+            }
+        }
+        pWlanFreeMemory(pIfList);
+    }
+
+    pWlanCloseHandle(hClient, nullptr);
+    FreeLibrary(hWlan);
+    return ssid_out;
+}
+#endif
+
 std::string NetworkMonitor::get_active_network_name_internal() {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -194,7 +257,11 @@ std::string NetworkMonitor::get_active_network_name_internal() {
             return m_mock_network_name_provider();
         }
     }
+#ifdef _WIN32
+    return get_windows_active_wifi_ssid();
+#else
     return "";
+#endif
 }
 
 bool NetworkMonitor::is_connection_metered() {
@@ -234,7 +301,9 @@ void NetworkMonitor::evaluate_qos_sample(uint32_t rtt_ms) {
     } else if (rtt_ms < current_baseline) {
         m_baseline_rtt_ms.store(rtt_ms);
         current_baseline = rtt_ms;
-    } else {
+    } else if (!m_bufferbloat_detected.load() && (rtt_ms <= current_baseline + m_spike_threshold_ms)) {
+        // Bug 43 Fix: Freeze baseline RTT updates while bufferbloat is actively detected.
+        // Only smooth baseline upward during clean, non-bloated network conditions.
         uint32_t smoothed = static_cast<uint32_t>(current_baseline * 0.95 + rtt_ms * 0.05);
         m_baseline_rtt_ms.store(smoothed);
         current_baseline = smoothed;

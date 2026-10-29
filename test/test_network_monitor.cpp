@@ -86,6 +86,15 @@ int main() {
     assert(monitor.get_suggested_throttle_ratio() == 1.0);
     cout << "  -> Recovery back to 1.0 (uncapped): PASSED" << endl;
 
+    // Bug 43: Freeze baseline RTT updates while bufferbloat is actively detected
+    monitor.set_baseline_rtt(25);
+    for (int i = 0; i < 20; ++i) {
+        monitor.evaluate_qos_sample(200); // 200ms heavy bufferbloat
+    }
+    assert(monitor.get_baseline_rtt() == 25);
+    assert(monitor.is_bufferbloat_detected() == true);
+    cout << "  -> Bug #43: Baseline RTT successfully frozen at 25ms under sustained bufferbloat: PASSED" << endl;
+
     // =========================================================================
     // 5. BACKGROUND THREAD LIFECYCLE & MOCK PROVIDER
     // =========================================================================
@@ -96,6 +105,7 @@ int main() {
         probe_count++;
         return 22; // 22ms stable ping
     });
+    monitor.set_mock_process_provider([]() { return vector<string>{"explorer.exe"}; });
 
     monitor.set_check_interval(50); // Fast 50ms loop for test
     assert(monitor.is_running() == false);

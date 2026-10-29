@@ -60,7 +60,7 @@ void DownloadInfoDialog::setupUi() {
         QStringLiteral("Documents"),
         QStringLiteral("Music"),
         QStringLiteral("Programs"),
-        QStringLiteral("Video")
+        QStringLiteral("Videos")
     });
     connect(m_categoryCombo, &QComboBox::currentTextChanged, this, &DownloadInfoDialog::onCategoryChanged);
     grid->addWidget(m_categoryCombo, 1, 1, 1, 2);
@@ -152,7 +152,7 @@ void DownloadInfoDialog::autoDetectFileNameAndCategory(const QString& urlStr) {
     } else if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".apk" || ext == ".dmg" || ext == ".pkg" || ext == ".deb") {
         category = QStringLiteral("Programs");
     } else if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm" || ext == ".flv" || ext == ".wmv" || ext == ".m4v") {
-        category = QStringLiteral("Video");
+        category = QStringLiteral("Videos");
     }
 
     m_categoryCombo->blockSignals(true);
@@ -222,7 +222,7 @@ void DownloadInfoDialog::setCustomFilename(const QString& filename) {
     } else if (ext == ".exe" || ext == ".msi" || ext == ".bat" || ext == ".apk" || ext == ".dmg" || ext == ".pkg" || ext == ".deb") {
         category = QStringLiteral("Programs");
     } else if (ext == ".mp4" || ext == ".mkv" || ext == ".avi" || ext == ".mov" || ext == ".webm" || ext == ".flv" || ext == ".wmv" || ext == ".m4v") {
-        category = QStringLiteral("Video");
+        category = QStringLiteral("Videos");
     }
 
     m_categoryCombo->blockSignals(true);
@@ -331,7 +331,7 @@ void DownloadInfoDialog::onStartClicked() {
     bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
     if (avEnabled) {
         auto rep = AntivirusScanner::check_url_reputation(urlStr.toStdString(), m_savePathEdit->text().trimmed().toStdString());
-        if (!rep.is_safe || rep.prompt_recommended) {
+        if (!rep.is_safe) {
             SecurityWarningDialog warnDlg(SecurityWarningDialog::Mode::PreDownload,
                                          urlStr,
                                          QString::fromStdString(rep.details),
@@ -362,7 +362,7 @@ void DownloadInfoDialog::onDownloadLaterClicked() {
     bool avEnabled = m_settings ? m_settings->get_settings().antivirus_scan_enabled : true;
     if (avEnabled) {
         auto rep = AntivirusScanner::check_url_reputation(urlStr.toStdString(), m_savePathEdit->text().trimmed().toStdString());
-        if (!rep.is_safe || rep.prompt_recommended) {
+        if (!rep.is_safe) {
             SecurityWarningDialog warnDlg(SecurityWarningDialog::Mode::PreDownload,
                                          urlStr,
                                          QString::fromStdString(rep.details),

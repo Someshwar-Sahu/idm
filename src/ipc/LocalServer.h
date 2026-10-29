@@ -48,7 +48,7 @@ public:
     ~LocalServer();
 
     // Lifecycle
-    bool start(const std::string& host = "127.0.0.1", int port = 9090);
+    bool start(const std::string& host = "127.0.0.1", int port = 8080);
     void stop();
     bool is_running() const;
 
@@ -104,13 +104,17 @@ private:
     void clipboard_monitor_loop();
 
     std::string m_host{"127.0.0.1"};
-    int m_port{9090};
+    int m_port{8080};
     std::atomic<bool> m_running{false};
     std::thread m_listener_thread;
 
     uintptr_t m_server_socket{0};
     std::mutex m_routes_mutex;
     std::unordered_map<std::string, HttpHandler> m_routes;
+
+    std::atomic<int> m_active_clients{0};
+    std::condition_variable m_clients_cv;
+    std::mutex m_clients_mutex;
 
     DownloadQueue* m_queue{nullptr};
     SettingsManager* m_settings{nullptr};

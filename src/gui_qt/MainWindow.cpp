@@ -1,4 +1,4 @@
-#ifdef _WIN32
+﻿#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -20,6 +20,7 @@
 #include "../tools/ArchiveVerifier.h"
 #include "../security/Vault.h"
 #include "../core/ResumeStore.h"
+#include "../core/ChunkWorker.h"
 
 #include <QMenuBar>
 #include <QMenu>
@@ -35,6 +36,7 @@
 #include <QUrl>
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QApplication>
 #include <QCloseEvent>
 #include <QStyle>
 #include <QPainter>
@@ -46,6 +48,9 @@
 #include <QGroupBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QPointer>
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <filesystem>
@@ -101,10 +106,35 @@ MainWindow::MainWindow(DownloadQueue* queue, SettingsManager* settings, QWidget*
     m_networkMonitor = std::make_unique<NetworkMonitor>();
     m_networkMonitor->start();
 
+    m_channelBonding = std::make_shared<ChannelBonding>();
+    m_channelBonding->discover_adapters();
+    ChunkWorker::set_default_channel_bonding(m_channelBonding);
+
     m_powerMonitor = std::make_unique<PowerMonitor>();
+    m_powerMonitor->set_on_power_state_changed_callback([this](const PowerStatus& status, uint32_t recommended_threads) {
+        QMetaObject::invokeMethod(this, [this, status, recommended_threads]() {
+            if (status.is_critical) {
+                for (auto& pair : m_queues) {
+                    if (pair.second) {
+                        pair.second->pause();
+                    }
+                }
+                if (m_statusLeftLabel) {
+                    m_statusLeftLabel->setText(QString("Paused: Critical Battery (%1%)").arg(status.battery_percent));
+                }
+            } else {
+                for (auto& pair : m_queues) {
+                    if (pair.second) {
+                        pair.second->set_max_total_threads(recommended_threads);
+                    }
+                }
+            }
+        }, Qt::QueuedConnection);
+    });
     m_powerMonitor->start();
 
     m_vault.load_from_file("vault.dat");
+    loadTasksFromJson();
 
     m_refreshTimer = new QTimer(this);
     connect(m_refreshTimer, &QTimer::timeout, this, &MainWindow::onRefreshTimerTick);
@@ -112,6 +142,7 @@ MainWindow::MainWindow(DownloadQueue* queue, SettingsManager* settings, QWidget*
 }
 
 MainWindow::~MainWindow() {
+    saveTasksToJson();
     if (m_refreshTimer) {
         m_refreshTimer->stop();
     }
@@ -121,6 +152,7 @@ MainWindow::~MainWindow() {
     if (m_powerMonitor) {
         m_powerMonitor->stop();
     }
+    ChunkWorker::set_default_channel_bonding(nullptr);
     m_vault.save_to_file("vault.dat");
 }
 
@@ -135,10 +167,14 @@ void MainWindow::setupUi() {
         "QMenu::item:selected { background: #2563eb; color: #ffffff; }"
         "QMenu::separator { height: 1px; background: #2e2e33; margin: 4px 0; }"
         "QSplitter::handle { background: #27272a; width: 1px; }"
-        "QTreeWidget { background: #18181b; color: #e4e4e7; border: none; border-right: 1px solid #27272a; font-size: 12px; padding: 6px; }"
-        "QTreeWidget::item { padding: 5px 8px; margin: 1px 0; border-radius: 5px; }"
-        "QTreeWidget::item:hover { background: #27272a; }"
-        "QTreeWidget::item:selected { background: #27272a; color: #38bdf8; font-weight: 600; border-left: 2px solid #38bdf8; }"
+        "QTreeWidget { background: #141417; color: #e4e4e7; border: none; border-right: 1px solid #27272a; font-size: 13px; padding: 10px 4px; outline: 0; }"
+        "QTreeWidget:focus { outline: none; }"
+        "QTreeWidget::branch { background: transparent; border: none; width: 0px; }"
+        "QTreeWidget::branch:selected { background: transparent; border: none; }"
+        "QTreeWidget::item { padding: 6px 12px; margin: 1px 4px; border-radius: 6px; border: none; }"
+        "QTreeWidget::item:hover { background: #27272a; color: #ffffff; }"
+        "QTreeWidget::item:selected { background: #2563eb; color: #ffffff; font-weight: 600; border: none; }"
+        "QTreeWidget::item:selected:hover { background: #1d4ed8; color: #ffffff; }"
         "QTableView { background: #18181b; alternate-background-color: #1e1e22; color: #f4f4f5; border: none; gridline-color: #27272a; font-size: 12px; selection-background-color: #1e293b; selection-color: #38bdf8; }"
         "QHeaderView::section { background: #202025; color: #a1a1aa; border: none; border-right: 1px solid #27272a; border-bottom: 1px solid #27272a; padding: 6px 8px; font-weight: 600; font-size: 11px; }"
         "QStatusBar { background: #18181b; color: #a1a1aa; border-top: 1px solid #27272a; font-size: 11px; padding: 2px 8px; }"
@@ -156,7 +192,7 @@ void MainWindow::setupUi() {
     splitter->addWidget(m_tableView);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
-    splitter->setSizes({210, 890});
+    splitter->setSizes({250, 850});
 
     setCentralWidget(splitter);
 }
@@ -172,7 +208,7 @@ void MainWindow::createMenuBar() {
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_TrashIcon), QStringLiteral("Remove from IDM (keep file)"), this, &MainWindow::onRemoveFromListClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_DialogDiscardButton), QStringLiteral("Delete file from disk..."), this, &MainWindow::onDeleteFileClicked);
     tasksMenu->addSeparator();
-    QAction* exitAct = tasksMenu->addAction(style()->standardIcon(QStyle::SP_DialogCloseButton), QStringLiteral("E&xit"), qApp, &QCoreApplication::quit);
+    QAction* exitAct = tasksMenu->addAction(style()->standardIcon(QStyle::SP_DialogCloseButton), QStringLiteral("E&xit"), this, &MainWindow::onExitApp);
     exitAct->setShortcut(QKeySequence::Quit);
 
     QMenu* downloadsMenu = menuBar()->addMenu(QStringLiteral("&Downloads"));
@@ -262,14 +298,25 @@ void MainWindow::createToolBar() {
 void MainWindow::createSidebar() {
     m_sidebarTree = new QTreeWidget(this);
     m_sidebarTree->setHeaderHidden(true);
-    m_sidebarTree->setRootIsDecorated(true);
-    m_sidebarTree->setAnimated(true);
+    m_sidebarTree->setRootIsDecorated(false);
+    m_sidebarTree->setIndentation(0);
+    m_sidebarTree->setIconSize(QSize(18, 18));
+    m_sidebarTree->setAnimated(false);
+    m_sidebarTree->setFocusPolicy(Qt::NoFocus);
+    m_sidebarTree->setUniformRowHeights(false);
+    m_sidebarTree->setMinimumWidth(210);
     m_sidebarTree->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_sidebarTree, &QTreeWidget::customContextMenuRequested, this, &MainWindow::onSidebarContextMenuRequested);
 
-    auto* catRoot = new QTreeWidgetItem(m_sidebarTree, QStringList(QStringLiteral("Categories")));
-    catRoot->setExpanded(true);
-    catRoot->setFlags(catRoot->flags() & ~Qt::ItemIsSelectable);
+    QFont headerFont = m_sidebarTree->font();
+    headerFont.setBold(true);
+    headerFont.setPointSize(9);
+
+    auto* catHeader = new QTreeWidgetItem(m_sidebarTree, QStringList(QStringLiteral("CATEGORIES")));
+    catHeader->setFont(0, headerFont);
+    catHeader->setForeground(0, QBrush(QColor(161, 161, 170)));
+    catHeader->setSizeHint(0, QSize(0, 32));
+    catHeader->setFlags(Qt::NoItemFlags);
 
     const QStringList categories = {
         QStringLiteral("All Downloads"),
@@ -277,7 +324,7 @@ void MainWindow::createSidebar() {
         QStringLiteral("Documents"),
         QStringLiteral("Music"),
         QStringLiteral("Programs"),
-        QStringLiteral("Video")
+        QStringLiteral("Videos")
     };
     const QStringList catIcons = {
         QStringLiteral("cat_all"),
@@ -288,21 +335,26 @@ void MainWindow::createSidebar() {
         QStringLiteral("cat_video")
     };
 
+    QTreeWidgetItem* firstCatItem = nullptr;
     for (int i = 0; i < categories.size(); ++i) {
-        auto* item = new QTreeWidgetItem(catRoot, QStringList(categories[i]));
+        auto* item = new QTreeWidgetItem(m_sidebarTree, QStringList(categories[i]));
         item->setIcon(0, loadIdmIcon(catIcons[i]));
+        item->setSizeHint(0, QSize(0, 32));
+        if (i == 0) firstCatItem = item;
     }
 
-    m_queuesRootItem = new QTreeWidgetItem(m_sidebarTree, QStringList(QStringLiteral("Queues")));
-    m_queuesRootItem->setExpanded(true);
-    m_queuesRootItem->setFlags(m_queuesRootItem->flags() & ~Qt::ItemIsSelectable);
+    m_queuesRootItem = new QTreeWidgetItem(m_sidebarTree, QStringList(QStringLiteral("QUEUES")));
+    m_queuesRootItem->setFont(0, headerFont);
+    m_queuesRootItem->setForeground(0, QBrush(QColor(161, 161, 170)));
+    m_queuesRootItem->setSizeHint(0, QSize(0, 36));
+    m_queuesRootItem->setFlags(Qt::NoItemFlags);
 
     refreshQueuesInSidebar();
 
     connect(m_sidebarTree, &QTreeWidget::currentItemChanged, this, &MainWindow::onCategorySelected);
 
-    if (catRoot->childCount() > 0) {
-        m_sidebarTree->setCurrentItem(catRoot->child(0));
+    if (firstCatItem) {
+        m_sidebarTree->setCurrentItem(firstCatItem);
     }
 }
 
@@ -369,7 +421,7 @@ void MainWindow::createTrayIcon() {
     trayMenu->addSeparator();
     trayMenu->addAction(QStringLiteral("Stop All"), this, &MainWindow::onStopAllClicked);
     trayMenu->addSeparator();
-    trayMenu->addAction(QStringLiteral("Exit"), qApp, &QCoreApplication::quit);
+    trayMenu->addAction(QStringLiteral("Exit"), this, &MainWindow::onExitApp);
 
     m_trayIcon->setContextMenu(trayMenu);
     connect(m_trayIcon, &QSystemTrayIcon::activated, this, &MainWindow::onTrayIconActivated);
@@ -446,14 +498,19 @@ void MainWindow::deleteQueue(const QString& name) {
 }
 
 void MainWindow::refreshQueuesInSidebar() {
-    if (!m_queuesRootItem) return;
-    qDeleteAll(m_queuesRootItem->takeChildren());
+    if (!m_queuesRootItem || !m_sidebarTree) return;
+    int queuesIdx = m_sidebarTree->indexOfTopLevelItem(m_queuesRootItem);
+    if (queuesIdx >= 0) {
+        while (m_sidebarTree->topLevelItemCount() > queuesIdx + 1) {
+            delete m_sidebarTree->takeTopLevelItem(queuesIdx + 1);
+        }
+    }
 
     for (const auto& [qName, q] : m_queues) {
-        auto* qItem = new QTreeWidgetItem(m_queuesRootItem, QStringList(qName));
+        auto* qItem = new QTreeWidgetItem(m_sidebarTree, QStringList(qName));
         qItem->setIcon(0, loadIdmIcon(QStringLiteral("cat_queue")));
+        qItem->setSizeHint(0, QSize(0, 32));
     }
-    m_queuesRootItem->setExpanded(true);
 }
 
 void MainWindow::onCreateQueueTriggered() {
@@ -497,15 +554,16 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos) {
     QTreeWidgetItem* item = m_sidebarTree->itemAt(pos);
     if (!item) return;
 
-    if (item == m_queuesRootItem) {
+    QString text = item->text(0);
+    if (text == QStringLiteral("QUEUES") || item == m_queuesRootItem) {
         QMenu menu(this);
         menu.addAction(style()->standardIcon(QStyle::SP_FileDialogNewFolder), QStringLiteral("Create new queue..."), this, &MainWindow::onCreateQueueTriggered);
         menu.exec(m_sidebarTree->viewport()->mapToGlobal(pos));
         return;
     }
 
-    if (item->parent() == m_queuesRootItem) {
-        QString qName = item->text(0);
+    if (m_queues.find(text) != m_queues.end()) {
+        QString qName = text;
         auto q = getQueue(qName);
 
         QMenu menu(this);
@@ -579,20 +637,28 @@ bool TaskFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& so
 
     QModelIndex catIdx = srcModel->index(sourceRow, DownloadTableModel::ColCategory);
     QString cat = srcModel->data(catIdx).toString();
+    if (m_filterText.compare(QStringLiteral("Videos"), Qt::CaseInsensitive) == 0 ||
+        m_filterText.compare(QStringLiteral("Video"), Qt::CaseInsensitive) == 0) {
+        return (cat.compare(QStringLiteral("Videos"), Qt::CaseInsensitive) == 0 ||
+                cat.compare(QStringLiteral("Video"), Qt::CaseInsensitive) == 0);
+    }
     return cat.compare(m_filterText, Qt::CaseInsensitive) == 0;
 }
 
 void MainWindow::onCategorySelected(QTreeWidgetItem* current, QTreeWidgetItem*) {
     if (!current || !m_proxyModel) return;
-    QString cat = current->text(0);
-    m_selectedCategory = cat;
+    QString text = current->text(0);
+    if (text == QStringLiteral("CATEGORIES") || text == QStringLiteral("QUEUES")) {
+        return;
+    }
+    m_selectedCategory = text;
 
-    if (current->parent() == m_queuesRootItem) {
+    if (m_queues.find(text) != m_queues.end()) {
         m_isQueueFilter = true;
-        m_proxyModel->setQueueMode(true, cat);
+        m_proxyModel->setQueueMode(true, text);
     } else {
         m_isQueueFilter = false;
-        m_proxyModel->setQueueMode(false, cat);
+        m_proxyModel->setQueueMode(false, text);
     }
 }
 
@@ -619,6 +685,7 @@ void MainWindow::onAddUrlClicked() {
         m_vault.inject_into_task(*task);
         task->set_queue_name(qName);
         task->set_antivirus_scan_enabled(avEnabled);
+        task->set_mute_sound(dlg.isSoundMuted());
         if (dlg.isSecurityOverride()) {
             task->set_security_override(true);
         }
@@ -635,6 +702,7 @@ void MainWindow::onAddUrlClicked() {
         }
         m_tableModel->addTask(task);
         m_tableModel->refreshTasks();
+        saveTasksToJson();
         if (startNow) {
             auto* statusDlg = new DownloadStatusDialog(task, targetQueue ? targetQueue.get() : m_queue, this);
             statusDlg->show();
@@ -747,6 +815,7 @@ void MainWindow::onRemoveFromListClicked() {
         q->remove_task(task->get_destination_filepath());
     }
     m_tableModel->removeTask(task->get_destination_filepath());
+    saveTasksToJson();
     statusBar()->showMessage(QStringLiteral("Removed '%1' from IDM (file kept on disk)").arg(fileName), 3000);
 }
 
@@ -775,6 +844,7 @@ void MainWindow::onDeleteFileClicked() {
         }
         std::string destPath = task->get_destination_filepath();
         m_tableModel->removeTask(destPath);
+        saveTasksToJson();
 
         std::error_code ec;
         if (!destPath.empty()) {
@@ -1072,6 +1142,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
             m_vault.inject_into_task(*task);
             task->set_queue_name(qName);
             task->set_antivirus_scan_enabled(avEnabled);
+            task->set_mute_sound(dlg.isSoundMuted());
             if (dlg.isSecurityOverride()) {
                 task->set_security_override(true);
             }
@@ -1088,6 +1159,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
             }
             m_tableModel->addTask(task);
             m_tableModel->refreshTasks();
+            saveTasksToJson();
             if (startNow) {
                 auto* statusDlg = new DownloadStatusDialog(task, targetQueue ? targetQueue.get() : m_queue, parentWnd);
                 statusDlg->show();
@@ -1125,6 +1197,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
         }
         m_tableModel->addTask(task);
         m_tableModel->refreshTasks();
+        saveTasksToJson();
 
         auto* statusDlg = new DownloadStatusDialog(task, mainQ ? mainQ.get() : m_queue, parentWnd);
         statusDlg->show();
@@ -1173,7 +1246,9 @@ void MainWindow::onRefreshTimerTick() {
                 }
             } else if (stats.qos_state == NetworkQoSState::Critical) {
                 modeTag = QStringLiteral("[⚠️ Auto-QoS High Latency (%1 ms)]").arg(stats.current_rtt_ms);
-                uint64_t dynamicCap = static_cast<uint64_t>(std::max(500.0 * 1024.0, totalSpeed * 0.4));
+                double baseSpeed = (m_qos_baseline_speed > 0.0) ? m_qos_baseline_speed : std::max(totalSpeed, 1024.0 * 1024.0);
+                double ratio = (stats.suggested_throttle_ratio > 0.0 && stats.suggested_throttle_ratio < 1.0) ? stats.suggested_throttle_ratio : 0.4;
+                uint64_t dynamicCap = static_cast<uint64_t>(std::max(500.0 * 1024.0, (baseSpeed * ratio) / (activeCount > 0 ? activeCount : 1)));
                 for (const auto& task : allTasks) {
                     if (task && task->get_status() == DownloadStatus::Downloading) {
                         task->set_speed_limit(dynamicCap);
@@ -1183,6 +1258,9 @@ void MainWindow::onRefreshTimerTick() {
                 modeTag = QStringLiteral("[🟡 Auto-QoS Elevated (%1 ms)]").arg(stats.current_rtt_ms);
             } else {
                 modeTag = QStringLiteral("[🧠 Auto-QoS Normal (%1 ms)]").arg(stats.current_rtt_ms);
+                if (totalSpeed > 0.0) {
+                    m_qos_baseline_speed = std::max(m_qos_baseline_speed * 0.95, totalSpeed);
+                }
                 for (const auto& task : allTasks) {
                     if (task && task->get_status() == DownloadStatus::Downloading) {
                         task->set_speed_limit(0);
@@ -1203,6 +1281,9 @@ void MainWindow::onRefreshTimerTick() {
     s_tick++;
     if (activeCount > 0 || s_lastActiveCount > 0 || totalTasks != s_lastTaskCount || (s_tick % 5 == 0)) {
         if (m_tableModel) m_tableModel->refreshTasks();
+    }
+    if (s_tick % 50 == 0) {
+        saveTasksToJson();
     }
     if (s_tick % 300 == 0 && m_settings) {
         auto s = m_settings->get_settings();
@@ -1226,15 +1307,15 @@ void MainWindow::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason) {
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
+    if (m_isExiting.load()) {
+        event->accept();
+        return;
+    }
     if (m_trayIcon && m_trayIcon->isVisible()) {
         hide();
         event->ignore();
     } else {
-        if (m_refreshTimer) {
-            m_refreshTimer->stop();
-        }
-        event->accept();
-        qApp->quit();
+        onExitApp();
     }
 }
 
@@ -1244,6 +1325,164 @@ void MainWindow::changeEvent(QEvent* event) {
         }
     }
     QMainWindow::changeEvent(event);
+}
+
+void MainWindow::onExitApp() {
+    static std::atomic<bool> s_exiting{false};
+    if (s_exiting.exchange(true)) return;
+    m_isExiting.store(true);
+
+    hide();
+    if (m_trayIcon) {
+        m_trayIcon->hide();
+        m_trayIcon->deleteLater();
+        m_trayIcon = nullptr;
+    }
+
+    if (m_refreshTimer) m_refreshTimer->stop();
+
+    try {
+        saveTasksToJson();
+    } catch (...) {}
+
+    if (m_networkMonitor) m_networkMonitor->stop();
+    if (m_powerMonitor) m_powerMonitor->stop();
+
+    for (auto& pair : m_queues) {
+        if (pair.second) pair.second->pause();
+    }
+
+    QApplication::quit();
+}
+
+void MainWindow::saveTasksToJson() {
+    if (!m_tableModel) return;
+    const auto& tasks = m_tableModel->getAllTasks();
+    if (tasks.empty()) {
+        return;
+    }
+
+    nlohmann::json jArr = nlohmann::json::array();
+    int completedCount = 0;
+
+    for (auto it = tasks.rbegin(); it != tasks.rend(); ++it) {
+        const auto& t = *it;
+        if (!t) continue;
+
+        DownloadStatus st = t->get_status();
+        if (st == DownloadStatus::Completed) {
+            completedCount++;
+            if (completedCount > 500) {
+                // Rolling cap: drop completed tasks older than 500
+                continue;
+            }
+            // Auto-clean orphaned sidecar file for completed downloads
+            std::string sidecar = t->get_sidecar_filepath();
+            if (!sidecar.empty() && std::filesystem::exists(sidecar)) {
+                std::error_code ec;
+                std::filesystem::remove(sidecar, ec);
+            }
+        }
+
+        nlohmann::json obj;
+        obj["url"] = t->get_url();
+        obj["dest"] = t->get_destination_filepath();
+        obj["total_size"] = t->get_total_size();
+        obj["downloaded_size"] = t->get_downloaded_size();
+        obj["status"] = static_cast<int>(st);
+        obj["queue"] = t->get_queue_name();
+        obj["threads"] = t->get_thread_count();
+        obj["speed_limit"] = t->get_speed_limit();
+        obj["error"] = t->get_last_error();
+        obj["antivirus_enabled"] = t->is_antivirus_scan_enabled();
+        obj["security_override"] = t->is_security_override();
+        obj["mute_sound"] = t->is_mute_sound();
+
+        jArr.push_back(obj);
+    }
+
+    std::reverse(jArr.begin(), jArr.end());
+
+    std::ofstream out("tasks.json");
+    if (out.is_open()) {
+        out << jArr.dump(2);
+        out.close();
+    }
+}
+
+void MainWindow::loadTasksFromJson() {
+    std::ifstream in("tasks.json");
+    if (!in.is_open()) return;
+
+    nlohmann::json jArr;
+    try {
+        in >> jArr;
+    } catch (...) {
+        return;
+    }
+
+    if (!jArr.is_array()) return;
+
+    std::string defaultCache = m_settings ? m_settings->get_settings().cache_directory : "";
+
+    for (const auto& item : jArr) {
+        if (!item.is_object()) continue;
+
+        std::string url = item.value("url", "");
+        std::string dest = item.value("dest", "");
+        if (url.empty() || dest.empty()) continue;
+
+        uint64_t total_size = item.value("total_size", static_cast<uint64_t>(0));
+        int statusInt = item.value("status", 0);
+        std::string qName = item.value("queue", "Main Download Queue");
+        int threads = item.value("threads", 8);
+        uint64_t speed_limit = item.value("speed_limit", static_cast<uint64_t>(0));
+        std::string error = item.value("error", "");
+        bool av_enabled = item.value("antivirus_enabled", true);
+        bool sec_override = item.value("security_override", false);
+        bool mute_sound = item.value("mute_sound", false);
+
+        auto task = std::make_shared<DownloadTask>(url, dest, threads, speed_limit, "", "", "", defaultCache);
+        m_vault.inject_into_task(*task);
+        task->set_queue_name(qName);
+        task->set_antivirus_scan_enabled(av_enabled);
+        task->set_security_override(sec_override);
+        task->set_mute_sound(mute_sound);
+        if (total_size > 0) {
+            task->set_total_size(total_size);
+        } else if (std::filesystem::exists(dest)) {
+            std::error_code ec;
+            uint64_t fsz = std::filesystem::file_size(dest, ec);
+            if (!ec && fsz > 0) {
+                task->set_total_size(fsz);
+            }
+        }
+        if (!error.empty()) {
+            task->set_last_error(error);
+        }
+
+        DownloadStatus st = static_cast<DownloadStatus>(statusInt);
+        // If it was downloading or probing when app exited, restore as Paused
+        if (st == DownloadStatus::Downloading || st == DownloadStatus::Probing) {
+            st = DownloadStatus::Paused;
+        }
+        task->set_status(st);
+
+        auto targetQueue = getQueue(QString::fromStdString(qName));
+        if (targetQueue) {
+            targetQueue->add_task(task);
+        } else if (m_queue) {
+            m_queue->add_task(task);
+        }
+
+        if (m_tableModel) {
+            m_tableModel->addTask(task);
+        }
+    }
+
+    if (m_tableModel) {
+        m_tableModel->refreshTasks();
+    }
 }
 
 void MainWindow::onSetSpeedMode(int mode) {
@@ -1391,27 +1630,31 @@ void MainWindow::onVerifyChecksumClicked() {
     QLabel* header = new QLabel(QStringLiteral("<b>File:</b> %1").arg(QFileInfo(QString::fromStdString(dest)).fileName()), &dlg);
     layout->addWidget(header);
 
-    QString md5 = QString::fromStdString(idm::ArchiveVerifier::calculate_file_md5(dest));
-    QString sha1 = QString::fromStdString(idm::ArchiveVerifier::calculate_file_sha1(dest));
-    QString sha256 = QString::fromStdString(idm::ArchiveVerifier::calculate_file_sha256(dest));
+    auto* md5Edit = new QLineEdit(QStringLiteral("Calculating MD5 in background..."), &dlg);
+    md5Edit->setReadOnly(true);
+    auto* sha1Edit = new QLineEdit(QStringLiteral("Calculating SHA-1 in background..."), &dlg);
+    sha1Edit->setReadOnly(true);
+    auto* sha256Edit = new QLineEdit(QStringLiteral("Calculating SHA-256 in background..."), &dlg);
+    sha256Edit->setReadOnly(true);
 
-    auto addHashRow = [&](const QString& label, const QString& hashVal) {
+    auto addHashRow = [&](const QString& label, QLineEdit* edit) {
         auto* row = new QHBoxLayout();
         row->addWidget(new QLabel(QStringLiteral("<b>%1:</b>").arg(label), &dlg), 0);
-        auto* edit = new QLineEdit(hashVal, &dlg);
-        edit->setReadOnly(true);
         row->addWidget(edit, 1);
         auto* copyBtn = new QPushButton(QStringLiteral("Copy"), &dlg);
-        connect(copyBtn, &QPushButton::clicked, [hashVal]() {
-            QGuiApplication::clipboard()->setText(hashVal);
+        connect(copyBtn, &QPushButton::clicked, [edit]() {
+            QString txt = edit->text();
+            if (!txt.startsWith(QStringLiteral("Calculating"))) {
+                QGuiApplication::clipboard()->setText(txt);
+            }
         });
         row->addWidget(copyBtn, 0);
         layout->addLayout(row);
     };
 
-    addHashRow("MD5", md5);
-    addHashRow("SHA-1", sha1);
-    addHashRow("SHA-256", sha256);
+    addHashRow("MD5", md5Edit);
+    addHashRow("SHA-1", sha1Edit);
+    addHashRow("SHA-256", sha256Edit);
 
     layout->addSpacing(10);
 
@@ -1431,17 +1674,26 @@ void MainWindow::onVerifyChecksumClicked() {
     compLayout->addWidget(resultLabel);
     layout->addWidget(compGroup);
 
-    auto doVerify = [md5, sha1, sha256, compEdit, resultLabel]() {
+    auto doVerify = [md5Edit, sha1Edit, sha256Edit, compEdit, resultLabel]() {
         QString text = compEdit->text().trimmed();
         if (text.isEmpty()) {
             resultLabel->setText(QStringLiteral("<font color='gray'>Enter a checksum above to compare.</font>"));
             return;
         }
-        if (text.compare(md5, Qt::CaseInsensitive) == 0) {
+        QString curMd5 = md5Edit->text();
+        QString curSha1 = sha1Edit->text();
+        QString curSha256 = sha256Edit->text();
+
+        if (curMd5.startsWith(QStringLiteral("Calculating"))) {
+            resultLabel->setText(QStringLiteral("<font color='#38bdf8'>⏳ Computing file hashes, please wait...</font>"));
+            return;
+        }
+
+        if (text.compare(curMd5, Qt::CaseInsensitive) == 0) {
             resultLabel->setText(QStringLiteral("<font color='#22c55e'><b>✅ Verified!</b> Matches MD5 checksum perfectly.</font>"));
-        } else if (text.compare(sha1, Qt::CaseInsensitive) == 0) {
+        } else if (text.compare(curSha1, Qt::CaseInsensitive) == 0) {
             resultLabel->setText(QStringLiteral("<font color='#22c55e'><b>✅ Verified!</b> Matches SHA-1 checksum perfectly.</font>"));
-        } else if (text.compare(sha256, Qt::CaseInsensitive) == 0) {
+        } else if (text.compare(curSha256, Qt::CaseInsensitive) == 0) {
             resultLabel->setText(QStringLiteral("<font color='#22c55e'><b>✅ Verified!</b> Matches SHA-256 checksum perfectly.</font>"));
         } else {
             resultLabel->setText(QStringLiteral("<font color='#ef4444'><b>❌ Mismatch!</b> Checksum does NOT match this file.</font>"));
@@ -1463,12 +1715,26 @@ void MainWindow::onVerifyChecksumClicked() {
     };
     if (!clip.isEmpty() && isHexHash(clip)) {
         compEdit->setText(clip);
-        doVerify();
     }
 
     auto* closeBtn = new QPushButton(QStringLiteral("Close"), &dlg);
     connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
     layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    // Compute all 3 hashes in a single pass on a background thread without freezing GUI
+    auto dlgPtr = QPointer<QDialog>(&dlg);
+    std::thread([dest, dlgPtr, md5Edit, sha1Edit, sha256Edit, doVerify]() {
+        idm::MultiHashResult hashes = idm::ArchiveVerifier::calculate_file_all_hashes(dest);
+        if (dlgPtr) {
+            QMetaObject::invokeMethod(dlgPtr.data(), [dlgPtr, md5Edit, sha1Edit, sha256Edit, doVerify, hashes]() {
+                if (!dlgPtr) return;
+                md5Edit->setText(QString::fromStdString(hashes.md5));
+                sha1Edit->setText(QString::fromStdString(hashes.sha1));
+                sha256Edit->setText(QString::fromStdString(hashes.sha256));
+                doVerify();
+            }, Qt::QueuedConnection);
+        }
+    }).detach();
 
     dlg.exec();
 }
@@ -1614,3 +1880,4 @@ void MainWindow::onSiteLoginsClicked() {
     connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
     dlg.exec();
 }
+

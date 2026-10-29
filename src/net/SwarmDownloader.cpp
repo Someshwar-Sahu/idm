@@ -425,7 +425,14 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
                 auto chunk_opt = m_chunk_manager->get_next_pending_chunk();
                 if (!chunk_opt.has_value()) {
                     chunk_opt = m_chunk_manager->steal_slowest_chunk();
-                    if (!chunk_opt.has_value()) break;
+                    if (!chunk_opt.has_value()) {
+                        // Bug 45 Fix: Prevent premature worker thread exit during temporary chunk starvation
+                        if (m_chunk_manager->is_complete() || m_chunk_manager->has_failed()) {
+                            break;
+                        }
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                        continue;
+                    }
                 }
 
                 Chunk chunk = chunk_opt.value();
@@ -457,7 +464,11 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
                         std::vector<uint8_t> buffer;
                         success = m_mock_transport(mirror_url, chunk.start_byte, chunk.end_byte, buffer);
                         if (success && !buffer.empty()) {
-                            m_file_writer->write_at_offset(chunk.start_byte, buffer.data(), buffer.size());
+                            // Bug 46 Fix: Verify write_at_offset result and buffer length matching chunk size
+                            bool written = m_file_writer->write_at_offset(chunk.start_byte, buffer.data(), buffer.size());
+                            success = written && (buffer.size() == chunk_length || chunk_length == 0);
+                        } else if (chunk_length > 0) {
+                            success = false;
                         }
                     } else {
                         // Real curl range download
@@ -491,7 +502,8 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
                             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
                             curl_easy_cleanup(curl);
 
-                            success = (res == CURLE_OK && (code == 200 || code == 206));
+                            // Bug 46 Fix: Ensure HTTP 200/206 status AND full chunk bytes transferred
+                            success = (res == CURLE_OK && (code == 200 || code == 206) && ctx.bytes_written == chunk_length);
                         }
                     }
 

@@ -17,24 +17,51 @@ int main() {
     const string TEST_FILE = "test_smartscreen_sample.bin";
     remove(TEST_FILE.c_str());
 
+    // Back up any existing security_whitelist.json so tests do not wipe project settings
+    const string REAL_WL_FILE = "security_whitelist.json";
+    string original_wl_backup;
+    bool had_original_wl = false;
+    if (filesystem::exists(REAL_WL_FILE)) {
+        ifstream in(REAL_WL_FILE);
+        if (in.is_open()) {
+            original_wl_backup.assign((istreambuf_iterator<char>(in)), istreambuf_iterator<char>());
+            had_original_wl = true;
+        }
+    }
+
     // =========================================================================
     // 1. PRE-FLIGHT SMARTSCREEN & URL POLICY CHECK (Positive & Negative)
     // =========================================================================
     cout << "\n[1/4] Testing SmartScreen URL Policy Pre-Check (Pos + Neg)..." << endl;
 
-    // 1.1 Positive: Valid HTTPS Download URL
+    // 1.1 Positive: Valid HTTPS Download URL (SmartScreen AttachmentExecute)
     auto safe_res = AntivirusScanner::check_url_reputation("https://example.com/files/report.pdf", "report.pdf");
     assert(safe_res.is_safe == true);
     assert(!safe_res.details.empty());
     cout << "  -> Valid HTTPS link pre-check: " << safe_res.details << " (PASSED)" << endl;
 
-    // 1.2 Negative: Empty URL rejected
+    // 1.2 Positive: Local / Loopback / Intranet URL bypass
+    auto local_res = AntivirusScanner::check_url_reputation("http://127.0.0.1:8080/test.zip", "test.zip");
+    assert(local_res.is_safe == true);
+    assert(local_res.status == SecurityScanStatus::Safe);
+    assert(local_res.details.find("Local") != string::npos);
+    cout << "  -> Localhost/intranet link pre-check: " << local_res.details << " (PASSED)" << endl;
+
+    // 1.3 Positive: Whitelisted domain
+    AntivirusScanner::add_domain_to_whitelist("whitelisted-corp.internal");
+    auto white_res = AntivirusScanner::check_url_reputation("https://whitelisted-corp.internal/driver.msi", "driver.msi");
+    assert(white_res.is_safe == true);
+    assert(white_res.status == SecurityScanStatus::Safe);
+    assert(white_res.details.find("whitelisted") != string::npos);
+    cout << "  -> Whitelisted domain link pre-check: " << white_res.details << " (PASSED)" << endl;
+
+    // 1.4 Negative: Empty URL rejected
     auto empty_res = AntivirusScanner::check_url_reputation("");
     assert(empty_res.is_safe == false);
     assert(empty_res.status == SecurityScanStatus::Blocked);
     cout << "  -> Empty URL blocked immediately: PASSED" << endl;
 
-    // 1.3 Negative: EICAR malware test URL flagged
+    // 1.5 Negative: EICAR malware test URL flagged
     auto eicar_res = AntivirusScanner::check_url_reputation("https://secure.eicar.org/eicar.com.txt", "eicar.com.txt");
     assert(eicar_res.is_safe == false);
     assert(eicar_res.status == SecurityScanStatus::Blocked);
@@ -304,6 +331,11 @@ int main() {
 
     AntivirusScanner::cleanup_amsi();
 
+    // Restore original security_whitelist.json if backed up
+    if (had_original_wl) {
+        ofstream out(REAL_WL_FILE);
+        out << original_wl_backup;
+    }
 
     cout << "\n==========================================================" << endl;
     cout << "  [PASSED] 100% OF ANTIVIRUSSCANNER (TASKS 9, 10, 11 & 12) VERIFIED!   " << endl;

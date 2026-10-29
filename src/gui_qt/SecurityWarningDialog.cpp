@@ -172,9 +172,24 @@ bool SecurityWarningDialog::isAlwaysTrustDomainChecked() const {
 
 void SecurityWarningDialog::onOverrideClicked() {
     if (m_alwaysTrustCheck && m_alwaysTrustCheck->isChecked()) {
-        std::string domain = AntivirusScanner::extract_domain_from_url(m_target.toStdString());
-        if (!domain.empty()) {
-            AntivirusScanner::add_domain_to_whitelist(domain, "User override from dialog");
+        if (m_mode == Mode::PreDownload) {
+            std::string domain = AntivirusScanner::extract_domain_from_url(m_target.toStdString());
+            if (!domain.empty()) {
+                AntivirusScanner::add_domain_to_whitelist(domain, "User override from dialog");
+            }
+        } else {
+            std::string filePath = m_target.toStdString();
+            std::string fhash = AntivirusScanner::calculate_file_sha256(filePath);
+            if (!fhash.empty()) {
+                AntivirusScanner::add_hash_to_whitelist(fhash, "User override from dialog");
+            }
+            std::string sec = m_secondaryInfo.toStdString();
+            size_t p = sec.find("Target URL: ");
+            std::string urlStr = (p != std::string::npos) ? sec.substr(p + 12) : sec;
+            std::string domain = AntivirusScanner::extract_domain_from_url(urlStr);
+            if (!domain.empty()) {
+                AntivirusScanner::add_domain_to_whitelist(domain, "User override from dialog");
+            }
         }
     }
     accept();

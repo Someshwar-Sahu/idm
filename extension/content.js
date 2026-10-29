@@ -75,7 +75,18 @@
   panel.addEventListener("mouseenter", () => { panel.style.opacity = "1.0"; });
   panel.addEventListener("mouseleave", () => { panel.style.opacity = "0.6"; });
 
-  document.body.appendChild(panel);
+  function attachPanel() {
+    if (document.body && !panel.parentElement) {
+      document.body.appendChild(panel);
+    } else if (!document.body) {
+      document.addEventListener("DOMContentLoaded", () => {
+        if (document.body && !panel.parentElement) {
+          document.body.appendChild(panel);
+        }
+      }, { once: true });
+    }
+  }
+  attachPanel();
   function findVideoUnderCursor(x, y) {
     const videos = document.querySelectorAll("video");
     for (const v of videos) {
