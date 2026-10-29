@@ -33,11 +33,11 @@ Native release packages are compiled across all three operating systems via GitH
 
 | Operating System | Package | Architecture | Features | Download |
 | :--- | :---: | :---: | :--- | :---: |
-| 🪟 **Windows** | **`.exe`** | 64-bit (`x86_64`) | Standalone Inno Setup Wizard, Desktop & Start Menu shortcuts, native browser host registration, zero terminal popups. | [**Download .exe**](../../releases/latest/download/IDMan_Setup_v6.42.exe) |
-| 🍏 **macOS** | **`.dmg (zip)`** | Apple Silicon & Intel | Native Apple Disk Image (`IDMan_macOS_v6.42.dmg`) with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](../../releases/latest/download/IDMan_macOS_v6.42.zip) |
-| 🐧 **Linux** | **`.deb / .tar.gz`** | Universal Linux | Complete package bundle containing native Debian package (`.deb`) and portable archive (`.tar.gz`). | [**Download Linux**](../../releases/latest/download/IDMan_Linux_Packages.zip) |
+| 🪟 **Windows** | **`.exe / .zip`** | 64-bit (`x86_64`) | Standalone Inno Setup Wizard, Desktop & Start Menu shortcuts, native browser host registration, zero terminal popups. | [**Download Windows**](https://github.com/Someshwar-Sahu/idm/releases/latest/download/IDMan_Windows_Setup_v6.42.zip) |
+| 🍏 **macOS** | **`.dmg (zip)`** | Apple Silicon & Intel | Native Apple Disk Image (`IDMan_macOS_v6.42.dmg`) with drag-and-drop `IDMan.app` bundle and macOS menu integration. | [**Download .dmg**](https://github.com/Someshwar-Sahu/idm/releases/latest/download/IDMan_macOS_v6.42.zip) |
+| 🐧 **Linux** | **`.deb / .tar.gz`** | Universal Linux | Complete package bundle containing native Debian package (`.deb`) and portable archive (`.tar.gz`). | [**Download Linux**](https://github.com/Someshwar-Sahu/idm/releases/latest/download/IDMan_Linux_Packages.zip) |
 
-> 💡 **Direct Downloads:** Pre-built release binaries are published under [**Releases**](../../releases/latest). Click any link above to start downloading immediately.
+> 💡 **Direct Downloads:** Pre-built release binaries are published under [**Releases**](https://github.com/Someshwar-Sahu/idm/releases/latest). Click any link above to start downloading immediately.
 
 ---
 
