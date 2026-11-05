@@ -54,6 +54,8 @@ private:
     // Tab 2: File Types
     QLineEdit* m_fileTypesEdit{nullptr};
     QLineEdit* m_exceptionSitesEdit{nullptr};
+    QCheckBox* m_enableSmallFileBypassCheck{nullptr};
+    QSpinBox* m_minCaptureSizeSpin{nullptr};
 
     // Tab 3: Save To
     QLineEdit* m_defaultDirEdit{nullptr};

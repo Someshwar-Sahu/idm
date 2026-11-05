@@ -1400,6 +1400,7 @@ void LocalServer::init_default_routes() {
             res["antivirus_scan_enabled"] = s.antivirus_scan_enabled;
             res["antivirus_executable_path"] = s.antivirus_executable_path;
             res["file_types"] = s.file_types;
+            res["exception_sites"] = s.exception_sites;
             res["enable_small_file_bypass"] = s.enable_small_file_bypass;
             res["min_capture_size_bytes"] = s.min_capture_size_bytes;
             res["show_start_download_dialog"] = s.show_start_download_dialog;
@@ -1532,6 +1533,15 @@ void LocalServer::init_default_routes() {
             }
             if (j.contains("file_types") && j["file_types"].is_string()) {
                 s.file_types = j["file_types"].get<std::string>();
+            }
+            if (j.contains("exception_sites") && j["exception_sites"].is_string()) {
+                s.exception_sites = j["exception_sites"].get<std::string>();
+            }
+            if (j.contains("enable_small_file_bypass") && j["enable_small_file_bypass"].is_boolean()) {
+                s.enable_small_file_bypass = j["enable_small_file_bypass"].get<bool>();
+            }
+            if (j.contains("min_capture_size_bytes") && j["min_capture_size_bytes"].is_number()) {
+                s.min_capture_size_bytes = j["min_capture_size_bytes"].get<uint64_t>();
             }
             if (j.contains("max_connections") && j["max_connections"].is_number()) {
                 s.default_connections_per_task = j["max_connections"].get<int>();

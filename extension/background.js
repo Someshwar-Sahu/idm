@@ -30,6 +30,9 @@ async function syncSettingsFromIDM() {
         if (data.enable_small_file_bypass !== undefined) {
           updates.enableSmallFileBypass = data.enable_small_file_bypass;
         }
+        if (data.exception_sites !== undefined) {
+          updates.exceptionSites = data.exception_sites;
+        }
         await chrome.storage.local.set(updates);
       }
     }
@@ -40,12 +43,13 @@ async function syncSettingsFromIDM() {
 
 // Helper: Ensure storage settings
 function ensureSettings() {
-  chrome.storage.local.get(["enabled", "fileTypes", "minCaptureSize", "enableSmallFileBypass"], (data) => {
+  chrome.storage.local.get(["enabled", "fileTypes", "minCaptureSize", "enableSmallFileBypass", "exceptionSites"], (data) => {
     const updates = {};
     if (data.enabled === undefined) updates.enabled = true;
     if (!data.fileTypes) updates.fileTypes = DEFAULT_FILE_TYPES.join(",");
     if (data.minCaptureSize === undefined) updates.minCaptureSize = 10 * 1024 * 1024;
     if (data.enableSmallFileBypass === undefined) updates.enableSmallFileBypass = true;
+    if (data.exceptionSites === undefined) updates.exceptionSites = "";
     if (Object.keys(updates).length > 0) chrome.storage.local.set(updates);
   });
   syncSettingsFromIDM();
@@ -165,8 +169,8 @@ chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
 
 async function handleDeterminingFilename(downloadItem, suggest) {
   try {
-    const { enabled, fileTypes, minCaptureSize, enableSmallFileBypass } = await chrome.storage.local.get([
-      "enabled", "fileTypes", "minCaptureSize", "enableSmallFileBypass"
+    const { enabled, fileTypes, minCaptureSize, enableSmallFileBypass, exceptionSites } = await chrome.storage.local.get([
+      "enabled", "fileTypes", "minCaptureSize", "enableSmallFileBypass", "exceptionSites"
     ]);
     if (enabled === false) {
       suggest();
@@ -180,6 +184,20 @@ async function handleDeterminingFilename(downloadItem, suggest) {
     if (!url || url.startsWith("blob:") || url.startsWith("data:")) {
       suggest();
       return;
+    }
+
+    // Check exception sites
+    if (exceptionSites && exceptionSites.trim()) {
+      const sites = exceptionSites.split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+      try {
+        const parsedUrl = new URL(url);
+        const host = parsedUrl.hostname.toLowerCase();
+        if (sites.some(site => host === site || host.endsWith("." + site))) {
+          console.log("[IDM Extension] URL domain matches exception list. Letting browser download natively:", url);
+          suggest();
+          return;
+        }
+      } catch (e) {}
     }
 
     // 1. Resolve file size (inspect downloadItem.totalBytes, URL query parameters, or fast HEAD)
@@ -250,7 +268,17 @@ async function handleDeterminingFilename(downloadItem, suggest) {
       return;
     }
 
-    // 4. Intercept: File is >= 10 MB or whitelisted extension
+    // 4. Dynamic / Unknown Stream Guard under Small File Bypass:
+    // When small file bypass is enabled, unverified/unknown-size streams (e.g. Google Docs / Office exports,
+    // dynamic server streams without Content-Length) cannot be chunk-accelerated by IDM and rely on in-browser
+    // session state. Let the browser download them natively unless explicitly forced by the user.
+    if (smallBypassEnabled && fileSize <= 0) {
+      console.log("[IDM Extension] Unknown-size dynamic stream under small file bypass. Letting browser download natively:", url);
+      suggest();
+      return;
+    }
+
+    // 5. Intercept: File is >= minCaptureSize or whitelisted extension
     console.log(`[IDM Extension] Intercepting file (${fileSize} bytes, ext: ${ext}):`, url);
 
     const cookies = await getCookiesForUrl(url);

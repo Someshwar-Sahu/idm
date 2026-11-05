@@ -148,6 +148,20 @@ void OptionsDialog::setupUi() {
     m_exceptionSitesEdit->setPlaceholderText(QStringLiteral("example.com/stream/*"));
     exGroupLayout->addWidget(m_exceptionSitesEdit);
     ftLayout->addWidget(exGroup);
+
+    auto* bypassGroup = new QGroupBox(QStringLiteral("Small File Bypass"), tabFileTypes);
+    auto* bypassLayout = new QHBoxLayout(bypassGroup);
+    m_enableSmallFileBypassCheck = new QCheckBox(QStringLiteral("Do not capture downloads smaller than:"), bypassGroup);
+    m_minCaptureSizeSpin = new QSpinBox(bypassGroup);
+    m_minCaptureSizeSpin->setRange(1, 1024);
+    m_minCaptureSizeSpin->setSuffix(QStringLiteral(" MB"));
+    bypassLayout->addWidget(m_enableSmallFileBypassCheck);
+    bypassLayout->addWidget(m_minCaptureSizeSpin);
+    bypassLayout->addStretch(1);
+    ftLayout->addWidget(bypassGroup);
+
+    connect(m_enableSmallFileBypassCheck, &QCheckBox::toggled, m_minCaptureSizeSpin, &QSpinBox::setEnabled);
+
     ftLayout->addStretch(1);
 
     m_tabWidget->addTab(tabFileTypes, QStringLiteral("File Types"));
@@ -415,6 +429,12 @@ void OptionsDialog::loadSettings() {
     // File Types
     m_fileTypesEdit->setText(QString::fromStdString(s.file_types));
     m_exceptionSitesEdit->setText(QString::fromStdString(s.exception_sites));
+    if (m_enableSmallFileBypassCheck) m_enableSmallFileBypassCheck->setChecked(s.enable_small_file_bypass);
+    int minMb = static_cast<int>(s.min_capture_size_bytes / (1024 * 1024));
+    if (m_minCaptureSizeSpin) {
+        m_minCaptureSizeSpin->setValue(minMb > 0 ? minMb : 10);
+        m_minCaptureSizeSpin->setEnabled(s.enable_small_file_bypass);
+    }
 
     // Save To
     m_defaultDirEdit->setText(QString::fromStdString(s.default_download_directory));
@@ -459,6 +479,8 @@ void OptionsDialog::saveSettings() {
 
     s.file_types = m_fileTypesEdit->text().trimmed().toStdString();
     s.exception_sites = m_exceptionSitesEdit->text().trimmed().toStdString();
+    if (m_enableSmallFileBypassCheck) s.enable_small_file_bypass = m_enableSmallFileBypassCheck->isChecked();
+    if (m_minCaptureSizeSpin) s.min_capture_size_bytes = static_cast<uint64_t>(m_minCaptureSizeSpin->value()) * 1024ULL * 1024ULL;
 
     QString defaultDir = m_defaultDirEdit->text().trimmed();
     if (!defaultDir.isEmpty()) {

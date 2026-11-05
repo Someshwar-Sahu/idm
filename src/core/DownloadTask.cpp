@@ -741,10 +741,14 @@ bool DownloadTask::probe_url() {
     } catch (...) {}
 
     if (m_total_size == 0) {
-        string combined_headers = response_headers + "\n" + get_headers;
-        if ((http_code == 200 || get_headers.find(" 200 ") != string::npos) &&
-            (combined_headers.find("Content-Length: 0") != string::npos || combined_headers.find("content-length: 0") != string::npos)) {
-            // Legitimate 0-byte file download completed immediately
+        // Only if a GET probe explicitly returned HTTP 200 with Content-Length: 0 and NOT chunked.
+        // HEAD responses (response_headers) must never be used for 0-byte completion because servers
+        // commonly return Content-Length: 0 for the empty HEAD response body itself.
+        string eff_get_headers = get_last_response_headers(get_headers);
+        string get_cl = get_header_value(eff_get_headers, "Content-Length");
+        if ((get_headers.find(" 200 ") != string::npos || get_headers.find(" 200\r") != string::npos) &&
+            get_cl == "0" && eff_get_headers.find("chunked") == string::npos) {
+            // Verified 0-byte file via GET probe
             m_status = DownloadStatus::Completed;
             FileWriter::preallocate_file(m_destination_filepath, 0);
             return true;
