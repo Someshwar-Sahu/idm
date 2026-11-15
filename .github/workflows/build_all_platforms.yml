@@ -136,6 +136,11 @@ jobs:
           version: '6.7.2'
           arch: 'clang_64'
 
+      - name: Patch Qt6 AGL Framework for macOS 15+ SDK
+        run: |
+          find "$Qt6_DIR" -type f -name "*.cmake" -exec sed -i '' 's/-framework AGL//g' {} +
+          find "$Qt6_DIR" -type f -name "*.cmake" -exec sed -i '' '/__opengl_agl_fw_path/d' {} +
+
       - name: Install Ninja
         run: brew install ninja
 
