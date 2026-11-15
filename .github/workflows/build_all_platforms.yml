@@ -125,7 +125,7 @@ jobs:
   # 3. macOS: Build Native macOS App Bundle & Disk Image (.dmg)
   # ============================================================================
   build-macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
