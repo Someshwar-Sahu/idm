@@ -7,6 +7,11 @@ set(CMAKE_AUTORCC ON)
 
 list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.7.2/mingw_64")
 
+# Workaround for macOS 15+ SDK where Apple dropped legacy AGL framework (QTBUG-137687)
+if(APPLE AND NOT TARGET WrapOpenGL::WrapOpenGL)
+    add_library(WrapOpenGL::WrapOpenGL INTERFACE IMPORTED)
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
 
 set(CMAKE_CXX_STANDARD 17)
