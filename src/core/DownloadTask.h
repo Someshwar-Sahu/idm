@@ -49,8 +49,17 @@ public:
 
     void set_speed_limit(uint64_t max_bytes_per_sec);
     uint64_t get_speed_limit() const;
-    void set_thread_count(int count) { if (count > 0) m_num_threads = count; }
+    void set_thread_count(int count) { 
+        if (count > 0) { 
+            m_num_threads = count; 
+            m_configured_threads = count; 
+        } 
+    }
+    void set_allocated_thread_count(int count) { 
+        if (count > 0) m_num_threads = count; 
+    }
     int get_thread_count() const { return m_num_threads; }
+    int get_configured_thread_count() const { return m_configured_threads; }
     void set_total_size(uint64_t size) { m_total_size = size; }
 
     static uint64_t get_available_disk_space(const std::string &filepath);
@@ -120,6 +129,7 @@ private:
     std::string m_sidecar_filepath;
     std::string m_queue_name{"Main Download Queue"};
     int m_num_threads{8};
+    int m_configured_threads{8};
     std::atomic<uint64_t> m_max_bytes_per_sec{0};
     std::atomic<uint64_t> m_worker_bytes_per_sec{0};
 

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metalink version="3.0" xmlns="http://www.metalinker.org/">
+  <files>
+    <file name="openSUSE-Leap-15.5-NET-x86_64-Build491.1-Media.iso">
+      <size>212860928</size>
+      <verification>
+        <hash type="sha-256">a2f7f2f1b6b3d3ef96f5c8f804d87ebd01e5cf982357c533f4c39c33cd20ec56</hash>
+        <hash type="md5">3482d64a11540c11c380641a3520f901</hash>
+      </verification>
+      <resources>
+        <url location="de" priority="1">https://download.opensuse.org/distribution/leap/15.5/iso/openSUSE-Leap-15.5-NET-x86_64-Build491.1-Media.iso</url>
+        <url location="us" priority="2">https://mirrors.kernel.org/opensuse/distribution/leap/15.5/iso/openSUSE-Leap-15.5-NET-x86_64-Build491.1-Media.iso</url>
+        <url location="fr" priority="3">https://mirror.in2p3.fr/pub/linux/opensuse/distribution/leap/15.5/iso/openSUSE-Leap-15.5-NET-x86_64-Build491.1-Media.iso</url>
+      </resources>
+    </file>
+  </files>
+</metalink>
+

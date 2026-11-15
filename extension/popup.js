@@ -8,32 +8,31 @@ function getBrowserTag() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const toggle = document.getElementById("toggleCapture");
+  const toggleCapture = document.getElementById("toggleCapture");
+  const toggleBypass = document.getElementById("toggleBypass");
   const statusBadge = document.getElementById("status");
   const manualUrl = document.getElementById("manualUrl");
   const btnDownload = document.getElementById("btnDownload");
+  const btnOpenOptions = document.getElementById("btnOpenOptions");
 
-  // Load toggle state
-  const data = await chrome.storage.local.get("enabled");
-  toggle.checked = data.enabled !== false;
+  // Load local preferences
+  const localData = await chrome.storage.local.get(["enabled", "enable_small_file_bypass"]);
+  toggleCapture.checked = localData.enabled !== false;
+  toggleBypass.checked = localData.enable_small_file_bypass !== false;
 
-  toggle.addEventListener("change", async () => {
-    chrome.storage.local.set({ enabled: toggle.checked });
-    try {
-      await fetch("http://127.0.0.1:8080/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enable_browser_interception: toggle.checked })
-      });
-    } catch (e) {
-      // Core engine offline
-    }
-  });
-
-  // Check engine connectivity
+  // Query core engine settings for live synchronization
   try {
-    const res = await fetch("http://127.0.0.1:8080/api/tasks", { signal: AbortSignal.timeout(1500) });
+    const res = await fetch("http://127.0.0.1:8080/api/settings", { signal: AbortSignal.timeout(1500) });
     if (res.ok) {
+      const liveSettings = await res.json();
+      if (typeof liveSettings.enable_browser_interception === "boolean") {
+        toggleCapture.checked = liveSettings.enable_browser_interception;
+        chrome.storage.local.set({ enabled: liveSettings.enable_browser_interception });
+      }
+      if (typeof liveSettings.enable_small_file_bypass === "boolean") {
+        toggleBypass.checked = liveSettings.enable_small_file_bypass;
+        chrome.storage.local.set({ enable_small_file_bypass: liveSettings.enable_small_file_bypass });
+      }
       statusBadge.textContent = "Engine Connected";
       statusBadge.className = "status-badge";
     } else {
@@ -43,6 +42,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     statusBadge.textContent = "Engine Offline";
     statusBadge.className = "status-badge offline";
   }
+
+  // Toggle 1: Capture Browser Downloads
+  toggleCapture.addEventListener("change", async () => {
+    chrome.storage.local.set({ enabled: toggleCapture.checked });
+    try {
+      await fetch("http://127.0.0.1:8080/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enable_browser_interception: toggleCapture.checked })
+      });
+    } catch (e) {
+      // Core engine offline or sandboxed
+    }
+  });
+
+  // Toggle 2: Bypass Small Files (<10MB)
+  toggleBypass.addEventListener("change", async () => {
+    chrome.storage.local.set({ enable_small_file_bypass: toggleBypass.checked });
+    try {
+      await fetch("http://127.0.0.1:8080/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enable_small_file_bypass: toggleBypass.checked })
+      });
+    } catch (e) {
+      // Core engine offline
+    }
+  });
 
   // Manual download catch
   btnDownload.addEventListener("click", async () => {
@@ -85,6 +112,27 @@ document.addEventListener("DOMContentLoaded", async () => {
       manualUrl.value = "";
       btnDownload.textContent = "Dispatched!";
       setTimeout(() => { btnDownload.textContent = "Catch Link"; }, 2000);
+    });
+  });
+
+  // Open IDM App / Options
+  btnOpenOptions.addEventListener("click", async () => {
+    btnOpenOptions.textContent = "Opening IDM...";
+    try {
+      const res = await fetch("http://127.0.0.1:8080/api/show", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "show" })
+      });
+      if (res.ok) {
+        setTimeout(() => { btnOpenOptions.textContent = "⚙ Open IDM Options / Window"; }, 1500);
+        return;
+      }
+    } catch (e) {}
+
+    // Fallback: send message to native host
+    chrome.runtime.sendNativeMessage("com.idm.native_host", { action: "show" }, () => {
+      setTimeout(() => { btnOpenOptions.textContent = "⚙ Open IDM Options / Window"; }, 1500);
     });
   });
 });

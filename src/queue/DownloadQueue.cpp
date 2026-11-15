@@ -232,6 +232,16 @@ int DownloadQueue::get_max_concurrent_tasks() const{
     return m_max_concurrent_tasks;
 }
 
+int DownloadQueue::calculate_allocated_threads(int active_downloads_count, int task_configured_threads) const {
+    if (m_max_total_threads <= 0) {
+        return std::max(1, task_configured_threads);
+    }
+    int total_active = std::max(1, active_downloads_count);
+    int fair_share = std::max(1, m_max_total_threads / total_active);
+    int target = task_configured_threads > 0 ? task_configured_threads : 8;
+    return std::max(1, std::min(target, fair_share));
+}
+
 void DownloadQueue::set_post_queue_action(PostQueueAction action){
     lock_guard<mutex> lock(m_mutex);
     m_post_action = action;
@@ -321,10 +331,10 @@ void DownloadQueue::process_queue_loop() {
                         
                         m_dispatched_tasks.insert(t.get());
 
-                        // Bug 19 Fix: Dynamically allocate worker threads within global queue thread ceiling
-                        if (m_max_total_threads > 0 && m_max_concurrent_tasks > 0) {
-                            int allocated_threads = std::max(1, m_max_total_threads / m_max_concurrent_tasks);
-                            t->set_thread_count(allocated_threads);
+                        // Dynamic thread allocation under global queue thread ceiling
+                        if (m_max_total_threads > 0) {
+                            int allocated_threads = calculate_allocated_threads(active_downloads + 1, t->get_configured_thread_count());
+                            t->set_allocated_thread_count(allocated_threads);
                         }
 
                         auto done = std::make_shared<std::atomic<bool>>(false);

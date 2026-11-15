@@ -53,8 +53,9 @@ public:
 
     void set_max_concurrent_tasks(int max_concurrent);
     int get_max_concurrent_tasks() const; 
-    void set_max_total_threads(int max_threads) { m_max_total_threads = max_threads; }
+    void set_max_total_threads(int max_threads) { m_max_total_threads = std::max(0, max_threads); }
     int get_max_total_threads() const { return m_max_total_threads; }
+    int calculate_allocated_threads(int active_downloads_count, int task_configured_threads) const;
 
     void set_post_queue_action(PostQueueAction action);
     PostQueueAction get_post_queue_action() const;

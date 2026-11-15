@@ -1,4 +1,4 @@
-﻿#ifdef _WIN32
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -14,6 +14,7 @@
 #include "DownloadCancelledDialog.h"
 #include "SchedulerDialog.h"
 #include "OptionsDialog.h"
+#include "SwarmDownloadDialog.h"
 #include "../queue/DownloadQueue.h"
 #include "../config/SettingsManager.h"
 #include "../media/StreamPreviewer.h"
@@ -201,6 +202,7 @@ void MainWindow::createMenuBar() {
     QMenu* tasksMenu = menuBar()->addMenu(QStringLiteral("&Tasks"));
     QAction* addAct = tasksMenu->addAction(style()->standardIcon(QStyle::SP_FileIcon), QStringLiteral("Add &new download..."), this, &MainWindow::onAddUrlClicked);
     addAct->setShortcut(QKeySequence::New);
+    tasksMenu->addAction(style()->standardIcon(QStyle::SP_DriveNetIcon), QStringLiteral("Add &Swarm / Metalink download..."), this, &MainWindow::onAddSwarmDownloadClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_MediaPlay), QStringLiteral("&Resume download"), this, &MainWindow::onResumeClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_MediaPause), QStringLiteral("&Stop download"), this, &MainWindow::onPauseClicked);
     tasksMenu->addAction(style()->standardIcon(QStyle::SP_MediaStop), QStringLiteral("Stop &all"), this, &MainWindow::onStopAllClicked);
@@ -704,10 +706,15 @@ void MainWindow::onAddUrlClicked() {
         m_tableModel->refreshTasks();
         saveTasksToJson();
         if (startNow) {
-            auto* statusDlg = new DownloadStatusDialog(task, targetQueue ? targetQueue.get() : m_queue, this);
+            auto* statusDlg = new DownloadStatusDialog(task, targetQueue ? targetQueue.get() : m_queue, m_settings, this);
             statusDlg->show();
         }
     }
+}
+
+void MainWindow::onAddSwarmDownloadClicked() {
+    SwarmDownloadDialog dlg(this);
+    dlg.exec();
 }
 
 void MainWindow::onResumeClicked() {
@@ -959,7 +966,7 @@ void MainWindow::onTableDoubleClicked(const QModelIndex& index) {
         cancelledDlg->show();
     } else {
         auto q = findQueueForTask(task);
-        auto* statusDlg = new DownloadStatusDialog(task, q ? q.get() : m_queue, this);
+        auto* statusDlg = new DownloadStatusDialog(task, q ? q.get() : m_queue, m_settings, this);
         statusDlg->show();
     }
 }
@@ -1161,7 +1168,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
             m_tableModel->refreshTasks();
             saveTasksToJson();
             if (startNow) {
-                auto* statusDlg = new DownloadStatusDialog(task, targetQueue ? targetQueue.get() : m_queue, parentWnd);
+                auto* statusDlg = new DownloadStatusDialog(task, targetQueue ? targetQueue.get() : m_queue, m_settings, parentWnd);
                 statusDlg->show();
                 statusDlg->raise();
                 statusDlg->activateWindow();
@@ -1199,7 +1206,7 @@ void MainWindow::onDownloadIntercepted(const QString& url, const QString& filena
         m_tableModel->refreshTasks();
         saveTasksToJson();
 
-        auto* statusDlg = new DownloadStatusDialog(task, mainQ ? mainQ.get() : m_queue, parentWnd);
+        auto* statusDlg = new DownloadStatusDialog(task, mainQ ? mainQ.get() : m_queue, m_settings, parentWnd);
         statusDlg->show();
         statusDlg->raise();
         statusDlg->activateWindow();

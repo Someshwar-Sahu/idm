@@ -96,6 +96,10 @@ bool SettingsManager::load(const string &config_filepath) {
         m_settings.enable_small_file_bypass = j.value("enable_small_file_bypass", true);
         m_settings.min_capture_size_bytes = j.value("min_capture_size_bytes", static_cast<uint64_t>(10 * 1024 * 1024));
         m_settings.show_start_download_dialog = j.value("show_start_download_dialog", false);
+        m_settings.show_download_complete_dialog = j.value("show_download_complete_dialog", true);
+        m_settings.play_sound_on_completion = j.value("play_sound_on_completion", true);
+        m_settings.auto_open_completed_file = j.value("auto_open_completed_file", false);
+        m_settings.max_chunk_retries = j.value("max_chunk_retries", 5);
         m_settings.file_types = j.value("file_types", "ZIP RAR 7Z ISO TAR GZ EXE MSI MP4 MKV WEBM MP3 FLAC WAV PDF DMG DAT BIN APK CSV");
 
         if (j.contains("category_folders") && j["category_folders"].is_object()) {
@@ -151,6 +155,10 @@ bool SettingsManager::save(const string &config_filepath) const {
         j["enable_small_file_bypass"] = m_settings.enable_small_file_bypass;
         j["min_capture_size_bytes"] = m_settings.min_capture_size_bytes;
         j["show_start_download_dialog"] = m_settings.show_start_download_dialog;
+        j["show_download_complete_dialog"] = m_settings.show_download_complete_dialog;
+        j["play_sound_on_completion"] = m_settings.play_sound_on_completion;
+        j["auto_open_completed_file"] = m_settings.auto_open_completed_file;
+        j["max_chunk_retries"] = m_settings.max_chunk_retries;
         j["file_types"] = m_settings.file_types;
 
         json cat_json = json::object();

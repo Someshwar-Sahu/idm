@@ -9,11 +9,14 @@
 class DownloadTask;
 class DownloadQueue;
 class SegmentedProgressWidget;
+class SettingsManager;
 
 class DownloadStatusDialog : public QDialog {
     Q_OBJECT
 public:
-    DownloadStatusDialog(std::shared_ptr<DownloadTask> task, DownloadQueue* queue, QWidget* parent = nullptr);
+    DownloadStatusDialog(std::shared_ptr<DownloadTask> task, DownloadQueue* queue, SettingsManager* settings = nullptr, QWidget* parent = nullptr);
+    DownloadStatusDialog(std::shared_ptr<DownloadTask> task, DownloadQueue* queue, QWidget* parent)
+        : DownloadStatusDialog(task, queue, nullptr, parent) {}
     ~DownloadStatusDialog() override;
 
 private slots:
@@ -27,6 +30,7 @@ private:
 
     std::shared_ptr<DownloadTask> m_task;
     DownloadQueue* m_queue{nullptr};
+    SettingsManager* m_settings{nullptr};
 
     QLabel* m_fileLabel{nullptr};
     QLabel* m_statusLabel{nullptr};

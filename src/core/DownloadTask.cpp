@@ -36,7 +36,8 @@ DownloadTask::DownloadTask(const string &url,
                            const string &cache_directory)
     : m_url(url),
       m_cache_directory(cache_directory),
-      m_num_threads(num_threads),
+      m_num_threads(num_threads > 0 ? num_threads : 8),
+      m_configured_threads(num_threads > 0 ? num_threads : 8),
       m_max_bytes_per_sec(max_bytes_per_sec),
       m_worker_bytes_per_sec((num_threads > 0 && max_bytes_per_sec > 0) ? (max_bytes_per_sec / num_threads) : max_bytes_per_sec),
       m_referer(referer),
@@ -630,9 +631,19 @@ bool DownloadTask::probe_url() {
             string eff_get_headers = get_last_response_headers(get_headers);
             if (get_res == CURLE_OK && (get_code == 200 || get_code == 206)) {
                 if (get_code == 206) m_supports_ranges = true;
+
+                string get_ar = get_header_value(eff_get_headers, "Accept-Ranges");
+                for (char &c : get_ar) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+                if (get_ar.find("bytes") != string::npos) {
+                    m_supports_ranges = true;
+                } else if (get_ar.find("none") != string::npos) {
+                    m_supports_ranges = false;
+                }
+
                 // Parse Content-Range: bytes 0-0/104857600
                 string cr_str = get_header_value(eff_get_headers, "Content-Range");
                 if (!cr_str.empty()) {
+                    m_supports_ranges = true;
                     size_t slash = cr_str.find('/');
                     if (slash != string::npos) {
                         try {
@@ -943,8 +954,22 @@ bool DownloadTask::start(ProgressCallback callback) {
             while (!m_pause_requested && !m_chunk_manager->is_complete()) {
                 auto chunk_opt = m_chunk_manager->get_next_pending_chunk();
                 if (!chunk_opt.has_value()) {
-                    size_t max_chunks = std::max<size_t>(32, static_cast<size_t>(m_num_threads * 2));
-                    chunk_opt = m_chunk_manager->steal_slowest_chunk(1024 * 1024, max_chunks);
+                    uint64_t remaining_bytes = m_chunk_manager->get_total_remaining_bytes();
+                    uint64_t file_size = m_total_size;
+                    // Adaptive stealing threshold floor to prevent tail hyper-fragmentation
+                    uint64_t min_steal_floor = 1024 * 1024; // 1 MB default
+                    if (file_size >= 100 * 1024 * 1024) {
+                        min_steal_floor = 5 * 1024 * 1024; // 5 MB floor for large files >= 100 MB
+                    } else if (file_size >= 20 * 1024 * 1024) {
+                        min_steal_floor = 2 * 1024 * 1024; // 2 MB floor for medium files
+                    }
+
+                    // Only split/steal if the uncompleted tail has substantial remaining work
+                    if (remaining_bytes > min_steal_floor) {
+                        size_t max_chunks = std::max<size_t>(4, static_cast<size_t>(m_num_threads * 2));
+                        if (max_chunks > 24) max_chunks = 24; // Safe upper bound
+                        chunk_opt = m_chunk_manager->steal_slowest_chunk(min_steal_floor, max_chunks);
+                    }
                     if (!chunk_opt.has_value()) {
                         // Wait briefly for donor chunks to establish or finish
                         std::this_thread::sleep_for(std::chrono::milliseconds(150));
@@ -971,7 +996,8 @@ bool DownloadTask::start(ProgressCallback callback) {
     bool was_paused = false;
     while (!m_pause_requested && !m_chunk_manager->is_complete()) {
         if (m_chunk_manager->has_failed()) {
-            set_last_error("One or more chunks failed to download after maximum retries.");
+            std::string reason = m_chunk_manager->get_last_failure_reason();
+            set_last_error("Chunk download failed: " + (reason.empty() ? "Maximum retries exceeded" : reason));
             break;
         }
         uint64_t downloaded = m_chunk_manager->get_total_downloaded_bytes();
@@ -1040,7 +1066,9 @@ bool DownloadTask::start(ProgressCallback callback) {
     }
 
     m_status = DownloadStatus::Failed;
-    m_last_error = "Download ended prematurely before reaching 100%";
+    if (m_last_error.empty()) {
+        m_last_error = "Download ended prematurely before reaching 100%";
+    }
     return false;
 }
 
@@ -1069,6 +1097,9 @@ void DownloadTask::pause() {
 
 void DownloadTask::resume() {
     m_pause_requested = false;
+    if (m_chunk_manager) {
+        m_chunk_manager->reset_incomplete_chunk_retries();
+    }
     if (m_status == DownloadStatus::Paused || m_status == DownloadStatus::Failed || m_status == DownloadStatus::Cancelled) {
         m_status = DownloadStatus::NotStarted;
     }

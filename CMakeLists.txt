@@ -104,6 +104,7 @@ add_executable(idm_app
     src/gui_qt/SchedulerDialog.cpp
     src/gui_qt/SecurityWarningDialog.cpp
     src/gui_qt/OptionsDialog.cpp
+    src/gui_qt/SwarmDownloadDialog.cpp
     ${PLATFORM_SOURCES}
     src/gui_qt/resources.qrc
     ${CORE_SOURCES}
@@ -113,6 +114,7 @@ add_executable(idm_app
     src/net/RemoteDashboard.cpp
     src/net/NetworkMonitor.cpp
     src/net/PowerMonitor.cpp
+    src/net/SwarmDownloader.cpp
     src/media/StreamPreviewer.cpp
     src/media/MediaExtractor.cpp
     src/security/Vault.cpp
@@ -165,6 +167,18 @@ target_link_libraries(test_settings_manager PRIVATE nlohmann_json::nlohmann_json
 add_executable(test_download_queue test/test_download_queue.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_download_queue PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
+add_executable(test_queue_power_allocation test/test_queue_power_allocation.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
+target_link_libraries(test_queue_power_allocation PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_tail_stealing_resumption test/test_tail_stealing_resumption.cpp ${CORE_SOURCES})
+target_link_libraries(test_tail_stealing_resumption PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_antivirus_pipeline test/test_antivirus_pipeline.cpp ${CORE_SOURCES})
+target_link_libraries(test_antivirus_pipeline PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_range_probing_matrix test/test_range_probing_matrix.cpp ${CORE_SOURCES})
+target_link_libraries(test_range_probing_matrix PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
 add_executable(test_native_host test/test_native_host.cpp src/native_host/NativeHost.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_native_host PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
 
@@ -206,6 +220,35 @@ target_link_libraries(test_vault PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohma
 
 add_executable(test_remote_dashboard test/test_remote_dashboard.cpp src/net/RemoteDashboard.cpp src/ipc/LocalServer.cpp src/queue/DownloadQueue.cpp ${CORE_SOURCES})
 target_link_libraries(test_remote_dashboard PRIVATE ${CURL_LIBRARIES} nlohmann_json::nlohmann_json ${PLATFORM_LIBS})
+
+add_executable(test_swarm_gui_integration 
+    test/test_swarm_gui_integration.cpp 
+    src/gui_qt/SwarmDownloadDialog.cpp 
+    src/net/SwarmDownloader.cpp 
+    ${CORE_SOURCES}
+)
+target_link_libraries(test_swarm_gui_integration PRIVATE 
+    Qt6::Core 
+    Qt6::Gui 
+    Qt6::Widgets 
+    ${CURL_LIBRARIES} 
+    nlohmann_json::nlohmann_json 
+    ${PLATFORM_LIBS}
+)
+
+add_executable(test_category_editor
+    test/test_category_editor.cpp
+    src/config/SettingsManager.cpp
+    src/core/ChunkWorker.cpp
+    src/core/ChunkManager.cpp
+    src/core/FileWriter.cpp
+    src/net/ChannelBonding.cpp
+)
+target_link_libraries(test_category_editor PRIVATE
+    ${CURL_LIBRARIES}
+    nlohmann_json::nlohmann_json
+    ${PLATFORM_LIBS}
+)
 
 # ---------------------------------------------------------
 # Cross-Platform Packaging (CPack for Linux .deb and macOS .dmg)

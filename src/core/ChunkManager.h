@@ -22,7 +22,10 @@ public:
 
     void update_chunk_progress(int chunk_id, uint64_t bytes_downloaded);
     void mark_chunk_done(int chunk_id);
-    void mark_chunk_failed(int chunk_id, int max_retries = 5);
+    void mark_chunk_failed(int chunk_id, int max_retries = 5, const std::string &reason = "");
+    void reset_incomplete_chunk_retries();
+    std::string get_last_failure_reason() const;
+    uint64_t get_total_remaining_bytes() const;
     
     bool is_complete() const;
     bool has_failed() const;
@@ -33,6 +36,7 @@ public:
 
 private:
     uint64_t m_total_file_size{0};
+    std::string m_last_failure_reason;
     std::vector<Chunk> m_chunks;
     mutable std::mutex m_mutex;
 };

@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <style>
     body {
-      width: 300px;
+      width: 310px;
       margin: 0;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #11141a;
       color: #e6edf3;
+      user-select: none;
     }
     .header {
       display: flex;
@@ -23,6 +24,9 @@
       font-size: 14px;
       font-weight: 700;
       color: #58a6ff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .status-badge {
       font-size: 10px;
@@ -30,6 +34,7 @@
       border-radius: 12px;
       background: #238636;
       color: #fff;
+      font-weight: 600;
     }
     .status-badge.offline {
       background: #da3633;
@@ -38,7 +43,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 12px 0;
+      margin: 10px 0;
       font-size: 13px;
     }
     .switch {
@@ -51,13 +56,13 @@
     .slider {
       position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
       background-color: #30363d;
-      transition: .3s;
+      transition: .25s;
       border-radius: 20px;
     }
     .slider:before {
       position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
       background-color: white;
-      transition: .3s;
+      transition: .25s;
       border-radius: 50%;
     }
     input:checked + .slider { background-color: #1f6feb; }
@@ -83,26 +88,55 @@
       font-weight: 600;
       font-size: 12px;
       cursor: pointer;
+      margin-bottom: 6px;
+      transition: background .2s;
     }
     .btn:hover { background: #2ea043; }
+    .btn.secondary {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+    }
+    .btn.secondary:hover {
+      background: #30363d;
+      color: #fff;
+    }
+    .divider {
+      border-top: 1px solid #21262d;
+      margin: 12px 0 10px 0;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="title">IDM Integration</div>
+    <div class="title">⚡ IDM Integration</div>
     <div id="status" class="status-badge">Checking...</div>
   </div>
+
   <div class="toggle-row">
-    <span>Capture Downloads</span>
+    <span>Capture Browser Downloads</span>
     <label class="switch">
       <input type="checkbox" id="toggleCapture" checked>
       <span class="slider"></span>
     </label>
   </div>
-  <div style="margin-top: 14px;">
-    <input type="text" id="manualUrl" class="input-box" placeholder="Paste link to download...">
-    <button id="btnDownload" class="btn">Catch Link</button>
+
+  <div class="toggle-row">
+    <span>Bypass Small Files (&lt; 10 MB)</span>
+    <label class="switch">
+      <input type="checkbox" id="toggleBypass" checked>
+      <span class="slider"></span>
+    </label>
   </div>
+
+  <div class="divider"></div>
+
+  <div>
+    <input type="text" id="manualUrl" class="input-box" placeholder="Paste link to download with IDM...">
+    <button id="btnDownload" class="btn">Catch Link</button>
+    <button id="btnOpenOptions" class="btn secondary">⚙ Open IDM Options / Window</button>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

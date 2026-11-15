@@ -71,6 +71,7 @@ protected:
 private slots:
     // Toolbar & Action Slots
     void onAddUrlClicked();
+    void onAddSwarmDownloadClicked();
     void onResumeClicked();
     void onPauseClicked();
     void onStopAllClicked();

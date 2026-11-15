@@ -149,10 +149,11 @@ bool ResumeStore::load(const string &sidecar_filepath,
                 string state_str = c_json.value("state", "Pending");
                 if (state_str == "Done") {
                     chunk.state = ChunkState::Done;
+                    chunk.retry_count = c_json.value("retry_count", 0);
                 } else {
                     chunk.state = ChunkState::Pending; // InProgress and Failed are reset to Pending for retry/resumption
+                    chunk.retry_count = 0; // Fresh retry budget on resumption!
                 }
-                chunk.retry_count = c_json.value("retry_count", 0);
                 if(chunk.id >= 0){
                     loaded_chunks.push_back(chunk);
                 }

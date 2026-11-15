@@ -408,6 +408,7 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
     }
 
     int chunks_count = (num_chunks > 0) ? num_chunks : m_num_threads;
+    m_cancelled.store(false);
     m_chunk_manager = std::make_unique<ChunkManager>(file_size, chunks_count);
 
     FileWriter::preallocate_file(m_destination_path, file_size);
@@ -422,12 +423,13 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
     for (int t = 0; t < m_num_threads; ++t) {
         m_thread_pool->enqueue([this]() {
             while (!m_chunk_manager->is_complete()) {
+                if (m_cancelled.load()) break;
                 auto chunk_opt = m_chunk_manager->get_next_pending_chunk();
                 if (!chunk_opt.has_value()) {
                     chunk_opt = m_chunk_manager->steal_slowest_chunk();
                     if (!chunk_opt.has_value()) {
                         // Bug 45 Fix: Prevent premature worker thread exit during temporary chunk starvation
-                        if (m_chunk_manager->is_complete() || m_chunk_manager->has_failed()) {
+                        if (m_chunk_manager->is_complete() || m_chunk_manager->has_failed() || m_cancelled.load()) {
                             break;
                         }
                         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -440,6 +442,7 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
 
                 // Try downloading chunk with active mirrors (supports failover)
                 while (!chunk_downloaded) {
+                    if (m_cancelled.load()) break;
                     int mirror_id = select_mirror_for_chunk(chunk.id);
                     if (mirror_id < 0) {
                         m_chunk_manager->mark_chunk_failed(chunk.id);
@@ -523,6 +526,10 @@ bool SwarmDownloader::download(uint64_t file_size, int num_chunks, ProgressCallb
 
     // Monitor progress
     while (!m_chunk_manager->is_complete()) {
+        if (m_cancelled.load()) {
+            m_last_error = "Swarm download cancelled by user";
+            break;
+        }
         if (get_active_mirrors().empty()) {
             m_last_error = "All mirrors failed during swarm transfer";
             break;

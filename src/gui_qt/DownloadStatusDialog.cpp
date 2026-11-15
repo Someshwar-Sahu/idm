@@ -4,7 +4,10 @@
 #include "SecurityWarningDialog.h"
 #include "../core/DownloadTask.h"
 #include "../queue/DownloadQueue.h"
+#include "../config/SettingsManager.h"
 #include <filesystem>
+#include <QDesktopServices>
+#include <QUrl>
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -30,8 +33,8 @@ QString formatBytes(uint64_t bytes) {
 }
 }
 
-DownloadStatusDialog::DownloadStatusDialog(std::shared_ptr<DownloadTask> task, DownloadQueue* queue, QWidget* parent)
-    : QDialog(parent), m_task(std::move(task)), m_queue(queue) {
+DownloadStatusDialog::DownloadStatusDialog(std::shared_ptr<DownloadTask> task, DownloadQueue* queue, SettingsManager* settings, QWidget* parent)
+    : QDialog(parent), m_task(std::move(task)), m_queue(queue), m_settings(settings) {
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
     setWindowTitle(QStringLiteral("Downloading..."));
@@ -220,8 +223,20 @@ void DownloadStatusDialog::onRefreshTick() {
         m_completedPopupTriggered = true;
         m_timer->stop();
         close();
-        if (!m_task->is_mute_sound()) {
+
+        bool showCompleteDlg = m_settings ? m_settings->get_settings().show_download_complete_dialog : true;
+        bool autoOpenFile = m_settings ? m_settings->get_settings().auto_open_completed_file : false;
+        bool playSound = m_settings ? m_settings->get_settings().play_sound_on_completion : true;
+
+        if (autoOpenFile) {
+            QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(m_task->get_destination_filepath())));
+        }
+
+        if (showCompleteDlg) {
             auto* compDlg = new DownloadCompleteDialog(m_task->get_destination_filepath(), total, parentWidget());
+            if (m_task->is_mute_sound() || !playSound) {
+                // If muted or sound disabled in settings
+            }
             compDlg->show();
         }
     }
@@ -235,7 +250,13 @@ void DownloadStatusDialog::onOverrideSecurityClicked() {
     m_completedPopupTriggered = true;
     m_timer->stop();
     close();
-    if (!m_task->is_mute_sound()) {
+
+    bool showCompleteDlg = m_settings ? m_settings->get_settings().show_download_complete_dialog : true;
+    bool autoOpenFile = m_settings ? m_settings->get_settings().auto_open_completed_file : false;
+    if (autoOpenFile) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(m_task->get_destination_filepath())));
+    }
+    if (showCompleteDlg) {
         auto* compDlg = new DownloadCompleteDialog(m_task->get_destination_filepath(), m_task->get_total_size(), parentWidget());
         compDlg->show();
     }

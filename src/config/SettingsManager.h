@@ -38,6 +38,10 @@ struct AppSettings {
     bool enable_small_file_bypass{true};
     uint64_t min_capture_size_bytes{10 * 1024 * 1024};
     bool show_start_download_dialog{false};
+    bool show_download_complete_dialog{true};
+    bool play_sound_on_completion{true};
+    bool auto_open_completed_file{false};
+    int max_chunk_retries{5};
     std::string file_types{"ZIP RAR 7Z ISO TAR GZ EXE MSI MP4 MKV WEBM MP3 FLAC WAV PDF DMG DAT BIN APK CSV"};
 
     std::map<std::string, std::string> category_folders{

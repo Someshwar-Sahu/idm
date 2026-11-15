@@ -79,6 +79,8 @@ public:
     void set_mock_transport(MockTransport mock);
     bool download(uint64_t file_size, int num_chunks, ProgressCallback callback = nullptr);
     bool verify_integrity(const std::string& expected_sha256) const;
+    void cancel() { m_cancelled.store(true); }
+    bool is_cancelled() const { return m_cancelled.load(); }
 
     // Accessors
     std::string get_destination_path() const { return m_destination_path; }
@@ -90,6 +92,7 @@ private:
     int m_num_threads{4};
     MultiplexStrategy m_strategy{MultiplexStrategy::RoundRobin};
     uint32_t m_max_mirror_failures{3};
+    std::atomic<bool> m_cancelled{false};
 
     std::vector<Mirror> m_mirrors;
     mutable std::mutex m_mirror_mutex;

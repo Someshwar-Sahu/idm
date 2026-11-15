@@ -22,7 +22,8 @@ ChunkWorker::ChunkWorker(const string &url,
       m_max_bytes_per_sec(max_bytes_per_sec),
       m_referer(referer),
       m_cookies(cookies),
-      m_user_agent(user_agent) {
+      m_user_agent(user_agent),
+      m_max_retries(s_default_max_retries) {
     m_curl = curl_easy_init();
 }
 
@@ -119,9 +120,11 @@ bool ChunkWorker::download() {
         return true;
     }
 
-    constexpr int MAX_RETRIES = 5;
+    int MAX_RETRIES = (m_max_retries > 0) ? m_max_retries : 5;
     int attempt = 0;
     int backoff_seconds = 2;
+    CURLcode res = CURLE_OK;
+    long http_code = 0;
 
     while (attempt < MAX_RETRIES) {
         if (m_pause_requested && m_pause_requested->load()) {
@@ -249,7 +252,7 @@ bool ChunkWorker::download() {
             }
         }
 
-        CURLcode res = curl_easy_perform(m_curl);
+        res = curl_easy_perform(m_curl);
 
         if (bonding && !bound_interface.empty()) {
             if (res == CURLE_OK) {
@@ -269,7 +272,7 @@ bool ChunkWorker::download() {
             return false;
         }
 
-        long http_code = 0;
+        http_code = 0;
         curl_easy_getinfo(m_curl, CURLINFO_RESPONSE_CODE, &http_code);
 
         // Check if rate limited (429) or service temporarily unavailable (503)
@@ -322,6 +325,7 @@ bool ChunkWorker::download() {
         return false;
     }
 
-    m_chunk_manager.mark_chunk_failed(m_chunk.id);
+    std::string fail_reason = std::string(curl_easy_strerror(res)) + " (HTTP " + std::to_string(http_code) + ")";
+    m_chunk_manager.mark_chunk_failed(m_chunk.id, MAX_RETRIES, fail_reason);
     return false;
 }

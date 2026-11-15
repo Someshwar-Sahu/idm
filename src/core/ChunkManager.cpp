@@ -183,16 +183,49 @@ void ChunkManager::mark_chunk_done(int chunk_id) {
     }
 }
 
-void ChunkManager::mark_chunk_failed(int chunk_id, int max_retries) {
+void ChunkManager::mark_chunk_failed(int chunk_id, int max_retries, const std::string &reason) {
     lock_guard<mutex> lock(m_mutex);
     if (chunk_id >= 0 && chunk_id < static_cast<int>(m_chunks.size())) {
         m_chunks[chunk_id].retry_count++;
+        if (!reason.empty()) {
+            m_last_failure_reason = reason;
+        }
         if (m_chunks[chunk_id].retry_count < max_retries) {
             m_chunks[chunk_id].state = ChunkState::Pending; 
         } else {
             m_chunks[chunk_id].state = ChunkState::Failed; 
         }
     }
+}
+
+void ChunkManager::reset_incomplete_chunk_retries() {
+    lock_guard<mutex> lock(m_mutex);
+    m_last_failure_reason.clear();
+    for (auto &c : m_chunks) {
+        if (c.state != ChunkState::Done) {
+            c.state = ChunkState::Pending;
+            c.retry_count = 0;
+        }
+    }
+}
+
+std::string ChunkManager::get_last_failure_reason() const {
+    lock_guard<mutex> lock(m_mutex);
+    return m_last_failure_reason;
+}
+
+uint64_t ChunkManager::get_total_remaining_bytes() const {
+    lock_guard<mutex> lock(m_mutex);
+    uint64_t remaining = 0;
+    for (const auto &c : m_chunks) {
+        if (c.state != ChunkState::Done) {
+            uint64_t total = c.total_bytes();
+            if (total > c.bytes_downloaded) {
+                remaining += (total - c.bytes_downloaded);
+            }
+        }
+    }
+    return remaining;
 }
 
 bool ChunkManager::is_complete() const {

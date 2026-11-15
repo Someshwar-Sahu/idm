@@ -37,6 +37,11 @@ public:
     static void set_default_channel_bonding(std::shared_ptr<ChannelBonding> bonding) { s_default_channel_bonding = bonding; }
     static std::shared_ptr<ChannelBonding> get_default_channel_bonding() { return s_default_channel_bonding; }
 
+    void set_max_retries(int retries) { m_max_retries = (retries > 0) ? retries : 5; }
+    int get_max_retries() const { return m_max_retries; }
+    static void set_default_max_retries(int retries) { s_default_max_retries = (retries > 0) ? retries : 5; }
+    static int get_default_max_retries() { return s_default_max_retries; }
+
     void set_auth_credentials(const std::string &username, const std::string &password, const std::string &auth_header = "") {
         m_username = username;
         m_password = password;
@@ -78,6 +83,8 @@ private:
     std::atomic<bool> *m_pause_requested{nullptr};
     std::shared_ptr<ChannelBonding> m_channel_bonding{nullptr};
     inline static std::shared_ptr<ChannelBonding> s_default_channel_bonding{nullptr};
+    int m_max_retries{5};
+    inline static int s_default_max_retries{5};
 };
 
 #endif

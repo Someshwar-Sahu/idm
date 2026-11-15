@@ -31,12 +31,17 @@ private slots:
     void onOkClicked();
     void onAddWhitelistDomain();
     void onRemoveWhitelistEntry();
+    void onAddCategoryRule();
+    void onEditCategoryRule();
+    void onRemoveCategoryRule();
+    void onResetCategories();
 
 private:
     void setupUi();
     void loadSettings();
     void saveSettings();
     void refreshWhitelistTable();
+    void refreshCategoryTable();
 
     SettingsManager* m_settings{nullptr};
 
@@ -64,6 +69,11 @@ private:
     QPushButton* m_browseTempDirBtn{nullptr};
     QSpinBox* m_maxCacheLimitSpin{nullptr};
     QSpinBox* m_cacheExpirySpin{nullptr};
+    QTableWidget* m_categoryTable{nullptr};
+    QPushButton* m_addCategoryBtn{nullptr};
+    QPushButton* m_editCategoryBtn{nullptr};
+    QPushButton* m_removeCategoryBtn{nullptr};
+    QPushButton* m_resetCategoriesBtn{nullptr};
 
     // Tab 4: Connection
     QComboBox* m_connectionTypeCombo{nullptr};
@@ -74,7 +84,10 @@ private:
     QLabel* m_speedUnitLabel{nullptr};
 
     // Tab 5: Downloads
-    QCheckBox* m_autoStartCompletedCheck{nullptr};
+    QCheckBox* m_showCompleteDialogCheck{nullptr};
+    QCheckBox* m_playSoundCompleteCheck{nullptr};
+    QCheckBox* m_autoOpenFileCheck{nullptr};
+    QSpinBox* m_maxChunkRetriesSpin{nullptr};
 
     // Tab 6: Security & Whitelist
     QCheckBox* m_antivirusScanCheck{nullptr};

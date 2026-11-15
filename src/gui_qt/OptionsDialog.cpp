@@ -8,6 +8,7 @@
 #include "OptionsDialog.h"
 #include "../native_host/NativeHost.h"
 #include "../core/ResumeStore.h"
+#include "../core/ChunkWorker.h"
 #include "../security/AntivirusScanner.h"
 #include <filesystem>
 #include <fstream>
@@ -230,18 +231,46 @@ void OptionsDialog::setupUi() {
 
     saveLayout->addWidget(cacheLimitGroup);
 
-    auto* catDescGroup = new QGroupBox(QStringLiteral("Category Subdirectories"), tabSaveTo);
-    auto* catDescLayout = new QVBoxLayout(catDescGroup);
-    catDescLayout->addWidget(new QLabel(
-        QStringLiteral("Downloads are automatically sorted into category subfolders:\n"
-                       "  - Compressed: /Compressed\n"
-                       "  - Documents: /Documents\n"
-                       "  - Music: /Music\n"
-                       "  - Programs: /Programs\n"
-                       "  - Videos: /Videos"),
-        catDescGroup
-    ));
-    saveLayout->addWidget(catDescGroup);
+    auto* catGroup = new QGroupBox(QStringLiteral("File Extension to Category Mapping"), tabSaveTo);
+    auto* catLayout = new QVBoxLayout(catGroup);
+    catLayout->setSpacing(8);
+
+    m_categoryTable = new QTableWidget(catGroup);
+    m_categoryTable->setColumnCount(3);
+    m_categoryTable->setHorizontalHeaderLabels({
+        QStringLiteral("File Extension"),
+        QStringLiteral("Category"),
+        QStringLiteral("Subfolder")
+    });
+    m_categoryTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_categoryTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    m_categoryTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_categoryTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_categoryTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_categoryTable->setAlternatingRowColors(true);
+    m_categoryTable->setMinimumHeight(160);
+    catLayout->addWidget(m_categoryTable);
+
+    auto* catBtnLayout = new QHBoxLayout();
+    m_addCategoryBtn = new QPushButton(QStringLiteral("+ Add Rule..."), catGroup);
+    connect(m_addCategoryBtn, &QPushButton::clicked, this, &OptionsDialog::onAddCategoryRule);
+    catBtnLayout->addWidget(m_addCategoryBtn);
+
+    m_editCategoryBtn = new QPushButton(QStringLiteral("Edit Rule..."), catGroup);
+    connect(m_editCategoryBtn, &QPushButton::clicked, this, &OptionsDialog::onEditCategoryRule);
+    catBtnLayout->addWidget(m_editCategoryBtn);
+
+    m_removeCategoryBtn = new QPushButton(QStringLiteral("- Remove Rule"), catGroup);
+    connect(m_removeCategoryBtn, &QPushButton::clicked, this, &OptionsDialog::onRemoveCategoryRule);
+    catBtnLayout->addWidget(m_removeCategoryBtn);
+
+    m_resetCategoriesBtn = new QPushButton(QStringLiteral("Reset to Defaults"), catGroup);
+    connect(m_resetCategoriesBtn, &QPushButton::clicked, this, &OptionsDialog::onResetCategories);
+    catBtnLayout->addWidget(m_resetCategoriesBtn);
+
+    catBtnLayout->addStretch(1);
+    catLayout->addLayout(catBtnLayout);
+    saveLayout->addWidget(catGroup);
     saveLayout->addStretch(1);
 
     m_tabWidget->addTab(tabSaveTo, QStringLiteral("Save To"));
@@ -326,13 +355,39 @@ void OptionsDialog::setupUi() {
     auto* dlLayout = new QVBoxLayout(tabDownloads);
     dlLayout->setSpacing(12);
 
-    auto* dlOptionsGroup = new QGroupBox(QStringLiteral("Download Automation & Options"), tabDownloads);
-    auto* dlOptionsLayout = new QVBoxLayout(dlOptionsGroup);
-    dlOptionsLayout->addWidget(new QLabel(QStringLiteral("Default actions and settings for download tasks:"), dlOptionsGroup));
-    auto* autoOpenLabel = new QLabel(QStringLiteral("• Downloads automatically sort into category folders\n• Incomplete tasks automatically save checkpoint state on pause/exit\n• File integrity verified via multi-chunk resume store"), dlOptionsGroup);
-    autoOpenLabel->setStyleSheet(QStringLiteral("color: #a1a1aa; line-height: 1.4;"));
-    dlOptionsLayout->addWidget(autoOpenLabel);
+    auto* dlOptionsGroup = new QGroupBox(QStringLiteral("Download Completion & Automation"), tabDownloads);
+    auto* dlGrid = new QGridLayout(dlOptionsGroup);
+    dlGrid->setHorizontalSpacing(10);
+    dlGrid->setVerticalSpacing(12);
+
+    m_showCompleteDialogCheck = new QCheckBox(QStringLiteral("Show 'Download Complete' dialog when download finishes"), dlOptionsGroup);
+    dlGrid->addWidget(m_showCompleteDialogCheck, 0, 0, 1, 2);
+
+    m_playSoundCompleteCheck = new QCheckBox(QStringLiteral("Play audio chime upon completion"), dlOptionsGroup);
+    dlGrid->addWidget(m_playSoundCompleteCheck, 1, 0, 1, 2);
+
+    m_autoOpenFileCheck = new QCheckBox(QStringLiteral("Automatically open completed file with default application"), dlOptionsGroup);
+    dlGrid->addWidget(m_autoOpenFileCheck, 2, 0, 1, 2);
+
+    dlGrid->addWidget(new QLabel(QStringLiteral("Maximum retry attempts per chunk (1 - 20):"), dlOptionsGroup), 3, 0);
+    m_maxChunkRetriesSpin = new QSpinBox(dlOptionsGroup);
+    m_maxChunkRetriesSpin->setRange(1, 20);
+    m_maxChunkRetriesSpin->setValue(5);
+    dlGrid->addWidget(m_maxChunkRetriesSpin, 3, 1);
+
     dlLayout->addWidget(dlOptionsGroup);
+
+    auto* dlNotesGroup = new QGroupBox(QStringLiteral("Reliability & Resumption Guarantees"), tabDownloads);
+    auto* dlNotesLayout = new QVBoxLayout(dlNotesGroup);
+    auto* notesLabel = new QLabel(QStringLiteral(
+        "• Automatic Resumption: Incomplete tasks automatically restore byte offsets from sidecar state.\n"
+        "• Adaptive Tail Stealing: Prevents thread starvation on multi-gigabyte transfers.\n"
+        "• Smart Power Management: Dynamically bounds concurrent chunk workers based on AC/Battery status.\n"
+        "• On-access Defender Filter: Seamless background virus scans with Mark-of-the-Web (MOTW)."
+    ), dlNotesGroup);
+    notesLabel->setStyleSheet(QStringLiteral("color: #a1a1aa; line-height: 1.5; font-size: 11px;"));
+    dlNotesLayout->addWidget(notesLabel);
+    dlLayout->addWidget(dlNotesGroup);
     dlLayout->addStretch(1);
 
     m_tabWidget->addTab(tabDownloads, QStringLiteral("Downloads"));
@@ -460,9 +515,15 @@ void OptionsDialog::loadSettings() {
 
     // Downloads & Security
     m_showStartDialogCheck->setChecked(s.show_start_download_dialog);
+    if (m_showCompleteDialogCheck) m_showCompleteDialogCheck->setChecked(s.show_download_complete_dialog);
+    if (m_playSoundCompleteCheck) m_playSoundCompleteCheck->setChecked(s.play_sound_on_completion);
+    if (m_autoOpenFileCheck) m_autoOpenFileCheck->setChecked(s.auto_open_completed_file);
+    if (m_maxChunkRetriesSpin) m_maxChunkRetriesSpin->setValue(s.max_chunk_retries > 0 ? s.max_chunk_retries : 5);
+
     m_antivirusScanCheck->setChecked(s.antivirus_scan_enabled);
     m_antivirusPathEdit->setText(QString::fromStdString(s.antivirus_executable_path));
     refreshWhitelistTable();
+    refreshCategoryTable();
 }
 
 void OptionsDialog::saveSettings() {
@@ -512,6 +573,25 @@ void OptionsDialog::saveSettings() {
     }
 
     s.show_start_download_dialog = m_showStartDialogCheck->isChecked();
+    if (m_showCompleteDialogCheck) s.show_download_complete_dialog = m_showCompleteDialogCheck->isChecked();
+    if (m_playSoundCompleteCheck) s.play_sound_on_completion = m_playSoundCompleteCheck->isChecked();
+    if (m_autoOpenFileCheck) s.auto_open_completed_file = m_autoOpenFileCheck->isChecked();
+    if (m_maxChunkRetriesSpin) {
+        s.max_chunk_retries = m_maxChunkRetriesSpin->value();
+        ChunkWorker::set_default_max_retries(s.max_chunk_retries);
+    }
+
+    if (m_categoryTable) {
+        s.extension_to_category.clear();
+        for (int r = 0; r < m_categoryTable->rowCount(); ++r) {
+            auto* extItem = m_categoryTable->item(r, 0);
+            auto* catItem = m_categoryTable->item(r, 1);
+            if (extItem && catItem && !extItem->text().trimmed().isEmpty()) {
+                s.extension_to_category[extItem->text().trimmed().toLower().toStdString()] = catItem->text().trimmed().toStdString();
+            }
+        }
+    }
+
     s.antivirus_scan_enabled = m_antivirusScanCheck->isChecked();
     s.antivirus_executable_path = m_antivirusPathEdit->text().trimmed().toStdString();
 
@@ -694,5 +774,156 @@ void OptionsDialog::onRemoveWhitelistEntry() {
     AntivirusScanner::remove_from_whitelist(entry.toStdString());
     AntivirusScanner::save_whitelist();
     refreshWhitelistTable();
+}
+
+void OptionsDialog::refreshCategoryTable() {
+    if (!m_settings || !m_categoryTable) return;
+    auto s = m_settings->get_settings();
+    m_categoryTable->setRowCount(0);
+
+    for (const auto& [ext, cat] : s.extension_to_category) {
+        int r = m_categoryTable->rowCount();
+        m_categoryTable->insertRow(r);
+
+        std::string folder = cat;
+        auto fit = s.category_folders.find(cat);
+        if (fit != s.category_folders.end()) {
+            folder = fit->second;
+        }
+
+        auto* extItem = new QTableWidgetItem(QString::fromStdString(ext));
+        auto* catItem = new QTableWidgetItem(QString::fromStdString(cat));
+        auto* subItem = new QTableWidgetItem(QStringLiteral("/") + QString::fromStdString(folder));
+
+        extItem->setFlags(extItem->flags() & ~Qt::ItemIsEditable);
+        catItem->setFlags(catItem->flags() & ~Qt::ItemIsEditable);
+        subItem->setFlags(subItem->flags() & ~Qt::ItemIsEditable);
+
+        m_categoryTable->setItem(r, 0, extItem);
+        m_categoryTable->setItem(r, 1, catItem);
+        m_categoryTable->setItem(r, 2, subItem);
+    }
+}
+
+void OptionsDialog::onAddCategoryRule() {
+    bool ok = false;
+    QString ext = QInputDialog::getText(
+        this,
+        QStringLiteral("Add Extension Category Rule"),
+        QStringLiteral("File extension (e.g. .mkv, .iso, .zip, .apk):"),
+        QLineEdit::Normal,
+        QStringLiteral("."),
+        &ok
+    );
+    if (!ok || ext.trimmed().isEmpty() || ext.trimmed() == QStringLiteral(".")) return;
+
+    QString cleanExt = ext.trimmed().toLower();
+    if (!cleanExt.startsWith(QLatin1Char('.'))) cleanExt.prepend(QLatin1Char('.'));
+
+    QStringList categories = {
+        QStringLiteral("Compressed"),
+        QStringLiteral("Documents"),
+        QStringLiteral("Music"),
+        QStringLiteral("Programs"),
+        QStringLiteral("Videos"),
+        QStringLiteral("General")
+    };
+
+    QString cat = QInputDialog::getItem(
+        this,
+        QStringLiteral("Select Category"),
+        QStringLiteral("Assign to category:"),
+        categories,
+        0,
+        false,
+        &ok
+    );
+    if (!ok || cat.isEmpty()) return;
+
+    // Check if extension already exists in table
+    for (int r = 0; r < m_categoryTable->rowCount(); ++r) {
+        if (m_categoryTable->item(r, 0)->text().compare(cleanExt, Qt::CaseInsensitive) == 0) {
+            m_categoryTable->item(r, 1)->setText(cat);
+            m_categoryTable->item(r, 2)->setText(QStringLiteral("/") + cat);
+            return;
+        }
+    }
+
+    int r = m_categoryTable->rowCount();
+    m_categoryTable->insertRow(r);
+    auto* extItem = new QTableWidgetItem(cleanExt);
+    auto* catItem = new QTableWidgetItem(cat);
+    auto* subItem = new QTableWidgetItem(QStringLiteral("/") + cat);
+    extItem->setFlags(extItem->flags() & ~Qt::ItemIsEditable);
+    catItem->setFlags(catItem->flags() & ~Qt::ItemIsEditable);
+    subItem->setFlags(subItem->flags() & ~Qt::ItemIsEditable);
+
+    m_categoryTable->setItem(r, 0, extItem);
+    m_categoryTable->setItem(r, 1, catItem);
+    m_categoryTable->setItem(r, 2, subItem);
+}
+
+void OptionsDialog::onEditCategoryRule() {
+    int r = m_categoryTable->currentRow();
+    if (r < 0 || r >= m_categoryTable->rowCount()) {
+        QMessageBox::information(this, QStringLiteral("Select Rule"), QStringLiteral("Please select an extension rule from the table to edit."));
+        return;
+    }
+
+    QString curExt = m_categoryTable->item(r, 0)->text();
+    QString curCat = m_categoryTable->item(r, 1)->text();
+
+    QStringList categories = {
+        QStringLiteral("Compressed"),
+        QStringLiteral("Documents"),
+        QStringLiteral("Music"),
+        QStringLiteral("Programs"),
+        QStringLiteral("Videos"),
+        QStringLiteral("General")
+    };
+    int curIdx = categories.indexOf(curCat);
+    if (curIdx < 0) curIdx = 0;
+
+    bool ok = false;
+    QString newCat = QInputDialog::getItem(
+        this,
+        QStringLiteral("Edit Category Rule"),
+        QStringLiteral("Category for %1:").arg(curExt),
+        categories,
+        curIdx,
+        false,
+        &ok
+    );
+    if (ok && !newCat.isEmpty()) {
+        m_categoryTable->item(r, 1)->setText(newCat);
+        m_categoryTable->item(r, 2)->setText(QStringLiteral("/") + newCat);
+    }
+}
+
+void OptionsDialog::onRemoveCategoryRule() {
+    int r = m_categoryTable->currentRow();
+    if (r < 0 || r >= m_categoryTable->rowCount()) {
+        QMessageBox::information(this, QStringLiteral("Select Rule"), QStringLiteral("Please select an extension rule from the table to remove."));
+        return;
+    }
+    m_categoryTable->removeRow(r);
+}
+
+void OptionsDialog::onResetCategories() {
+    if (!m_settings) return;
+    auto ret = QMessageBox::question(
+        this,
+        QStringLiteral("Reset Categories"),
+        QStringLiteral("Reset all file extension to category mappings back to default factory settings?"),
+        QMessageBox::Yes | QMessageBox::No
+    );
+    if (ret != QMessageBox::Yes) return;
+
+    AppSettings defaults;
+    auto s = m_settings->get_settings();
+    s.extension_to_category = defaults.extension_to_category;
+    s.category_folders = defaults.category_folders;
+    m_settings->update_settings(s);
+    refreshCategoryTable();
 }
 

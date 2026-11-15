@@ -268,12 +268,15 @@ async function handleDeterminingFilename(downloadItem, suggest) {
       return;
     }
 
-    // 4. Dynamic / Unknown Stream Guard under Small File Bypass:
-    // When small file bypass is enabled, unverified/unknown-size streams (e.g. Google Docs / Office exports,
-    // dynamic server streams without Content-Length) cannot be chunk-accelerated by IDM and rely on in-browser
-    // session state. Let the browser download them natively unless explicitly forced by the user.
-    if (smallBypassEnabled && fileSize <= 0) {
-      console.log("[IDM Extension] Unknown-size dynamic stream under small file bypass. Letting browser download natively:", url);
+    // 4. Dynamic Stream Guard for In-Browser Web Apps (e.g. Google Docs / Office exports):
+    // Real binary downloads (e.g. .mkv, .mp4, .zip, .iso, .exe) often report totalBytes <= 0 initially
+    // before Chrome receives headers. IDM must intercept these to negotiate multi-threading.
+    // Only bypass if the URL matches dynamic web app export generators that lack pre-computed sizes.
+    const isDynamicDocExport = /docs\.google\.com\/(document|spreadsheets|presentation)\/.*export/i.test(url) ||
+                               /drive\.google\.com\/.*export/i.test(url) ||
+                               /officeapps\.live\.com/i.test(url);
+    if (smallBypassEnabled && fileSize <= 0 && isDynamicDocExport) {
+      console.log("[IDM Extension] Google Docs / Office dynamic export stream. Letting browser download natively:", url);
       suggest();
       return;
     }
